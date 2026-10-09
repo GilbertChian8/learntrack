@@ -27,7 +27,7 @@ test('the right password answers 200 with an 8 hour token and the user', functio
         ->and($data['token'])->toMatch('/^[\w-]+\.[\w-]+\.[\w-]+$/')
         ->and($data['token_type'])->toBe('Bearer')
         ->and($data['user'])->toBe(['id' => $educator->id, 'name' => $educator->name, 'role' => 'educator'])
-        ->and($data['expires_at'])->toEndWith(now('Europe/Berlin')->format('P'))
+        ->and($data['expires_at'])->toEndWith(now()->addHours(8)->setTimezone('Europe/Berlin')->format('P'))
         ->and($expiresAt->diffInSeconds(now()->addHours(8), absolute: true))->toBeLessThan(60);
 });
 
