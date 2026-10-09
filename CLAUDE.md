@@ -80,6 +80,7 @@ Pest runs against MySQL (docker compose), not SQLite: the unique keys, the ENUMs
 cp .env.example .env
 composer install && npm ci
 php artisan key:generate
+php artisan passport:keys       # token signing keys in storage/, for tests run on the host
 docker compose up -d            # app on http://localhost:8080, MySQL 8
 php artisan migrate --seed      # demo data: 2 institutions, groups, content, progress with learners behind
 npm run dev                     # Vite, for the three pages

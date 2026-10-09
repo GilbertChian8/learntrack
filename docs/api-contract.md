@@ -92,6 +92,8 @@ One shape everywhere, including GraphQL requests rejected before the query runs:
 
 The 401 response from `/api/v1/*` and `/mcp` carries `WWW-Authenticate: Bearer`.
 
+An unknown `/api/v1` path, or a method the path does not serve, answers 404 `not_found`.
+
 ### Roles
 
 - Educator routes answer 403 to learners. Learner routes answer 403 to educators. `GET /api/v1/me`, `POST /api/v1/auth/logout` serve both.

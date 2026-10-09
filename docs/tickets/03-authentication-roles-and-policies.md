@@ -14,7 +14,7 @@ Passport issues tokens; `POST /api/v1/auth/login`, `logout` and `GET /api/v1/me`
 
 ## Allowed paths
 
-`app/Exceptions/**`, `app/Http/Controllers/Api/Auth/**`, `app/Http/Controllers/Api/Controller.php`, `app/Http/Middleware/**`, `app/Http/Requests/Auth/**`, `app/Http/Resources/UserResource.php`, `app/Policies/**`, `app/Providers/**`, `app/Support/**`, `bootstrap/app.php`, `config/auth.php`, `config/passport.php`, `routes/api.php`, `database/seeders/PassportSeeder.php`, `database/seeders/DatabaseSeeder.php`, `tests/Feature/Auth/**`, `tests/Unit/Policies/**`, `.env.example`, `compose.yaml` (the keys line), `.github/workflows/ci.yml` (the keys step).
+`app/Exceptions/**`, `app/Http/Controllers/Api/Auth/**`, `app/Http/Controllers/Api/Controller.php`, `app/Http/Middleware/**`, `app/Http/Requests/Auth/**`, `app/Http/Resources/UserResource.php`, `app/Policies/**`, `app/Providers/**`, `app/Support/**`, `bootstrap/app.php`, `config/auth.php`, `config/passport.php`, `routes/api.php`, `database/seeders/PassportSeeder.php`, `database/seeders/DatabaseSeeder.php`, `tests/Feature/Auth/**`, `tests/Unit/Policies/**`, `.env.example`, `docker/local-entrypoint.sh` (the keys line; compose runs it as the app's entrypoint), `.github/workflows/ci.yml` (the keys step).
 
 ## Steps
 

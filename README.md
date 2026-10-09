@@ -10,6 +10,7 @@ Needs Docker, PHP 8.5 with Composer, and Node 24.
 cp .env.example .env
 composer install && npm ci
 php artisan key:generate
+php artisan passport:keys       # token signing keys in storage/, for tests run on the host
 docker compose up -d            # app on http://localhost:8080, MySQL 8 on port 3306
 php artisan migrate --seed      # demo data
 npm run dev                     # Vite, for the three pages
