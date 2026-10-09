@@ -5,9 +5,8 @@ includes:
 parameters:
     paths:
         - app/
-        - bootstrap/app.php
-        - config/
         - database/
         - routes/
+        - tests/
 
-    level: 7
+    level: 6
