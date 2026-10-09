@@ -90,7 +90,7 @@ One shape everywhere, including GraphQL requests rejected before the query runs:
 | 429 | `too_many_requests` | A rate limit was hit. The response carries a `Retry-After` header in seconds | `retry_after`: the same number |
 | 500 | `server_error` | An unexpected failure. The message never contains internals | none |
 
-The 401 response from `/api/v1/*` and `/mcp` carries `WWW-Authenticate: Bearer`.
+The 401 response from `/api/v1/*`, `/graphql` and `/mcp` carries `WWW-Authenticate: Bearer`.
 
 An unknown `/api/v1` path, or a method the path does not serve, answers 404 `not_found`.
 
