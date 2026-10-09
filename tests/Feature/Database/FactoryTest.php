@@ -29,6 +29,8 @@ test('every factory and state creates a valid row', function () {
         expect($model->newQuery()->whereKey($model->getKey())->exists())->toBeTrue();
     }
 
+    $startedGroup = Group::query()->findOrFail($started->assignment()->value('group_id'));
+
     expect($educator->role)->toBe(Role::Educator)
         ->and($learners->every(fn (User $learner) => $learner->role === Role::Learner))->toBeTrue()
         ->and($subset->scope)->toBe(AssignmentScope::Learners)
@@ -38,6 +40,8 @@ test('every factory and state creates a valid row', function () {
         ->and($removed->removed_key)->toBe($removed->id)
         ->and($started->status)->toBe(ProgressStatus::InProgress)
         ->and($started->completed_at)->toBeNull()
+        ->and($startedGroup->learners()->whereKey($started->user_id)->exists())->toBeTrue()
+        ->and(User::query()->whereKey($started->user_id)->value('institution_id'))->toBe($startedGroup->institution_id)
         ->and($completed->status)->toBe(ProgressStatus::Completed)
         ->and($completed->score)->toBe(72)
         ->and($completed->completed_at)->not->toBeNull();

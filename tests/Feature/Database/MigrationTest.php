@@ -8,17 +8,8 @@ use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 use function Pest\Laravel\artisan;
-
-/**
- * @return array{name: string, columns: list<string>, type: string, unique: bool, primary: bool}|null
- */
-function findIndex(string $table, string $name): ?array
-{
-    return collect(Schema::getIndexes($table))->firstWhere('name', $name);
-}
 
 test('migrate:fresh creates the keys and the CHECK constraints of the DDL', function () {
     artisan('migrate:fresh')->assertSuccessful();

@@ -448,7 +448,7 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 2\. **Data model, migrations and seed (2 days)** [ADR-007, ADR-008]
 
 - Migrations for every table in Database Design, with the unique keys and the CHECK constraints.
-- Seed: 2 institutions, 6 educators, about 300 learners, 12 groups, 40 content items across 6 topics, assignments with past and future due dates, subset assignments, and progress that leaves some learners behind by overdue work and some by low scores. A fixed random seed, so every machine gets the same demo data.
+- Seed: 2 institutions, 6 educators, about 300 learners, 12 groups, 40 content items across 6 topics, assignments with past and future due dates, subset assignments, and progress that leaves some learners behind by overdue work and some by low scores. A fixed random seed, so every machine gets the same names, memberships, assignments and scores; due dates are relative to the seeding day so the demo always has overdue and upcoming work.
 - Factories for tests.
 
 3\. **Authentication, roles and Policies (2 days)** [ADR-003, ADR-006]

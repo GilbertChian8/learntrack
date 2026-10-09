@@ -14,7 +14,8 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 class ProgressFactory extends Factory
 {
     /**
-     * Define the model's default state: started, not completed.
+     * Define the model's default state: started, not completed, by a learner
+     * of the assignment's institution.
      *
      * @return array<string, mixed>
      */
@@ -22,12 +23,27 @@ class ProgressFactory extends Factory
     {
         return [
             'assignment_id' => Assignment::factory(),
-            'user_id' => User::factory()->learner(),
+            'user_id' => fn (array $attributes) => User::factory()->learner()->state([
+                'institution_id' => Assignment::query()
+                    ->join('learner_groups', 'learner_groups.id', '=', 'assignments.group_id')
+                    ->whereKey($attributes['assignment_id'])
+                    ->value('learner_groups.institution_id'),
+            ]),
             'status' => ProgressStatus::InProgress,
             'score' => null,
             'started_at' => now()->subDays(fake()->numberBetween(1, 7))->startOfSecond(),
             'completed_at' => null,
         ];
+    }
+
+    /**
+     * Make the learner a member of the assignment's group, so the pair query
+     * sees the row. A learner who is already a member stays as they are.
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(fn (Progress $progress) => $progress->loadMissing('assignment.group')
+            ->assignment->group->learners()->syncWithoutDetaching([$progress->user_id]));
     }
 
     /**

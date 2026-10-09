@@ -58,4 +58,4 @@ Which database stores LearnTrack's data?
 - One engine from laptop to production keeps the N+1 and performance tests honest.
 - Multi-AZ is the part of the chain we cannot skip: the database is the only stateful piece, and its 99.95% is what makes 99.93% possible.
 - Ratified by: Gilbert Lavensky Chan (09/10/2026)
-- Amended 10/10/2026: the active-assignment rule uses a plain removed_key column (0 while active, the row's id once removed) with a CHECK, not a generated column, because MySQL forbids a generated column based on the auto-increment id. The decision is unchanged.
+- Amended 10/10/2026: the active-assignment rule uses a plain removed_key column (0 while active, the row's id once removed) with a CHECK, instead of a generated column derived from removed_at, so uniqueness does not depend on the clock. MySQL forbids a generated column based on the auto-increment id, so the removing write sets the value. The pros and cons above describe the earlier mechanism. The decision is unchanged.

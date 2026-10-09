@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /*
@@ -17,3 +19,46 @@ use Tests\TestCase;
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Feature');
+
+/*
+|--------------------------------------------------------------------------
+| Functions
+|--------------------------------------------------------------------------
+|
+| Helpers shared by the test files. They live here, not in a test file, so
+| no two files can declare the same global function.
+|
+*/
+
+/**
+ * @return array{name: string, columns: list<string>, type: string, unique: bool, primary: bool}|null
+ */
+function findIndex(string $table, string $name): ?array
+{
+    return collect(Schema::getIndexes($table))->firstWhere('name', $name);
+}
+
+/**
+ * Per group and learner: overdue, not completed pairs and the average score
+ * of completed question sets, over the active assignments that target the
+ * learner. Plain SQL, since BehindRule is ticket 09.
+ *
+ * @return list<object{group_id: int, user_id: int, overdue: int, average_score: string|null}>
+ */
+function learnerStanding(): array
+{
+    return DB::select(
+        "select gl.group_id, gl.user_id,
+                coalesce(sum(a.due_at < ? and (p.status is null or p.status <> 'completed')), 0) as overdue,
+                avg(case when c.type = 'question_set' and p.status = 'completed' then p.score end) as average_score
+           from group_learners gl
+           left join assignments a on a.group_id = gl.group_id
+                and a.removed_at is null
+                and (a.scope = 'group' or exists (
+                    select 1 from assignment_learners al where al.assignment_id = a.id and al.user_id = gl.user_id))
+           left join content_items c on c.id = a.content_item_id
+           left join progress p on p.assignment_id = a.id and p.user_id = gl.user_id
+          group by gl.group_id, gl.user_id",
+        [now()->toDateTimeString()],
+    );
+}
