@@ -3,14 +3,14 @@
 namespace Tests;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
-use Laravel\Fortify\Features;
 
 abstract class TestCase extends BaseTestCase
 {
-    protected function skipUnlessFortifyHas(string $feature, ?string $message = null): void
+    protected function setUp(): void
     {
-        if (! Features::enabled($feature)) {
-            $this->markTestSkipped($message ?? "Fortify feature [{$feature}] is not enabled.");
-        }
+        parent::setUp();
+
+        // Pest runs without a frontend build; the pages are checked by name, not by their assets.
+        $this->withoutVite();
     }
 }
