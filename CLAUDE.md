@@ -39,6 +39,7 @@ Pin exact versions in `composer.json` and `package.json` the first time a packag
 - Folders: `app/Models`, `app/Policies`, `app/Actions`, `app/Queries`, `app/Http/Controllers/Api`, `app/Http/Requests`, `app/Http/Resources`, `app/GraphQL`, `app/Mcp/Servers`, `app/Mcp/Tools`, `app/Enums`, `graphql/schema.graphql`, `resources/js/pages/auth`, `resources/js/pages/mcp`.
 - One class per Action and per Query, named as in the TDD (`AssignContent`, `GroupProgress`, `BehindRule`, ...). Actions expose one `__invoke` or `handle` method and return a small result object, not an HTTP response.
 - Validation in Form Requests. Output through API Resources. Enums are PHP backed enums in `app/Enums` with the exact string values from the contract.
+- Prefer a Laravel built-in over custom code: Policies, route model binding, Form Requests, API Resources, cursorPaginate, RateLimiter, SoftDeletes, enum casts, Carbon, and the Passport and laravel/mcp commands. Write custom code only where the contract needs a shape Laravel does not produce (error and paging envelopes, failure-only login limits, audit rows, log redaction, security headers).
 - Raw SQL only inside `app/Queries`, as named query builder or `DB::select` with bindings. Never string-concatenate input into SQL.
 - `env()` only inside `config/`. Everything else reads `config()`.
 - Errors go through one exception handler that renders the contract's `{ "error": { "code", "message", "details" } }` shape. Do not hand-build error JSON in controllers.
@@ -76,8 +77,10 @@ Pest runs against MySQL (docker compose), not SQLite: the generated column, the 
 ## Local development
 
 ```
-docker compose up -d            # app on http://localhost:8080, MySQL 8
+cp .env.example .env
 composer install && npm ci
+php artisan key:generate
+docker compose up -d            # app on http://localhost:8080, MySQL 8
 php artisan migrate --seed      # demo data: 2 institutions, groups, content, progress with learners behind
 npm run dev                     # Vite, for the three pages
 ```
