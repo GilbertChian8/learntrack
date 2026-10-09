@@ -40,10 +40,10 @@ Pin exact versions in `composer.json` and `package.json` the first time a packag
 - One class per Action and per Query, named as in the TDD (`AssignContent`, `GroupProgress`, `BehindRule`, ...). Actions expose one `__invoke` or `handle` method and return a small result object, not an HTTP response.
 - Validation in Form Requests. Output through API Resources. Enums are PHP backed enums in `app/Enums` with the exact string values from the contract.
 - Prefer a Laravel built-in over custom code: Policies, route model binding, Form Requests, API Resources, cursorPaginate, RateLimiter, SoftDeletes, enum casts, Carbon, and the Passport and laravel/mcp commands. Write custom code only where the contract needs a shape Laravel does not produce (error and paging envelopes, failure-only login limits, audit rows, log redaction, security headers).
-- Raw SQL only inside `app/Queries`, as named query builder or `DB::select` with bindings. Never string-concatenate input into SQL. Two exceptions: a migration may run DDL the schema builder cannot express (the CHECK constraint on `progress`), and tests may assert with plain SQL.
+- Raw SQL only inside `app/Queries`, as named query builder or `DB::select` with bindings. Never string-concatenate input into SQL. Two exceptions: a migration may run DDL the schema builder cannot express (the CHECK constraints), and tests may assert with plain SQL.
 - `env()` only inside `config/`. Everything else reads `config()`.
 - Errors go through one exception handler that renders the contract's `{ "error": { "code", "message", "details" } }` shape. Do not hand-build error JSON in controllers.
-- Migrations match the DDL in the TDD, including the generated column and the unique keys. Migrations are expand-only; never drop a column or table in v1.
+- Migrations match the DDL in the TDD, including the unique keys and the CHECK constraints. Migrations are expand-only; never drop a column or table in v1.
 - Tests: Pest, one feature test file per endpoint or tool, factories for data, a fixed clock (`Carbon::setTestNow`) for anything date-based. Every ticket lists its acceptance tests; write those first.
 - Frontend: TypeScript strict, components under `resources/js`, forms through Inertia `useForm`, no API calls from the pages. Delete starter kit pages that are not login, consent or error.
 - Commit messages: imperative, one line under 72 characters, a body when the why is not obvious. Small commits.
@@ -72,7 +72,7 @@ npm run format:check
 npm run types
 ```
 
-Pest runs against MySQL (docker compose), not SQLite: the generated column, the ENUMs and the CHECK constraint must be real.
+Pest runs against MySQL (docker compose), not SQLite: the unique keys, the ENUMs and the CHECK constraints must be real.
 
 ## Local development
 

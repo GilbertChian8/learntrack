@@ -4,7 +4,7 @@
 
 ## Goal
 
-Every table of the TDD's Database Design as migrations, with the generated column, the unique keys and the CHECK constraint; Eloquent models and enums; factories; and one deterministic seed command that produces the demo data the MCP tools will have something to find in.
+Every table of the TDD's Database Design as migrations, with the unique keys and the CHECK constraints; Eloquent models and enums; factories; and one deterministic seed command that produces the demo data the MCP tools will have something to find in.
 
 ## Read first
 
@@ -19,7 +19,7 @@ Every table of the TDD's Database Design as migrations, with the generated colum
 ## Steps
 
 1. Replace the starter kit's `users` migration with the TDD's `users` table (institution_id, role ENUM, no email verification columns, no remember token needed for the API but keep it for the web session). Keep Laravel's `sessions`, `cache`, `cache_locks` tables.
-2. Migrations in DDL order: `institutions`, `users`, `learner_groups`, `group_educators`, `group_learners`, `content_items`, `assignments`, `assignment_learners`, `progress`, `audit_log`. Names, types, nullability, defaults, indexes and foreign keys as in the DDL. `assignments.removed_key` is a STORED generated column (`->storedAs(...)`) and `uq_assignments_active` is on `(group_id, content_item_id, removed_key)`. The index and key names match the DDL.
+2. Migrations in DDL order: `institutions`, `users`, `learner_groups`, `group_educators`, `group_learners`, `content_items`, `assignments`, `assignment_learners`, `progress`, `audit_log`. Names, types, nullability, defaults, indexes and foreign keys as in the DDL. `assignments.removed_key` is a plain `BIGINT UNSIGNED NOT NULL DEFAULT 0` (0 while active, the row's id once removed), `uq_assignments_active` is on `(group_id, content_item_id, removed_key)`, and `chk_assignments_removed` keeps it in step with `removed_at`. The index and key names match the DDL.
 3. Enums in `app/Enums`, backed by the contract's strings: `Role`, `ContentType`, `AssignmentScope`, `ProgressStatus` (`in_progress`, `completed`: what the table stores), `DerivedStatus` (`not_started`, `in_progress`, `completed`, `overdue`: what the API returns), `AuditChannel`, `AuditAction`.
 4. Models: `Institution`, `User`, `Group` (`$table = 'learner_groups'`), `ContentItem`, `Assignment`, `Progress`, `AuditEntry` (`$table = 'audit_log'`). Relationships from the DDL, enum casts, `$fillable`. `Assignment` has a query scope `active()` (`removed_at IS NULL`). `User` has `educatorOf()` and `memberOf()` relationships through the pivot tables.
 5. Factories for every model, with states that matter: `User::factory()->educator()`, `->learner()`, `Assignment::factory()->forLearners([...])`, `->removed()`, `Progress::factory()->completed($score)`.
@@ -28,8 +28,8 @@ Every table of the TDD's Database Design as migrations, with the generated colum
 
 ## Acceptance tests
 
-- A migration test runs `migrate:fresh` and asserts, by reading `information_schema`, that `uq_assignments_active`, `uq_progress_pair`, `idx_assignments_group` and `chk_progress_score` exist and that `assignments.removed_key` is a generated column.
-- Inserting two active assignments for the same group and content item throws a duplicate key `QueryException`; soft-deleting the first (set `removed_at`) and inserting again succeeds.
+- A migration test runs `migrate:fresh` and asserts, by reading `information_schema`, that `uq_assignments_active`, `uq_progress_pair`, `idx_assignments_group`, `chk_progress_score` and `chk_assignments_removed` exist.
+- Inserting two active assignments for the same group and content item throws a duplicate key `QueryException`; removing the first (set `removed_at`, and `removed_key` to its id) and inserting again succeeds. A row with `removed_at` set and `removed_key` 0 is refused by `chk_assignments_removed`.
 - Inserting a progress row with `score = 101` throws (the CHECK constraint); 100 is accepted; `null` is accepted.
 - Two progress rows for the same assignment and user throw a duplicate key error.
 - Every factory creates a valid row (one test that calls each factory once).
