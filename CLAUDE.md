@@ -40,7 +40,7 @@ Pin exact versions in `composer.json` and `package.json` the first time a packag
 - One class per Action and per Query, named as in the TDD (`AssignContent`, `GroupProgress`, `BehindRule`, ...). Actions expose one `__invoke` or `handle` method and return a small result object, not an HTTP response.
 - Validation in Form Requests. Output through API Resources. Enums are PHP backed enums in `app/Enums` with the exact string values from the contract.
 - Prefer a Laravel built-in over custom code: Policies, route model binding, Form Requests, API Resources, cursorPaginate, RateLimiter, SoftDeletes, enum casts, Carbon, and the Passport and laravel/mcp commands. Write custom code only where the contract needs a shape Laravel does not produce (error and paging envelopes, failure-only login limits, audit rows, log redaction, security headers).
-- Raw SQL only inside `app/Queries`, as named query builder or `DB::select` with bindings. Never string-concatenate input into SQL.
+- Raw SQL only inside `app/Queries`, as named query builder or `DB::select` with bindings. Never string-concatenate input into SQL. Two exceptions: a migration may run DDL the schema builder cannot express (the CHECK constraint on `progress`), and tests may assert with plain SQL.
 - `env()` only inside `config/`. Everything else reads `config()`.
 - Errors go through one exception handler that renders the contract's `{ "error": { "code", "message", "details" } }` shape. Do not hand-build error JSON in controllers.
 - Migrations match the DDL in the TDD, including the generated column and the unique keys. Migrations are expand-only; never drop a column or table in v1.
@@ -102,7 +102,7 @@ npm run dev                     # Vite, for the three pages
 - Return an email from an MCP tool, or log a name, email, password or token.
 - Commit secrets, `.env` files, Passport keys or Terraform state.
 - Leave starter kit leftovers: registration, password reset, email verification, profile settings, the welcome page.
-- Use `env()` outside `config/`, raw SQL outside `app/Queries`, or SQLite in tests.
+- Use `env()` outside `config/`, raw SQL outside `app/Queries` (except the two exceptions under Conventions), or SQLite in tests.
 - Widen a ticket's scope. A good idea that is not in the ticket goes in the PR description as a note.
 
 ## Lessons from reviews

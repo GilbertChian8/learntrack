@@ -88,6 +88,7 @@ CREATE TABLE users (
   email           VARCHAR(255) NOT NULL UNIQUE,
   password        VARCHAR(255) NOT NULL,              -- bcrypt hash, never the raw password
   role            ENUM('educator', 'learner') NOT NULL,
+  remember_token  VARCHAR(100) NULL,                  -- "remember me" on the web login only
   created_at      TIMESTAMP NULL,
   updated_at      TIMESTAMP NULL,
   INDEX idx_users_institution_role (institution_id, role),
@@ -197,6 +198,8 @@ CREATE TABLE audit_log (
 ```
 
 Framework tables, created by their own migrations: Passport's oauth_clients, oauth_auth_codes, oauth_access_tokens, oauth_refresh_tokens and oauth_device_codes; Laravel's sessions, cache and cache_locks (ADR-013).
+
+Keys the DDL leaves unnamed take Laravel's default names: foreign keys (`assignments_created_by_foreign`), the email unique key (`users_email_unique`), and the index MySQL adds for a foreign key that no listed index covers (`assignments_content_item_id_foreign`, `assignments_created_by_foreign`, `learner_groups_institution_id_foreign`). Every key the DDL names has exactly that name.
 
 Notes on the design:
 
