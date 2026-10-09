@@ -66,6 +66,9 @@ jobs:
       - name: Vite build
         run: npm run build
 
+      - name: Passport keys
+        run: php artisan passport:keys --force
+
       - name: Pest (MySQL)
         env:
           DB_CONNECTION: mysql

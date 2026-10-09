@@ -12,6 +12,7 @@
         "php": "~8.5.0",
         "inertiajs/inertia-laravel": "3.5.1",
         "laravel/framework": "13.35.0",
+        "laravel/passport": "13.9.0",
         "laravel/tinker": "3.0.2"
     },
     "require-dev": {
