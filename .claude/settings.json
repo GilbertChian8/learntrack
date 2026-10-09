@@ -1,0 +1,61 @@
+{
+    "$schema": "https://json.schemastore.org/claude-code-settings.json",
+    "permissions": {
+        "allow": [
+            "Bash(vendor/bin/pest)",
+            "Bash(vendor/bin/pest *)",
+            "Bash(vendor/bin/pint)",
+            "Bash(vendor/bin/pint *)",
+            "Bash(vendor/bin/phpstan)",
+            "Bash(vendor/bin/phpstan *)",
+            "Bash(npm run *)",
+            "Bash(npm ci)",
+            "Bash(composer *)",
+            "Bash(php artisan *)",
+            "Bash(docker compose *)",
+            "Bash(git status)",
+            "Bash(git status *)",
+            "Bash(git diff)",
+            "Bash(git diff *)",
+            "Bash(git log)",
+            "Bash(git log *)",
+            "Bash(git add *)",
+            "Bash(git commit *)",
+            "Bash(git checkout *)",
+            "Bash(git branch)",
+            "Bash(git branch *)",
+            "Bash(gh pr view)",
+            "Bash(gh pr view *)",
+            "Bash(gh pr diff)",
+            "Bash(gh pr diff *)",
+            "Bash(gh pr checks)",
+            "Bash(gh pr checks *)",
+            "Bash(gh pr comment *)",
+            "Bash(gh run *)"
+        ],
+        "deny": [
+            "Bash(git push --force*)",
+            "Bash(git push * --force*)",
+            "Bash(git push -f*)",
+            "Bash(git push * -f*)",
+            "Bash(git commit --no-verify*)",
+            "Bash(git commit * --no-verify*)",
+            "Bash(rm -rf *)",
+            "Read(./.env)",
+            "Read(./.env.testing)"
+        ]
+    },
+    "hooks": {
+        "PostToolUse": [
+            {
+                "matcher": "Edit|Write|MultiEdit",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format-file.sh"
+                    }
+                ]
+            }
+        ]
+    }
+}

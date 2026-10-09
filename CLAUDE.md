@@ -105,6 +105,10 @@ npm run dev                     # Vite, for the three pages
 - Use `env()` outside `config/`, raw SQL outside `app/Queries`, or SQLite in tests.
 - Widen a ticket's scope. A good idea that is not in the ticket goes in the PR description as a note.
 
+## Lessons from reviews
+
+@docs/review-lessons.md
+
 ===
 
 <laravel-boost-guidelines>
