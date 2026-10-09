@@ -88,6 +88,7 @@ CREATE TABLE users (
   email           VARCHAR(255) NOT NULL UNIQUE,
   password        VARCHAR(255) NOT NULL,              -- bcrypt hash, never the raw password
   role            ENUM('educator', 'learner') NOT NULL,
+  remember_token  VARCHAR(100) NULL,                  -- "remember me" on the web login only
   created_at      TIMESTAMP NULL,
   updated_at      TIMESTAMP NULL,
   INDEX idx_users_institution_role (institution_id, role),
@@ -142,12 +143,13 @@ CREATE TABLE assignments (
   due_at           DATETIME NOT NULL,                  -- UTC
   scope            ENUM('group', 'learners') NOT NULL DEFAULT 'group',
   created_by       BIGINT UNSIGNED NOT NULL,           -- the educator
-  removed_at       DATETIME(6) NULL,                   -- soft delete; progress rows are kept
-  removed_key      DATETIME(6) AS (COALESCE(removed_at, '1000-01-01 00:00:00')) STORED,
+  removed_at       DATETIME NULL,                      -- soft delete; progress rows are kept
+  removed_key      BIGINT UNSIGNED NOT NULL DEFAULT 0, -- 0 while active, the row's id once removed
   created_at       TIMESTAMP NULL,
   updated_at       TIMESTAMP NULL,
   UNIQUE KEY uq_assignments_active (group_id, content_item_id, removed_key),
   INDEX idx_assignments_group (group_id, removed_at, due_at),
+  CONSTRAINT chk_assignments_removed CHECK ((removed_at IS NULL) = (removed_key = 0)),
   FOREIGN KEY (group_id)        REFERENCES learner_groups (id),
   FOREIGN KEY (content_item_id) REFERENCES content_items (id),
   FOREIGN KEY (created_by)      REFERENCES users (id)
@@ -198,6 +200,8 @@ CREATE TABLE audit_log (
 
 Framework tables, created by their own migrations: Passport's oauth_clients, oauth_auth_codes, oauth_access_tokens, oauth_refresh_tokens and oauth_device_codes; Laravel's sessions, cache and cache_locks (ADR-013).
 
+Keys the DDL leaves unnamed take Laravel's default names: foreign keys (`assignments_created_by_foreign`), the email unique key (`users_email_unique`), and the index MySQL adds for a foreign key that no listed index covers (`assignments_content_item_id_foreign`, `assignments_created_by_foreign`, `learner_groups_institution_id_foreign`). Every key the DDL names has exactly that name.
+
 Notes on the design:
 
 - **Status is not stored** (ADR-008). "Not started" is the absence of a progress row. A row exists only once the learner has started or completed. The derived status for a learner and assignment pair is:
@@ -211,7 +215,7 @@ Notes on the design:
 
 - **Behind** (requirement 6): a learner is behind in a group when they have at least one overdue pair in that group, or when the average score of their completed question sets in that group is below 50. A learner with no completed question set has no average and is not behind by score. Exactly 50 is not behind. Only assignments that target the learner count (scope group, or a row in assignment_learners).
 - **Subset assignments.** An assignment with scope group targets every current member of the group, including learners added later. An assignment with scope learners targets only the rows in assignment_learners. This is why a new group member picks up the group's assignments with no extra write, while a remediation assignment stays with the learners it was made for.
-- **Soft delete for assignments** (requirement 4). Removing an assignment sets removed_at; its progress rows stay. The generated column removed_key makes the unique key uq_assignments_active mean "one active assignment per content item per group": every active row shares the same removed_key, and every removed row carries its own timestamp. MySQL has no partial indexes, so this is the standard way to express that rule. After a removal the same content can be assigned again as a new row.
+- **Soft delete for assignments** (requirement 4). Removing an assignment sets removed_at and sets removed_key to the row's own id, in the same write; its progress rows stay. removed_key makes the unique key uq_assignments_active mean "one active assignment per content item per group": every active row holds 0, and every removed row carries its own id, so removed rows never collide with each other or with the active row. MySQL has no partial indexes, so this is the standard way to express that rule. The CHECK chk_assignments_removed keeps the two columns in step: removed_at is null exactly when removed_key is 0. After a removal the same content can be assigned again as a new row.
 - **Removing a learner from a group** deletes the group_learners row only. Their progress rows stay, so re-adding them later shows their history, and nothing is lost.
 - **Time zones.** due_at is stored in UTC. A due date given as a bare date (2026-10-16) means 23:59:59 of that day in the institution's timezone. Answers return due_at in ISO 8601 with the institution's offset, so an AI client can say "Friday" correctly.
 - **Audit log actions:** group.created, group.learner_added, group.learner_removed, assignment.created, assignment.learners_added, assignment.due_changed, assignment.removed. Every action class writes its row inside the same transaction as the change, so no change exists without its audit row. Rows hold ids and values, never names or emails; names are resolved when the log is read.
@@ -443,8 +447,8 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 
 2\. **Data model, migrations and seed (2 days)** [ADR-007, ADR-008]
 
-- Migrations for every table in Database Design, with the generated column and the unique keys.
-- Seed: 2 institutions, 6 educators, about 300 learners, 12 groups, 40 content items across 6 topics, assignments with past and future due dates, subset assignments, and progress that leaves some learners behind by overdue work and some by low scores. A fixed random seed, so every machine gets the same demo data.
+- Migrations for every table in Database Design, with the unique keys and the CHECK constraints.
+- Seed: 2 institutions, 6 educators, about 300 learners, 12 groups, 40 content items across 6 topics, assignments with past and future due dates, subset assignments, and progress that leaves some learners behind by overdue work and some by low scores. A fixed random seed, so every machine gets the same names, memberships, assignments and scores; due dates are relative to the seeding day so the demo always has overdue and upcoming work.
 - Factories for tests.
 
 3\. **Authentication, roles and Policies (2 days)** [ADR-003, ADR-006]
