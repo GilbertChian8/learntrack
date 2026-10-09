@@ -1,0 +1,74 @@
+name: ci
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: learntrack_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.5'
+          extensions: ctype, curl, dom, fileinfo, mbstring, openssl, pdo_mysql, sodium, tokenizer, xml, zip
+          coverage: none
+
+      - name: Composer install
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: npm ci
+        run: npm ci
+
+      - name: Pint
+        run: vendor/bin/pint --test
+
+      - name: Larastan
+        run: vendor/bin/phpstan analyse
+
+      - name: eslint
+        run: npm run lint
+
+      - name: prettier
+        run: npm run format:check
+
+      - name: tsc
+        run: npm run types
+
+      - name: Vite build
+        run: npm run build
+
+      - name: Pest (MySQL)
+        env:
+          DB_CONNECTION: mysql
+        run: |
+          cp .env.testing.example .env.testing
+          vendor/bin/pest
