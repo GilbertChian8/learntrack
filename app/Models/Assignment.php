@@ -7,7 +7,6 @@ use Carbon\CarbonImmutable;
 use Database\Factories\AssignmentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
-use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,8 +16,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Dates are written with microseconds, so two removals of the same content
- * in the same second still get distinct removed_key values.
+ * Removing an assignment sets removed_at and removed_key (the row's own id)
+ * in the same write; active rows hold removed_key 0.
  *
  * @property int $id
  * @property int $group_id
@@ -27,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property AssignmentScope $scope
  * @property int $created_by
  * @property CarbonImmutable|null $removed_at
+ * @property int $removed_key
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  * @property-read Group $group
@@ -35,8 +35,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read Collection<int, User> $learners
  * @property-read Collection<int, Progress> $progress
  */
-#[Table(dateFormat: 'Y-m-d H:i:s.u')]
-#[Fillable(['group_id', 'content_item_id', 'due_at', 'scope', 'created_by', 'removed_at'])]
+#[Fillable(['group_id', 'content_item_id', 'due_at', 'scope', 'created_by', 'removed_at', 'removed_key'])]
 class Assignment extends Model
 {
     /** @use HasFactory<AssignmentFactory> */
@@ -53,6 +52,7 @@ class Assignment extends Model
             'due_at' => 'datetime',
             'scope' => AssignmentScope::class,
             'removed_at' => 'datetime',
+            'removed_key' => 'integer',
         ];
     }
 

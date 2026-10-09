@@ -31,6 +31,7 @@ class AssignmentFactory extends Factory
                 'institution_id' => Group::query()->whereKey($attributes['group_id'])->value('institution_id'),
             ]),
             'removed_at' => null,
+            'removed_key' => 0,
         ];
     }
 
@@ -46,8 +47,14 @@ class AssignmentFactory extends Factory
             ->afterCreating(fn (Assignment $assignment) => $assignment->learners()->attach($learners));
     }
 
+    /**
+     * Removed after it is created, since removed_key is the row's own id.
+     */
     public function removed(): static
     {
-        return $this->state(fn () => ['removed_at' => now()]);
+        return $this->afterCreating(fn (Assignment $assignment) => $assignment->update([
+            'removed_at' => now(),
+            'removed_key' => $assignment->id,
+        ]));
     }
 }

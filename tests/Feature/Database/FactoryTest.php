@@ -35,6 +35,7 @@ test('every factory and state creates a valid row', function () {
         ->and(DB::table('assignment_learners')->where('assignment_id', $subset->id)->pluck('user_id')->sort()->values()->all())
         ->toBe($learners->pluck('id')->sort()->values()->all())
         ->and($removed->removed_at)->not->toBeNull()
+        ->and($removed->removed_key)->toBe($removed->id)
         ->and($started->status)->toBe(ProgressStatus::InProgress)
         ->and($started->completed_at)->toBeNull()
         ->and($completed->status)->toBe(ProgressStatus::Completed)

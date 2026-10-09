@@ -20,7 +20,7 @@ function findIndex(string $table, string $name): ?array
     return collect(Schema::getIndexes($table))->firstWhere('name', $name);
 }
 
-test('migrate:fresh creates the keys, the CHECK constraint and the generated column of the DDL', function () {
+test('migrate:fresh creates the keys and the CHECK constraints of the DDL', function () {
     artisan('migrate:fresh')->assertSuccessful();
 
     expect(findIndex('assignments', 'uq_assignments_active'))
@@ -30,22 +30,13 @@ test('migrate:fresh creates the keys, the CHECK constraint and the generated col
         ->and(findIndex('progress', 'uq_progress_pair'))
         ->toMatchArray(['columns' => ['assignment_id', 'user_id'], 'unique' => true]);
 
-    $check = DB::selectOne(
-        'select cc.check_clause
-           from information_schema.table_constraints tc
-           join information_schema.check_constraints cc
-             on cc.constraint_schema = tc.constraint_schema and cc.constraint_name = tc.constraint_name
-          where tc.table_schema = database() and tc.table_name = ? and tc.constraint_name = ?',
-        ['progress', 'chk_progress_score'],
-    );
+    $checks = collect(DB::select(
+        "select concat(table_name, '.', constraint_name) as name
+           from information_schema.table_constraints
+          where table_schema = database() and constraint_type = 'CHECK'",
+    ))->pluck('name');
 
-    expect($check)->not->toBeNull();
-
-    $removedKey = collect(Schema::getColumns('assignments'))->firstWhere('name', 'removed_key');
-
-    expect($removedKey['type'])->toBe('datetime(6)')
-        ->and($removedKey['generation']['type'])->toBe('stored')
-        ->and($removedKey['generation']['expression'])->toContain('coalesce(`removed_at`');
+    expect($checks)->toContain('assignments.chk_assignments_removed', 'progress.chk_progress_score');
 });
 
 test('a group has one active assignment per content item, and a removed one frees the slot', function () {
@@ -56,15 +47,24 @@ test('a group has one active assignment per content item, and a removed one free
     expect(fn () => Assignment::factory()->for($group)->for($content)->create())
         ->toThrow(UniqueConstraintViolationException::class);
 
-    $first->update(['removed_at' => now()]);
+    $first->update(['removed_at' => now(), 'removed_key' => $first->id]);
     $second = Assignment::factory()->for($group)->for($content)->create();
 
-    // Removed rows keep their own key, even when removed in the same second.
-    $second->update(['removed_at' => now()]);
+    // Removed rows never collide with each other: each carries its own id.
+    $second->update(['removed_at' => now(), 'removed_key' => $second->id]);
     Assignment::factory()->for($group)->for($content)->create();
 
     expect(Assignment::query()->where('group_id', $group->id)->count())->toBe(3)
         ->and(Assignment::query()->active()->where('group_id', $group->id)->count())->toBe(1);
+});
+
+test('removed_at and removed_key are refused by the CHECK constraint unless set together', function () {
+    $assignment = Assignment::factory()->create();
+
+    expect(fn () => Assignment::query()->whereKey($assignment->id)->update(['removed_at' => now()]))
+        ->toThrow(QueryException::class, 'chk_assignments_removed')
+        ->and(fn () => Assignment::query()->whereKey($assignment->id)->update(['removed_key' => $assignment->id]))
+        ->toThrow(QueryException::class, 'chk_assignments_removed');
 });
 
 test('a progress score above 100 is refused by the CHECK constraint', function () {
