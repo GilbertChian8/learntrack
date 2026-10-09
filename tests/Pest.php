@@ -1,8 +1,12 @@
 <?php
 
+use App\Exceptions\NotFoundException;
+use App\Models\Group;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Laravel\Passport\Passport;
 use Tests\TestCase;
 
 /*
@@ -18,7 +22,7 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
-    ->in('Feature');
+    ->in('Feature', 'Unit/Policies');
 
 /*
 |--------------------------------------------------------------------------
@@ -29,6 +33,57 @@ pest()->extend(TestCase::class)
 | no two files can declare the same global function.
 |
 */
+
+/**
+ * Tests authenticate with Passport::actingAs, as these two helpers do.
+ */
+function actingAsEducator(?User $educator = null): User
+{
+    $educator ??= User::factory()->educator()->create();
+
+    Passport::actingAs($educator);
+
+    return $educator;
+}
+
+function actingAsLearner(?User $learner = null): User
+{
+    $learner ??= User::factory()->learner()->create();
+
+    Passport::actingAs($learner);
+
+    return $learner;
+}
+
+function educatorOf(Group $group): User
+{
+    $educator = User::factory()->educator()->create(['institution_id' => $group->institution_id]);
+    $group->educators()->attach($educator);
+
+    return $educator;
+}
+
+function learnerIn(Group $group): User
+{
+    $learner = User::factory()->learner()->create(['institution_id' => $group->institution_id]);
+    $group->learners()->attach($learner);
+
+    return $learner;
+}
+
+/**
+ * The subject of the NotFoundException the lookup throws, or null when it throws none.
+ */
+function notFoundSubject(Closure $lookup): ?string
+{
+    try {
+        $lookup();
+    } catch (NotFoundException $exception) {
+        return $exception->subject;
+    }
+
+    return null;
+}
 
 /**
  * @return array{name: string, columns: list<string>, type: string, unique: bool, primary: bool}|null
