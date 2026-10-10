@@ -5,7 +5,7 @@ LearnTrack is a Laravel backend for medical educators: REST and GraphQL for apps
 ## Source of truth, in order
 
 1. `docs/tdd.md`: the design. Tables, layering, status rules, work items. It wins every disagreement.
-2. `docs/api-contract.md` and `docs/mcp-tools.md`: the exact wire contract. Code matches them byte for byte (field names, codes, messages, order).
+2. `docs/api-contract.md` and `docs/mcp-tools.md`: the exact wire contract. Code matches them byte for byte (field names, codes, messages, list order).
 3. `docs/adr/`: why things are the way they are. Do not reopen a ratified decision inside a ticket; propose a new ADR instead.
 4. `docs/tickets/`: the work, one ticket per pull request.
 5. This file: the condensed rules. If this file and the TDD disagree, follow the TDD and fix this file in the same pull request.
@@ -22,7 +22,7 @@ Pin exact versions in `composer.json` and `package.json` the first time a packag
 
 - **Layering.** Controllers, GraphQL resolvers and MCP tools hold no business logic. They validate input, call one Action or one Query class, and format the result. Business rules live in `app/Actions` (writes) and `app/Queries` (reads).
 - **One Policy layer.** Every scope check goes through `app/Policies`: the Policies own the scoped query builders (`GroupPolicy::taughtBy($educator)` and friends), and `app/Support/Scope.php` is the one place that turns "not in scope" into `NotFoundException`. Nothing else compares a user id to a group.
-- **404, not 403.** Anything outside the caller's scope answers not found, the same as a thing that does not exist (ADR-006). 403 is only for the wrong role on a route.
+- **404, not 403.** Anything outside the caller's scope answers not found, the same as a thing that does not exist (ADR-006). 403 is only for the wrong role on a route. Policies deny with `denyAsNotFound()`, so the Gate answers 404 as well.
 - **Status is computed, never stored.** The derived status comes from the pair query in SQL at read time; the behind flag and the reasons come from `BehindRule` over that query's rows, in `GroupProgress` (ADR-008). No status column, no cached flag.
 - **BehindRule is the only place that knows 50.** Nothing else compares a score to the threshold.
 - **Fixed query counts.** A group's progress is a fixed number of queries whatever its size. Tests assert the exact count. No lazy loading: `Model::preventLazyLoading()` is on outside production.
@@ -80,6 +80,7 @@ Pest runs against MySQL (docker compose), not SQLite: the unique keys, the ENUMs
 cp .env.example .env
 composer install && npm ci
 php artisan key:generate
+php artisan passport:keys       # token signing keys in storage/, for tests run on the host
 docker compose up -d            # app on http://localhost:8080, MySQL 8
 php artisan migrate --seed      # demo data: 2 institutions, groups, content, progress with learners behind
 npm run dev                     # Vite, for the three pages

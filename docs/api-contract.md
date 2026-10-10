@@ -62,6 +62,8 @@ A list, always paged:
 
 Status codes without a body: `204 No Content`.
 
+The order of fields in the examples is not part of the contract.
+
 ### Errors
 
 One shape everywhere, including GraphQL requests rejected before the query runs:
@@ -84,13 +86,19 @@ One shape everywhere, including GraphQL requests rejected before the query runs:
 | 401 | `invalid_credentials` | Login with a wrong email or password (the same answer for an unknown email) | none |
 | 403 | `forbidden` | The caller's role may not use this route (a learner on an educator route, an educator on a learner route) | none |
 | 404 | `not_found` | The resource does not exist, or it exists but is outside the caller's scope (ADR-006). The two cases are indistinguishable | none |
+| 405 | `method_not_allowed` | The path exists but not for this method; carries an `Allow` header | none |
 | 409 | `already_assigned` | The content is already assigned to the group with a different due date | `assignment`: the existing assignment object |
 | 409 | `already_completed` | A progress update that would move a completed assignment backwards or change its score | `status`, `score`, `completed_at` of the existing row |
 | 422 | `validation_failed` | Invalid input | object: field name to a list of messages. Array items use dot notation, for example `learner_ids.1` |
 | 429 | `too_many_requests` | A rate limit was hit. The response carries a `Retry-After` header in seconds | `retry_after`: the same number |
 | 500 | `server_error` | An unexpected failure. The message never contains internals | none |
+| 503 | `service_unavailable` | Maintenance mode | none |
 
-The 401 response from `/api/v1/*` and `/mcp` carries `WWW-Authenticate: Bearer`.
+The 401 response from `/api/v1/*`, `/graphql` and `/mcp` carries `WWW-Authenticate: Bearer`; on `/mcp` it also carries `resource_metadata` pointing at `/.well-known/oauth-protected-resource`, which laravel/mcp adds in ticket 11.
+
+An unknown path answers 404 `not_found`; a known path with the wrong method answers 405 `method_not_allowed`.
+
+Any other HTTP error keeps its status with a snake_case code of its reason phrase; a failure that is not an HTTP error is 500 `server_error`.
 
 ### Roles
 
