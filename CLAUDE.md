@@ -5,7 +5,7 @@ LearnTrack is a Laravel backend for medical educators: REST and GraphQL for apps
 ## Source of truth, in order
 
 1. `docs/tdd.md`: the design. Tables, layering, status rules, work items. It wins every disagreement.
-2. `docs/api-contract.md` and `docs/mcp-tools.md`: the exact wire contract. Code matches them byte for byte (field names, codes, messages, order).
+2. `docs/api-contract.md` and `docs/mcp-tools.md`: the exact wire contract. Code matches them byte for byte (field names, codes, messages, list order).
 3. `docs/adr/`: why things are the way they are. Do not reopen a ratified decision inside a ticket; propose a new ADR instead.
 4. `docs/tickets/`: the work, one ticket per pull request.
 5. This file: the condensed rules. If this file and the TDD disagree, follow the TDD and fix this file in the same pull request.
