@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\Group;
 use App\Models\User;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 
@@ -22,8 +23,10 @@ class GroupPolicy
             ->where('group_educators.user_id', $educator->id));
     }
 
-    public function view(User $user, Group $group): bool
+    public function view(User $user, Group $group): Response
     {
-        return self::taughtBy($user)->whereKey($group->id)->exists();
+        return self::taughtBy($user)->whereKey($group->id)->exists()
+            ? Response::allow()
+            : Response::denyAsNotFound();
     }
 }

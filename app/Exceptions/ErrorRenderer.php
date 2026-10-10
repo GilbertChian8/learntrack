@@ -6,7 +6,9 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
@@ -37,12 +39,26 @@ class ErrorRenderer
     {
         $headers = $exception->getHeaders();
 
-        return match ($exception->getStatusCode()) {
+        return match ($status = $exception->getStatusCode()) {
             403 => $this->error(403, 'forbidden', 'Forbidden.'),
-            404, 405 => $this->notFound(),
+            404 => $this->notFound(),
+            405 => $this->error(405, 'method_not_allowed', 'Method not allowed.', headers: $headers),
             429 => $this->error(429, 'too_many_requests', 'Too many requests.', ['retry_after' => (int) ($headers['Retry-After'] ?? 0)], $headers),
-            default => $this->error(500, 'server_error', 'Server error.'),
+            default => $this->reasonPhraseError($status, $headers),
         };
+    }
+
+    /**
+     * Any other HTTP error keeps its status, with its reason phrase as the message and in snake_case as the code.
+     *
+     * @param  array<string, mixed>  $headers
+     */
+    private function reasonPhraseError(int $status, array $headers): JsonResponse
+    {
+        $phrase = Response::$statusTexts[$status] ?? 'Error';
+        $code = Str::of($phrase)->lower()->replaceMatches('/[^a-z0-9]+/', '_')->trim('_')->toString();
+
+        return $this->error($status, $code, $phrase, headers: $headers);
     }
 
     private function unauthenticated(string $code, string $message): JsonResponse

@@ -36,14 +36,19 @@ class LoginRequest extends FormRequest
     }
 
     /**
-     * Sign the user in on the web session.
+     * Sign the user in on the web session. Over the limit, the login form shows the throttle message.
      *
-     * @throws ThrottleRequestsException
      * @throws ValidationException
      */
     public function authenticate(): void
     {
-        $this->ensureIsNotRateLimited();
+        $retryAfter = $this->retryAfter();
+
+        if ($retryAfter !== null) {
+            throw ValidationException::withMessages([
+                'email' => __('auth.throttle', ['seconds' => $retryAfter, 'minutes' => ceil($retryAfter / 60)]),
+            ]);
+        }
 
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
             $this->recordFailure();
@@ -64,7 +69,11 @@ class LoginRequest extends FormRequest
      */
     public function authenticateOnce(): User
     {
-        $this->ensureIsNotRateLimited();
+        $retryAfter = $this->retryAfter();
+
+        if ($retryAfter !== null) {
+            throw new ThrottleRequestsException(headers: ['Retry-After' => $retryAfter]);
+        }
 
         $user = Auth::once($this->only('email', 'password')) ? Auth::user() : null;
 
@@ -80,18 +89,14 @@ class LoginRequest extends FormRequest
     }
 
     /**
-     * @throws ThrottleRequestsException
+     * Seconds until the longest blocked limit lifts, or null when no limit is hit.
      */
-    private function ensureIsNotRateLimited(): void
+    private function retryAfter(): ?int
     {
-        $retryAfter = collect($this->limits())
+        return collect($this->limits())
             ->filter(fn (int $maxFailures, string $key) => RateLimiter::tooManyAttempts($key, $maxFailures))
             ->map(fn (int $maxFailures, string $key) => RateLimiter::availableIn($key))
             ->max();
-
-        if ($retryAfter !== null) {
-            throw new ThrottleRequestsException(headers: ['Retry-After' => $retryAfter]);
-        }
     }
 
     private function recordFailure(): void

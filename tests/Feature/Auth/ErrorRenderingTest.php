@@ -3,6 +3,7 @@
 use App\Exceptions\ConflictException;
 use App\Exceptions\NotFoundException;
 use App\Models\User;
+use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Exceptions;
@@ -18,10 +19,32 @@ test('an unknown /api/v1 route answers 404 in the contract shape', function () {
         ->assertExactJson(['error' => ['code' => 'not_found', 'message' => 'Not found.']]);
 });
 
-test('a known /api/v1 path with the wrong method answers 404', function () {
+test('a known /api/v1 path with the wrong method answers 405 with Allow', function () {
     getJson('/api/v1/auth/login')
-        ->assertNotFound()
-        ->assertExactJson(['error' => ['code' => 'not_found', 'message' => 'Not found.']]);
+        ->assertMethodNotAllowed()
+        ->assertHeader('Allow', 'POST')
+        ->assertExactJson(['error' => ['code' => 'method_not_allowed', 'message' => 'Method not allowed.']]);
+});
+
+test('another HTTP error keeps its status with its reason phrase as code and message', function () {
+    Route::middleware('api')->post('api/v1/test/too-large', fn () => throw new PostTooLargeException);
+
+    postJson('/api/v1/test/too-large')
+        ->assertStatus(413)
+        ->assertExactJson(['error' => ['code' => 'content_too_large', 'message' => 'Content Too Large']]);
+});
+
+test('maintenance mode answers 503 service_unavailable with Retry-After', function () {
+    app()->maintenanceMode()->activate(['retry' => 60]);
+
+    try {
+        getJson('/api/v1/me')
+            ->assertServiceUnavailable()
+            ->assertHeader('Retry-After', '60')
+            ->assertExactJson(['error' => ['code' => 'service_unavailable', 'message' => 'Service Unavailable']]);
+    } finally {
+        app()->maintenanceMode()->deactivate();
+    }
 });
 
 test('every not-found exception renders the same 404 body', function (Closure $throw) {

@@ -8,7 +8,6 @@ use App\Models\Group;
 use App\Models\User;
 use App\Policies\AssignmentPolicy;
 use App\Policies\GroupPolicy;
-use App\Policies\ProgressPolicy;
 
 /**
  * The one place that turns "not in scope" into NotFoundException (ADR-006).
@@ -27,6 +26,6 @@ class Scope
 
     public static function learnerAssignment(User $learner, int $id): Assignment
     {
-        return ProgressPolicy::targeting($learner)->whereKey($id)->firstOr(fn () => throw NotFoundException::assignment());
+        return AssignmentPolicy::targeting($learner)->whereKey($id)->firstOr(fn () => throw NotFoundException::assignment());
     }
 }

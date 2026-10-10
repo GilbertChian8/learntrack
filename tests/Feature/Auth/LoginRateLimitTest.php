@@ -23,26 +23,34 @@ $login = fn (string $route, string $email, string $password): TestResponse => $r
     : postJson($route, ['email' => $email, 'password' => $password]);
 
 dataset('logins', [
-    'api' => ['/api/v1/auth/login', 401, 200],
-    'web' => ['/login', 302, 302],
+    'api' => [
+        '/api/v1/auth/login',
+        fn (TestResponse $response) => $response->assertUnauthorized(),
+        fn (TestResponse $response) => $response->assertOk(),
+        fn (TestResponse $response) => $response->assertTooManyRequests()->assertHeader('Retry-After', '900'),
+    ],
+    'web' => [
+        '/login',
+        fn (TestResponse $response) => $response->assertRedirect()->assertSessionHasErrors(['email' => 'These credentials do not match our records.']),
+        fn (TestResponse $response) => $response->assertRedirect('/')->assertSessionHasNoErrors(),
+        fn (TestResponse $response) => $response->assertRedirect()->assertSessionHasErrors(['email' => 'Too many login attempts. Please try again in 900 seconds.']),
+    ],
 ]);
 
-test('ten failures for one email and IP, then the eleventh answers 429', function (string $route, int $failed, int $succeeded) use ($login) {
+test('ten failures for one email and IP, then the eleventh is refused', function (string $route, Closure $failed, Closure $succeeded, Closure $blocked) use ($login) {
     $user = User::factory()->create();
 
     foreach (range(1, 10) as $attempt) {
-        $login($route, $user->email, 'wrong-password')->assertStatus($failed);
+        $failed($login($route, $user->email, 'wrong-password'));
     }
 
-    $login($route, $user->email, 'password')
-        ->assertTooManyRequests()
-        ->assertHeader('Retry-After', '900');
+    $blocked($login($route, $user->email, 'password'));
 
-    $login($route, 'someone.else@example.edu', 'wrong-password')->assertStatus($failed);
+    $failed($login($route, 'someone.else@example.edu', 'wrong-password'));
 
     travel(15)->minutes();
 
-    $login($route, $user->email, 'password')->assertStatus($succeeded);
+    $succeeded($login($route, $user->email, 'password'));
 })->with('logins');
 
 test('the API 429 carries the contract body', function () use ($login) {
@@ -64,56 +72,55 @@ test('the API 429 carries the contract body', function () use ($login) {
         ]);
 });
 
-test('a successful login resets the counter', function (string $route, int $failed, int $succeeded) use ($login) {
+test('a successful login resets the counter', function (string $route, Closure $failed, Closure $succeeded, Closure $blocked) use ($login) {
     $user = User::factory()->create();
 
     foreach (range(1, 9) as $attempt) {
-        $login($route, $user->email, 'wrong-password')->assertStatus($failed);
+        $failed($login($route, $user->email, 'wrong-password'));
     }
 
-    $login($route, $user->email, 'password')->assertStatus($succeeded);
+    $succeeded($login($route, $user->email, 'password'));
 
     foreach (range(1, 10) as $attempt) {
-        $login($route, $user->email, 'wrong-password')->assertStatus($failed);
+        $failed($login($route, $user->email, 'wrong-password'));
     }
 
-    $login($route, $user->email, 'password')->assertTooManyRequests();
+    $blocked($login($route, $user->email, 'password'));
 })->with('logins');
 
-test('successful logins never count', function (string $route, int $failed, int $succeeded) use ($login) {
+test('successful logins never count', function (string $route, Closure $failed, Closure $succeeded, Closure $blocked) use ($login) {
     $user = User::factory()->create();
 
     foreach (range(1, 51) as $attempt) {
-        $login($route, $user->email, 'password')->assertStatus($succeeded);
+        $succeeded($login($route, $user->email, 'password'));
     }
 
     foreach (range(1, 10) as $attempt) {
-        $login($route, $user->email, 'wrong-password')->assertStatus($failed);
+        $failed($login($route, $user->email, 'wrong-password'));
     }
 
-    $login($route, $user->email, 'password')->assertTooManyRequests();
+    $blocked($login($route, $user->email, 'password'));
 })->with('logins');
 
-test('fifty failures from one IP across different emails, then the next answers 429', function (string $route, int $failed) use ($login) {
+test('fifty failures from one IP across different emails, then the next is refused', function (string $route, Closure $failed, Closure $succeeded, Closure $blocked) use ($login) {
     $user = User::factory()->create();
 
     foreach (range(1, 50) as $attempt) {
-        $login($route, "unknown{$attempt}@example.edu", 'wrong-password')->assertStatus($failed);
+        $failed($login($route, "unknown{$attempt}@example.edu", 'wrong-password'));
     }
 
-    $login($route, $user->email, 'password')
-        ->assertTooManyRequests()
-        ->assertHeader('Retry-After', '900');
+    $blocked($login($route, $user->email, 'password'));
 })->with('logins');
 
 test('web and API failures count together', function () use ($login) {
     $user = User::factory()->create();
 
     foreach (range(1, 5) as $attempt) {
-        $login('/login', $user->email, 'wrong-password')->assertRedirect();
+        $login('/login', $user->email, 'wrong-password')->assertSessionHasErrors('email');
         $login('/api/v1/auth/login', $user->email, 'wrong-password')->assertUnauthorized();
     }
 
-    $login('/login', $user->email, 'password')->assertTooManyRequests();
+    $login('/login', $user->email, 'password')
+        ->assertSessionHasErrors(['email' => 'Too many login attempts. Please try again in 900 seconds.']);
     $login('/api/v1/auth/login', $user->email, 'password')->assertTooManyRequests();
 });
