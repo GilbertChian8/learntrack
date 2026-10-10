@@ -19,7 +19,7 @@ One Laravel application serves REST, GraphQL and MCP (ADR-002). The rule that ma
 | Layer | Folder | What lives there |
 |---|---|---|
 | Models | app/Models | Institution, User, Group (table learner_groups), ContentItem, Assignment, Progress, AuditEntry |
-| Policies | app/Policies | GroupPolicy (an educator teaches the group), AssignmentPolicy (through its group), ProgressPolicy (a learner owns the row). Every scope check in the system goes through these |
+| Policies | app/Policies | GroupPolicy (an educator teaches the group) and AssignmentPolicy (an educator manages it through its group; a learner records progress on it when it targets them). Every scope check in the system goes through these, and they deny with denyAsNotFound(), so the Gate answers 404 as well |
 | Actions | app/Actions | AssignContent, ChangeDueDate, RemoveAssignment, CreateGroup, AddLearners, RemoveLearner, RecordProgress. Each one runs in one transaction and writes its audit row inside that transaction |
 | Queries | app/Queries | GroupProgress (the pair query and the per learner and per assignment aggregates), BehindRule (the rule itself: thresholds and the predicate), LearnerSummary, HardestAssignments, MyGroups |
 | REST | app/Http/Controllers/Api, app/Http/Requests, app/Http/Resources | Thin controllers, Form Requests and API Resources |
@@ -420,7 +420,7 @@ Rules for the tools:
 
 ## Rate limits
 
-Counters live in the database cache store (ADR-013), so both tasks count together. Over the limit answers 429 with Retry-After and the standard error shape. A 429 does not spend budget. Only failed logins count: institutions sit behind one public address, so a limit on all logins would lock out a whole hospital at 9 am.
+Counters live in the database cache store (ADR-013), so both tasks count together. Over the limit, the API answers 429 with Retry-After and the standard error shape; the web login shows the throttle message as a form error on the login page. A 429 does not spend budget. Only failed logins count: institutions sit behind one public address, so a limit on all logins would lock out a whole hospital at 9 am.
 
 | Rule | Limit | Counted per |
 |---|---|---|
@@ -455,7 +455,7 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 
 - Passport with keys read from the environment (Secrets Manager in AWS), the personal access client seeded, token lifetimes set.
 - POST login, logout and me. The role middleware (educator, learner).
-- GroupPolicy, AssignmentPolicy, ProgressPolicy, and the one place that turns "not in scope" into 404 for REST, a not-found error for GraphQL and a not-found answer for MCP.
+- GroupPolicy and AssignmentPolicy, denying with denyAsNotFound(), and the one place that turns "not in scope" into 404 for REST, a not-found error for GraphQL and a not-found answer for MCP.
 - Login rate limits on the database cache store.
 
 4\. **Terraform: network and data (3 days)** [ADR-007, ADR-010, ADR-012, ADR-015]
@@ -562,7 +562,7 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 
 ## 2. Failure modes
 
-- **RDS fails over** (Multi-AZ): about a minute of connection errors. Requests in that minute fail with 503, Claude shows the error, and the educator retries. No partial writes, because every multi-table write is one transaction.
+- **RDS fails over** (Multi-AZ): about a minute of connection errors. Requests in that minute fail with 5xx, Claude shows the error, and the educator retries. No partial writes, because every multi-table write is one transaction.
 - **A task dies mid-request:** the ALB answers 502 for that request, the other task keeps serving, and ECS starts a replacement.
 - **One AZ is down:** the second task, the second NAT gateway and the RDS standby are in the other AZ. The ALB routes around, RDS fails over.
 - **A bad deploy:** the health check on /up fails on the new task, the rolling deploy stops, and the deployment circuit breaker rolls the service back to the previous revision by itself. [ADR-016]
