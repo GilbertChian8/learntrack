@@ -62,6 +62,8 @@ A list, always paged:
 
 Status codes without a body: `204 No Content`.
 
+The order of fields in the examples is not part of the contract.
+
 ### Errors
 
 One shape everywhere, including GraphQL requests rejected before the query runs:
@@ -92,7 +94,7 @@ One shape everywhere, including GraphQL requests rejected before the query runs:
 | 500 | `server_error` | An unexpected failure. The message never contains internals | none |
 | 503 | `service_unavailable` | Maintenance mode | none |
 
-The 401 response from `/api/v1/*`, `/graphql` and `/mcp` carries `WWW-Authenticate: Bearer`.
+The 401 response from `/api/v1/*`, `/graphql` and `/mcp` carries `WWW-Authenticate: Bearer`; on `/mcp` it also carries `resource_metadata` pointing at `/.well-known/oauth-protected-resource`, which laravel/mcp adds in ticket 11.
 
 An unknown path answers 404 `not_found`; a known path with the wrong method answers 405 `method_not_allowed`.
 

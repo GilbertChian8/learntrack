@@ -285,7 +285,7 @@ Common rules:
 - All REST paths start with /api/v1. A breaking change becomes /api/v2 next to it.
 - JSON in and out. One error shape everywhere: `{ "error": { "code": "...", "message": "...", "details": { } } }`, with details only where the contract says so.
 - Every route except login needs a bearer token (Passport, auth:api). The same guard protects REST, GraphQL and MCP (ADR-003).
-- Status codes: 401 missing or bad token, 403 wrong role for the route, 404 not found or outside the caller's scope (ADR-006), 409 a repeat that carries a different value, 422 invalid input, 429 too many requests.
+- Status codes: 401 missing or bad token, 403 wrong role for the route, 404 not found or outside the caller's scope (ADR-006), 405 wrong method, 409 a repeat that carries a different value, 422 invalid input, 429 too many requests, 503 maintenance mode.
 - Learners appear as id and name. Email is returned only by GET /api/v1/me (the caller's own) and by GET /api/v1/learners, where an educator picks learners of their own institution to add to a group.
 - Every list endpoint pages with ?limit (default 50, max 200) and ?cursor.
 
