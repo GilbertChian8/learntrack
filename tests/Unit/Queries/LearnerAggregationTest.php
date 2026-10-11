@@ -36,6 +36,22 @@ test('the average counts completed question sets only', function () {
         ->and($progress->counts)->toEqual(new StatusCounts(notStarted: 0, inProgress: 1, completed: 3, overdue: 0));
 });
 
+test('the rounded average decides behind: 49.95 shows as 50.0 and is not behind', function () {
+    $rows = array_map(fn (int $index) => pairRow([
+        'assignment_id' => $index + 1,
+        'progress_status' => 'completed',
+        'status' => 'completed',
+        'score' => $index === 0 ? 49 : 50,
+    ]), range(0, 19));
+
+    $progress = LearnerAggregation::fromRows(101, 'Sara Lindqvist', $rows, new InstitutionTime('UTC'), CarbonImmutable::parse('2026-10-09 08:00:00'));
+
+    expect(array_sum(array_column($rows, 'score')))->toBe(999)
+        ->and($progress->averageScore)->toBe(50.0)
+        ->and($progress->behind)->toBeFalse()
+        ->and($progress->reasons)->toBe([]);
+});
+
 test('one overdue pair makes the learner behind with its reason', function () {
     $rows = [
         pairRow(['assignment_id' => 40, 'title' => 'ECG Basics', 'due_at' => '2026-10-02 21:59:59', 'status' => 'overdue']),
