@@ -69,20 +69,49 @@ test('pages with limit and cursor', function () {
         ->assertJsonPath('meta.next_cursor', null);
 });
 
-test('a limit outside 1 to 200 or a malformed cursor answers 422', function (array $query, string $field) {
-    $educator = actingAsEducator();
-    Group::factory()->create(['institution_id' => $educator->institution_id])->educators()->attach($educator);
+test('a limit outside 1 to 200 answers 422', function (mixed $limit) {
+    actingAsEducator();
 
-    getJson('/api/v1/groups?'.http_build_query($query))
+    getJson('/api/v1/groups?'.http_build_query(['limit' => $limit]))
         ->assertUnprocessable()
         ->assertJsonPath('error.code', 'validation_failed')
         ->assertJsonPath('error.message', 'The given data was invalid.')
-        ->assertJsonValidationErrors([$field], 'error.details');
+        ->assertJsonValidationErrors(['limit'], 'error.details');
 })->with([
-    'limit 201' => [['limit' => 201], 'limit'],
-    'limit 0' => [['limit' => 0], 'limit'],
-    'limit not a number' => [['limit' => 'ten'], 'limit'],
-    'garbage cursor' => [['cursor' => 'garbage'], 'cursor'],
-    'cursor of another list' => [['cursor' => rtrim(base64_encode('{"users.id":5,"_pointsToNextItems":true}'), '=')], 'cursor'],
-    'cursor with a non-scalar value' => [['cursor' => rtrim(base64_encode('{"learner_groups.name":["x"],"learner_groups.id":1,"_pointsToNextItems":true}'), '=')], 'cursor'],
+    'limit 201' => [201],
+    'limit 0' => [0],
+    'limit not a number' => ['ten'],
 ]);
+
+test('a malformed cursor or one from another list answers 422 with The cursor is invalid.', function (mixed $cursor) {
+    $educator = actingAsEducator();
+    Group::factory()->create(['institution_id' => $educator->institution_id])->educators()->attach($educator);
+
+    getJson('/api/v1/groups?'.http_build_query(['cursor' => $cursor]))
+        ->assertUnprocessable()
+        ->assertExactJson([
+            'error' => [
+                'code' => 'validation_failed',
+                'message' => 'The given data was invalid.',
+                'details' => ['cursor' => ['The cursor is invalid.']],
+            ],
+        ]);
+})->with([
+    'garbage' => ['garbage'],
+    'an array' => [['x']],
+    'a cursor of another list' => [rtrim(base64_encode('{"users.id":5,"_pointsToNextItems":true}'), '=')],
+    'a non-scalar value' => [rtrim(base64_encode('{"learner_groups.name":["x"],"learner_groups.id":1,"_pointsToNextItems":true}'), '=')],
+]);
+
+test('an empty limit or cursor means the default: 50, and the first page', function () {
+    $educator = actingAsEducator();
+    $groups = Group::factory()->count(51)->create(['institution_id' => $educator->institution_id]);
+    foreach ($groups as $group) {
+        $group->educators()->attach($educator);
+    }
+
+    $response = getJson('/api/v1/groups?limit=&cursor=')->assertOk()->assertJsonCount(50, 'data');
+
+    expect($response->json('data.0.id'))->toBe(getJson('/api/v1/groups')->json('data.0.id'))
+        ->and($response->json('meta.next_cursor'))->toBeString();
+});

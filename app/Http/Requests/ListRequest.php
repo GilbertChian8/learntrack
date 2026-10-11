@@ -22,7 +22,7 @@ class ListRequest extends FormRequest
     {
         return [
             'limit' => ['nullable', 'integer', 'between:1,200'],
-            'cursor' => ['nullable', 'string', function (string $attribute, mixed $value, Closure $fail): void {
+            'cursor' => ['nullable', function (string $attribute, mixed $value, Closure $fail): void {
                 if (! self::isCursor($value)) {
                     $fail(self::INVALID_CURSOR);
                 }

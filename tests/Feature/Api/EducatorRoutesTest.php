@@ -62,12 +62,12 @@ test('another educator\'s group and a missing id answer the same 404 and change 
         ->and(AuditEntry::query()->count())->toBe(0);
 })->with('group routes');
 
-test('a non-numeric id answers 404', function (string $method, string $uri) {
+test('a non-numeric id answers 404 Not found.', function (string $method, string $uri) {
     actingAsEducator();
 
     json($method, str_replace(['{group}', '{user}'], ['abc', 'abc'], $uri))
         ->assertNotFound()
-        ->assertJsonPath('error.code', 'not_found');
+        ->assertExactJson(['error' => ['code' => 'not_found', 'message' => 'Not found.']]);
 })->with('group routes');
 
 test('no response carries an email except GET /learners', function () {
