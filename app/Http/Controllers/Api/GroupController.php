@@ -36,6 +36,6 @@ class GroupController extends Controller
 
     public function show(Group $group, #[CurrentUser] User $educator): GroupDetailResource
     {
-        return new GroupDetailResource(GroupDetail::for($educator, $group->id));
+        return new GroupDetailResource(GroupDetail::for($educator, $group));
     }
 }
