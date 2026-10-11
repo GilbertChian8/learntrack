@@ -21,3 +21,7 @@ output "hosted_zone_id" {
 output "name_servers" {
   value = aws_route53_zone.main.name_servers
 }
+
+output "boundary_policy_arn" {
+  value = aws_iam_policy.boundary.arn
+}

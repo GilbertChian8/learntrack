@@ -186,19 +186,28 @@ data "aws_iam_policy_document" "deploy" {
   }
 
   statement {
-    sid = "EnvironmentRoles"
+    sid = "EnvironmentRolesWithBoundary"
     actions = [
-      "iam:AttachRolePolicy",
       "iam:CreateRole",
       "iam:DeleteRole",
       "iam:DeleteRolePolicy",
-      "iam:DetachRolePolicy",
+      "iam:PutRolePermissionsBoundary",
       "iam:PutRolePolicy",
-      "iam:TagRole",
-      "iam:UntagRole",
       "iam:UpdateAssumeRolePolicy",
       "iam:UpdateRole",
     ]
+    resources = ["arn:aws:iam::${local.account_id}:role/learntrack-*"]
+
+    condition {
+      test     = "ArnEquals"
+      variable = "iam:PermissionsBoundary"
+      values   = [aws_iam_policy.boundary.arn]
+    }
+  }
+
+  statement {
+    sid       = "EnvironmentRoleTags"
+    actions   = ["iam:TagRole", "iam:UntagRole"]
     resources = ["arn:aws:iam::${local.account_id}:role/learntrack-*"]
   }
 
@@ -231,5 +240,26 @@ data "aws_iam_policy_document" "deploy" {
     effect    = "Deny"
     actions   = ["iam:*"]
     resources = ["arn:aws:iam::${local.account_id}:role/learntrack-deploy", "arn:aws:iam::${local.account_id}:role/learntrack-plan"]
+  }
+
+  statement {
+    sid    = "NotTheBoundary"
+    effect = "Deny"
+    actions = [
+      "iam:CreatePolicyVersion",
+      "iam:DeletePolicy",
+      "iam:DeletePolicyVersion",
+      "iam:SetDefaultPolicyVersion",
+      "iam:TagPolicy",
+      "iam:UntagPolicy",
+    ]
+    resources = [aws_iam_policy.boundary.arn]
+  }
+
+  statement {
+    sid       = "KeepBoundaries"
+    effect    = "Deny"
+    actions   = ["iam:DeleteRolePermissionsBoundary"]
+    resources = ["*"]
   }
 }
