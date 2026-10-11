@@ -2,7 +2,7 @@
 
 Terraform for the AWS environment. Two folders:
 
-- `bootstrap/`: applied once by hand. The state bucket, the GitHub OIDC provider, the deploy role, the ECR repository and the Route 53 hosted zone. These stay when the environment is destroyed, so images are kept and the nameservers never change.
+- `bootstrap/`: applied once by hand. The state bucket, the GitHub OIDC provider, the two GitHub roles, the ECR repository and the Route 53 hosted zone. These stay when the environment is destroyed, so images are kept and the nameservers never change.
 - `env/`: the environment. Network, security groups, RDS MySQL, the four secrets and the certificate. State in the bootstrap's bucket. Ticket 05 adds ECS, the load balancer, the alarms and the pipeline.
 
 Needs Terraform 1.12 or later and AWS credentials with admin rights for the first apply.
@@ -14,7 +14,13 @@ The AWS account is shared with another project.
 - Every resource name starts with `learntrack-`. Path-style names start with `learntrack/` (the secrets) or `/learntrack/` (the log group, ticket 05).
 - Every resource has the tags `Project=learntrack` and `Environment` (`bootstrap` for the bootstrap, `prod` for the environment), set by the provider's default tags.
 - The account may already have a GitHub OIDC provider. AWS allows only one per URL. Find it with `aws iam list-open-id-connect-providers` and set `github_oidc_provider_arn` to reuse it. Leave it empty to create one.
-- The deploy role changes IAM roles, logs, RDS, ECS, load balancers, alarms, topics, schedules and rules only when their names start with `learntrack-` (or `/learntrack/`). EC2 network resources and ACM certificates have generated ids, and ECS task definitions are registered without a resource name, so the role can change any of these.
+
+## GitHub roles
+
+Two roles, assumed with GitHub OIDC. No AWS key is stored anywhere.
+
+- `learntrack-deploy`: only for workflows on `main` (deploy, destroy). It pushes images, writes the state and applies. It changes IAM roles, logs, RDS, ECS, load balancers, alarms, topics, schedules, rules and secrets only when their names start with `learntrack-` (or `learntrack/`, `/learntrack/`). EC2 network resources and ACM certificates have generated ids, and ECS task definitions are registered without a resource name, so it can change any of these. It cannot change itself or the plan role, and it cannot read secret values.
+- `learntrack-plan`: only for pull requests (plan). Read-only: it reads the state and refreshes every resource, and it can write only the state lock file (`*.tflock`). A pull request branch never holds write access to the environment.
 
 ## Variables
 
@@ -26,7 +32,7 @@ Bootstrap (`bootstrap/terraform.tfvars.example`):
 |---|---|---|
 | `region` | `eu-central-1` | Region of the bucket, the role and the repository |
 | `domain_name` | none | The domain the app runs on. The hosted zone is for this name |
-| `github_repository` | none | `owner/name` of the repository the deploy role trusts |
+| `github_repository` | none | `owner/name` of the repository the GitHub roles trust |
 | `github_oidc_provider_arn` | empty | Empty creates the OIDC provider, an ARN reuses it |
 
 Environment (`env/prod.tfvars.example`):
@@ -67,6 +73,8 @@ terraform import aws_s3_bucket_public_access_block.state learntrack-tfstate-<acc
 terraform import 'aws_iam_openid_connect_provider.github[0]' <provider arn>   # only if the bootstrap created it
 terraform import aws_iam_role.deploy learntrack-deploy
 terraform import aws_iam_role_policy.deploy learntrack-deploy:learntrack-deploy
+terraform import aws_iam_role.plan learntrack-plan
+terraform import aws_iam_role_policy.plan learntrack-plan:learntrack-plan
 terraform import aws_ecr_repository.app learntrack-app
 terraform import aws_ecr_lifecycle_policy.app learntrack-app
 terraform import aws_route53_zone.main <hosted zone id>
@@ -101,6 +109,7 @@ Do not replace one secret version on its own (`-replace`): its value would no lo
 Check that no secret is in the state:
 
 ```
+export AWS_REGION=eu-central-1
 terraform state pull | grep -c "BEGIN RSA PRIVATE KEY"     # 0
 terraform state pull | grep -c "base64:"                   # 0
 terraform state pull | grep -cF "$(aws secretsmanager get-secret-value --secret-id learntrack/prod/db-password --query SecretString --output text)"   # 0
@@ -108,15 +117,15 @@ terraform state pull | grep -cF "$(aws secretsmanager get-secret-value --secret-
 
 ## Cost per hour
 
-For `env/` only, in `eu-central-1`. The NAT line is the blueprint's figure (ADR-012). The other lines are AWS list prices, rounded. Check the AWS pricing pages before you rely on them.
+For `env/` only, in `eu-central-1`. On-demand prices from the AWS Price List files for `eu-central-1`, October 2026.
 
 | Item | Per hour | Note |
 |---|---|---|
-| 2 NAT gateways | $0.089 | $65 a month (blueprint), plus $0.045 per GB |
+| 2 NAT gateways | $0.104 | $0.052 each, plus $0.052 per GB processed |
 | 2 public IPv4 addresses (NAT) | $0.010 | $0.005 each |
-| RDS db.t4g.micro, Multi-AZ | about $0.038 | twice the single-AZ price |
-| RDS storage, 20 GB gp3, Multi-AZ | about $0.007 | |
+| RDS db.t4g.micro MySQL, Multi-AZ | $0.037 | |
+| RDS storage, 20 GB gp3, Multi-AZ | $0.008 | $0.274 per GB a month |
 | Secrets Manager, 4 secrets | $0.002 | $0.40 per secret a month |
-| **Total** | **about $0.15** | about $107 a month if left running |
+| **Total** | **about $0.16** | about $117 a month if left running |
 
-The bootstrap costs a few cents a day when the environment is down: the hosted zone ($0.50 a month), the state bucket and the stored images. Ticket 05 adds the load balancer and two Fargate tasks.
+The bootstrap costs a few cents a day when the environment is down: the hosted zone, the state bucket and the stored images. Ticket 05 adds the load balancer and two Fargate tasks.
