@@ -14,7 +14,7 @@ The educator endpoints for groups, membership, the learner directory and the con
 
 ## Allowed paths
 
-`app/Actions/CreateGroup.php`, `app/Actions/AddLearners.php`, `app/Actions/RemoveLearner.php`, `app/Actions/Concerns/**`, `app/Actions/Results/**`, `app/Support/Audit*.php`, `app/Queries/MyGroups.php`, `app/Http/Controllers/Api/{GroupController,GroupLearnerController,LearnerController,ContentController}.php`, `app/Http/Requests/**`, `app/Http/Resources/**`, `app/Http/Pagination/**`, `routes/api.php`, `tests/Feature/Api/{Groups,Learners,Content}/**`, `tests/Unit/Queries/MyGroupsTest.php`.
+`app/Actions/CreateGroup.php`, `app/Actions/AddLearners.php`, `app/Actions/RemoveLearner.php`, `app/Actions/Concerns/**`, `app/Actions/Results/**`, `app/Support/Audit*.php`, `app/Support/InstitutionTime.php`, `app/Queries/MyGroups.php`, `app/Http/Controllers/Api/{GroupController,GroupLearnerController,LearnerController,ContentController}.php`, `app/Http/Requests/**`, `app/Http/Resources/**`, `app/Http/Pagination/**`, `routes/api.php`, `tests/Feature/Api/{Groups,Learners,Content}/**`, `tests/Unit/Queries/MyGroupsTest.php`.
 
 ## Steps
 
