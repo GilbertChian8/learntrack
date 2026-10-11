@@ -40,8 +40,8 @@ test('taughtBy lists only the groups the educator teaches', function () {
 });
 
 test('Gate::authorize on a denied view renders 404 not_found, not 403', function () {
-    Route::middleware(['api', 'auth:api'])->get('api/v1/test/groups/{group}', function (Group $group) {
-        Gate::authorize('view', $group);
+    Route::middleware(['api', 'auth:api'])->get('api/v1/test/groups/{id}', function (string $id) {
+        Gate::authorize('view', Group::query()->findOrFail($id));
 
         return response()->noContent();
     });
