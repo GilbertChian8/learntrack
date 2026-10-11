@@ -19,9 +19,9 @@ One Laravel application serves REST, GraphQL and MCP (ADR-002). The rule that ma
 | Layer | Folder | What lives there |
 |---|---|---|
 | Models | app/Models | Institution, User, Group (table learner_groups), ContentItem, Assignment, Progress, AuditEntry |
-| Policies | app/Policies | GroupPolicy (an educator teaches the group) and AssignmentPolicy (an educator manages it through its group; a learner records progress on it when it targets them). Every scope check in the system goes through these, and they deny with denyAsNotFound(), so the Gate answers 404 as well |
+| Policies | app/Policies | GroupPolicy (an educator teaches the group; the learners an educator may add to a group are the learners of their institution) and AssignmentPolicy (an educator manages it through its group; a learner records progress on it when it targets them). Every scope check in the system goes through these, and they deny with denyAsNotFound(), so the Gate answers 404 as well |
 | Actions | app/Actions | AssignContent, ChangeDueDate, RemoveAssignment, CreateGroup, AddLearners, RemoveLearner, RecordProgress. Each one runs in one transaction and writes its audit row inside that transaction |
-| Queries | app/Queries | GroupProgress (the pair query and the per learner and per assignment aggregates), BehindRule (the rule itself: thresholds and the predicate), LearnerSummary, HardestAssignments, MyGroups |
+| Queries | app/Queries | GroupProgress (the group header and members, then the pair rows aggregated per learner and per assignment), PairRows (the pair query), LearnerAggregation (one learner's counts, average, behind and statuses), BehindRule (the threshold, the predicate, the average, the reasons and the rule in words), LearnerSummary, HardestAssignments, MyGroups, LearnerDirectory, ContentLibrary, GroupDetail |
 | REST | app/Http/Controllers/Api, app/Http/Requests, app/Http/Resources | Thin controllers, Form Requests and API Resources |
 | GraphQL | graphql/schema.graphql, app/GraphQL | The groupProgress query and its resolver (Lighthouse) |
 | MCP | app/Mcp/Servers/EducatorServer, app/Mcp/Tools | Seven tool classes (laravel/mcp) |

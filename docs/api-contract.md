@@ -56,7 +56,8 @@ A list, always paged:
 ```
 
 - `?limit` is the page size: default 50, maximum 200. A value above 200 or below 1 answers 422.
-- `?cursor` is the opaque string from the previous page's `meta.next_cursor`. A malformed cursor answers 422.
+- `?cursor` is the opaque string from the previous page's `meta.next_cursor`. A malformed cursor, or one from another list, answers 422 on `cursor` with `The cursor is invalid.`
+- An empty `limit` or `cursor` means the default: 50, and the first page.
 - `next_cursor` is `null` on the last page.
 - Every list has a stated order (see each endpoint); the cursor follows that order.
 
@@ -323,6 +324,8 @@ The message is the same for an id that does not exist, so nothing leaks.
   }
 }
 ```
+
+`added` and `already_members` are ordered by name, then id.
 
 Repeating the call answers 200 with everyone under `already_members`.
 

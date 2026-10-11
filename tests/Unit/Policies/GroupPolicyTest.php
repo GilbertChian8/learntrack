@@ -40,8 +40,8 @@ test('taughtBy lists only the groups the educator teaches', function () {
 });
 
 test('Gate::authorize on a denied view renders 404 not_found, not 403', function () {
-    Route::middleware(['api', 'auth:api'])->get('api/v1/test/groups/{group}', function (Group $group) {
-        Gate::authorize('view', $group);
+    Route::middleware(['api', 'auth:api'])->get('api/v1/test/groups/{id}', function (string $id) {
+        Gate::authorize('view', Group::query()->findOrFail($id));
 
         return response()->noContent();
     });
@@ -53,4 +53,13 @@ test('Gate::authorize on a denied view renders 404 not_found, not 403', function
     getJson("/api/v1/test/groups/{$group->id}")
         ->assertNotFound()
         ->assertExactJson(['error' => ['code' => 'not_found', 'message' => 'Not found.']]);
+});
+
+test('addableLearners lists only the learners of the educator\'s institution', function () {
+    $educator = User::factory()->educator()->create();
+    $learner = User::factory()->learner()->create(['institution_id' => $educator->institution_id]);
+    User::factory()->educator()->create(['institution_id' => $educator->institution_id]);
+    User::factory()->learner()->create();
+
+    expect(GroupPolicy::addableLearners($educator)->pluck('id')->all())->toBe([$learner->id]);
 });
