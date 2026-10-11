@@ -3,7 +3,7 @@
 namespace App\Http\Requests;
 
 /**
- * A list with ?search, matched anywhere in the string, case-insensitive.
+ * A list with ?search.
  */
 class SearchRequest extends ListRequest
 {
@@ -18,13 +18,8 @@ class SearchRequest extends ListRequest
         ];
     }
 
-    /**
-     * A LIKE pattern for the search, with % and _ taken literally.
-     */
-    public function searchPattern(): ?string
+    public function search(): ?string
     {
-        $search = $this->validated('search');
-
-        return $search === null ? null : '%'.addcslashes($search, '\\%_').'%';
+        return $this->validated('search');
     }
 }

@@ -6,20 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Pagination\CursorPage;
 use App\Http\Requests\ContentSearchRequest;
 use App\Http\Resources\ContentResource;
-use App\Models\ContentItem;
-use Illuminate\Database\Eloquent\Builder;
+use App\Queries\ContentLibrary;
 
 class ContentController extends Controller
 {
     public function __invoke(ContentSearchRequest $request): CursorPage
     {
-        $content = ContentItem::query()
-            ->when($request->topic(), fn (Builder $query, string $topic) => $query->where('topic', $topic))
-            ->when($request->searchPattern(), fn (Builder $query, string $pattern) => $query->whereLike('title', $pattern))
-            ->orderBy('topic')
-            ->orderBy('title')
-            ->orderBy('id');
-
-        return CursorPage::of($content, $request, ContentResource::class);
+        return CursorPage::of(ContentLibrary::for($request->topic(), $request->search()), $request, ContentResource::class);
     }
 }

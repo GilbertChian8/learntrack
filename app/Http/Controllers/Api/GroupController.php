@@ -12,9 +12,9 @@ use App\Http\Resources\GroupDetailResource;
 use App\Http\Resources\GroupResource;
 use App\Models\Group;
 use App\Models\User;
+use App\Queries\GroupDetail;
 use App\Queries\MyGroups;
 use Illuminate\Container\Attributes\CurrentUser;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -36,9 +36,6 @@ class GroupController extends Controller
 
     public function show(Group $group, #[CurrentUser] User $educator): GroupDetailResource
     {
-        return new GroupDetailResource(MyGroups::for($educator)->whereKey($group->id)->sole()->load([
-            'educators' => fn (BelongsToMany $query) => $query->orderBy('users.name')->orderBy('users.id'),
-            'learners' => fn (BelongsToMany $query) => $query->orderBy('users.name')->orderBy('users.id'),
-        ]));
+        return new GroupDetailResource(GroupDetail::for($educator, $group->id));
     }
 }
