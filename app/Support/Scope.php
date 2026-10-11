@@ -10,7 +10,7 @@ use App\Policies\AssignmentPolicy;
 use App\Policies\GroupPolicy;
 
 /**
- * The one place that turns "not in scope" into NotFoundException (ADR-006).
+ * The single-record scoped lookups. A miss throws NotFoundException (ADR-006).
  */
 class Scope
 {

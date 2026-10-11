@@ -1,6 +1,5 @@
 <?php
 
-use App\Exceptions\NotFoundException;
 use App\Models\Group;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -69,20 +68,6 @@ function learnerIn(Group $group): User
     $group->learners()->attach($learner);
 
     return $learner;
-}
-
-/**
- * The subject of the NotFoundException the lookup throws, or null when it throws none.
- */
-function notFoundSubject(Closure $lookup): ?string
-{
-    try {
-        $lookup();
-    } catch (NotFoundException $exception) {
-        return $exception->subject;
-    }
-
-    return null;
 }
 
 /**

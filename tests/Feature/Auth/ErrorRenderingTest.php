@@ -47,14 +47,21 @@ test('maintenance mode answers 503 service_unavailable with Retry-After', functi
     }
 });
 
-test('every not-found exception renders the same 404 body', function (Closure $throw) {
+test('a NotFoundException renders 404 not_found with its own message', function () {
+    Route::middleware('api')->get('api/v1/test/not-found', fn () => throw NotFoundException::contentItem());
+
+    getJson('/api/v1/test/not-found')
+        ->assertNotFound()
+        ->assertExactJson(['error' => ['code' => 'not_found', 'message' => 'Content item not found.']]);
+});
+
+test('the framework not-found exceptions render 404 not_found with Not found.', function (Closure $throw) {
     Route::middleware('api')->get('api/v1/test/not-found', $throw);
 
     getJson('/api/v1/test/not-found')
         ->assertNotFound()
         ->assertExactJson(['error' => ['code' => 'not_found', 'message' => 'Not found.']]);
 })->with([
-    'NotFoundException' => fn () => throw NotFoundException::group(),
     'ModelNotFoundException' => fn () => User::query()->findOrFail(0),
     'NotFoundHttpException' => fn () => abort(404),
 ]);
