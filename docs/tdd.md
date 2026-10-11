@@ -27,7 +27,7 @@ One Laravel application serves REST, GraphQL and MCP (ADR-002). The rule that ma
 | MCP | app/Mcp/Servers/EducatorServer, app/Mcp/Tools | Seven tool classes (laravel/mcp) |
 | Web | resources/js/pages/auth, resources/js/pages/mcp | The login, consent and error pages as Inertia pages (React, TypeScript, ADR-017); app.blade.php is the only Blade view |
 
-BehindRule is the one place the rule lives (requirement 6). It exposes the score threshold (50) and one method, isBehind(overdueCount, averageScore). The SQL only produces the two inputs; nothing else in the code base compares a score to 50.
+BehindRule is the one place the rule lives (requirement 6). It exposes the score threshold (50) and the predicate isBehind(overdueCount, averageScore), plus the average over completed question sets, the reasons and the rule in words. The SQL only produces the two inputs; nothing else in the code base compares a score to 50.
 
 # Request path and routing
 
@@ -261,7 +261,7 @@ LEFT JOIN progress p        ON p.assignment_id = a.id AND p.user_id = gl.user_id
 WHERE a.group_id = ? AND a.removed_at IS NULL;
 ```
 
-The learner variant of the same query (GET /api/v1/me/assignments and get_learner_summary) starts from the learner's group_learners rows and inner joins the active assignments that target them, with the same columns and the same CASE, in one query.
+The learner variant of the same query (GET /api/v1/me/assignments and get_learner_summary) starts from the learner's group_learners rows and inner joins the active assignments that target them, with the same columns and the same CASE, in one query. Both variants take an optional moment that replaces UTC_TIMESTAMP(); GroupProgress passes the moment it reads, so the statuses, days_overdue and generatedAt come from one clock.
 
 For the largest group that is 6,000 rows, read once. An assignment that targets nobody yet (an empty group, or a subset whose learners all left the group) appears as one row with a null learner, so the assignment list is always complete; such rows count for the assignment list and are skipped for learner statistics. A member that no assignment targets has no pair row at all; the member list comes from the group lookup (the first query, below), so such a learner appears with zero counts and is not behind. From those rows GroupProgress builds, in PHP, the per learner view (counts by status, average score over completed question sets, the behind flag through BehindRule, and the reasons: which assignments are overdue and since when, or which scores pull the average down) and the per assignment view (targeted learners, completed count, completion rate, average score).
 
