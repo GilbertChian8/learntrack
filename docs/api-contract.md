@@ -685,5 +685,6 @@ Low average (at most one):
 
 - `scores`: every completed question set of the learner in the group, in due date order, so the AI can say which ones pull the average down.
 - `average_score` is rounded to 1 decimal; a whole number is written without a decimal in `text` (`"score 40 is below 50"`).
+- BehindRule compares the average rounded to one decimal, the number every interface shows.
 
 The rule in words, returned by `find_learners_behind` as `rule`: "A learner is behind when they have at least one overdue assignment in the group, or their average score over completed question sets in the group is below 50."
