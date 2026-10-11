@@ -9,7 +9,7 @@ variable "domain_name" {
 
 variable "github_repository" {
   type        = string
-  description = "owner/name of the GitHub repository the deploy role trusts."
+  description = "owner/name of the GitHub repository the GitHub roles trust."
 }
 
 variable "github_oidc_provider_arn" {
