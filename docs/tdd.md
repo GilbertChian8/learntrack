@@ -473,7 +473,7 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 - CloudWatch: one log group (JSON logs, 30 day retention) and the alarms listed in the launch plan.
 - EventBridge Scheduler rule that runs the housekeeping command as a one-off task once a day.
 - GitHub Actions: ci (Pint, Larastan, Pest against a MySQL service container, eslint, tsc) on every pull request, plus terraform plan posted on the pull request; deploy on main: build the image tagged with the git SHA, push to ECR, terraform apply, run the migration task and stop on failure, register the task definition revision, update the service, wait until stable; a manual destroy workflow as the off switch for cost.
-- The environment name and the region are variables; a second environment is one tfvars file and one OIDC role.
+- The environment name and the region are variables; a second environment is one set of variables and one OIDC role.
 
 ## Flows 2 and 3: groups, assignments and progress (REST)
 
@@ -608,7 +608,7 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 ## 5. Launch plan
 
 - **No data migration**: the system is new. Migrations run as a one-off ECS task in the pipeline before the service update, never on task boot. Migrations are expand-only in v1: no column or table is dropped while the previous image can still run.
-- **Environments**: docker compose locally; one AWS environment built and destroyed by the pipeline. The environment name and the region are Terraform variables, so a second environment is one tfvars file and one OIDC role. [ADR-015, ADR-016]
+- **Environments**: docker compose locally; one AWS environment built and destroyed by the pipeline. The environment name and the region are Terraform variables, so a second environment is one set of variables and one OIDC role. [ADR-015, ADR-016]
 - **Rollout in three steps**: 1) deploy with seed data and connect one educator's Claude; 2) one pilot group with real educators and learners for two weeks, watching the alarms and the audit log; 3) onboard institutions by adding their accounts with the account command, since v1 has no admin screen.
 - **Rollback**: one command to the previous task definition revision. Migrations are forward-only, so a rollback never needs a schema change. [ADR-016]
 - **Monitoring** (minimal on purpose): CloudWatch alarms on ALB 5xx rate, unhealthy target count, running task count below 2, target response time p95 above 1 s, RDS CPU, free storage and connection count, and a failed housekeeping invocation. JSON logs in CloudWatch with 30 day retention. An email topic receives the alarms.
