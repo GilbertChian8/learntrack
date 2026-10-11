@@ -63,3 +63,4 @@ How do the private subnets reach AWS services today, and the internet later?
 - One per AZ, because outbound will be in the login path once single sign-on exists, and the 99.9% target does not allow a single-AZ dependency there.
 - The S3 gateway endpoint is free and removes the only heavy outbound traffic, the image layers.
 - Ratified by: Gilbert Lavensky Chan (09/10/2026)
+- Amended 12/10/2026: $65 a month and $0.045 per GB are the US East prices. In eu-central-1, the default region, a NAT gateway costs $0.052 an hour and $0.052 per GB, so two cost about $76 a month (AWS Price List, October 2026). The decision is unchanged.
