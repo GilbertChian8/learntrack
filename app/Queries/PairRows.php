@@ -9,15 +9,15 @@ use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
 
 /**
- * One row per learner and active assignment that targets them, with the derived
- * status, in due date order. A given $now replaces UTC_TIMESTAMP().
+ * One row per learner and active assignment that targets them, with the status
+ * derived against $now, in due date order.
  */
 class PairRows
 {
     /**
      * An assignment that targets nobody gives one row with a null learner.
      */
-    public static function forGroup(int $groupId, ?CarbonImmutable $now = null): Builder
+    public static function forGroup(int $groupId, CarbonImmutable $now): Builder
     {
         return self::columns(DB::table('assignments as a'), $now)
             ->join('learner_groups as g', 'g.id', '=', 'a.group_id')
@@ -40,7 +40,7 @@ class PairRows
      *
      * @param  list<int>|null  $groupIds
      */
-    public static function forLearner(int $learnerId, ?array $groupIds = null, ?CarbonImmutable $now = null): Builder
+    public static function forLearner(int $learnerId, CarbonImmutable $now, ?array $groupIds = null): Builder
     {
         return self::columns(DB::table('group_learners as gl'), $now)
             ->join('assignments as a', fn (JoinClause $join) => self::targeting(
@@ -58,7 +58,7 @@ class PairRows
             ->orderBy('a.id');
     }
 
-    private static function columns(Builder $query, ?CarbonImmutable $now): Builder
+    private static function columns(Builder $query, CarbonImmutable $now): Builder
     {
         return $query
             ->select([
@@ -71,11 +71,11 @@ class PairRows
             ->selectRaw(
                 "case
                     when p.status = 'completed' then 'completed'
-                    when a.due_at < coalesce(cast(? as datetime), utc_timestamp()) then 'overdue'
+                    when a.due_at < ? then 'overdue'
                     when p.status = 'in_progress' then 'in_progress'
                     else 'not_started'
                 end as status",
-                [$now?->utc()->format('Y-m-d H:i:s')],
+                [$now->utc()->format('Y-m-d H:i:s')],
             );
     }
 

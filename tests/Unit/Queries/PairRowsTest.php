@@ -19,8 +19,8 @@ test('both variants return exactly the columns of the pair query', function () {
         'status',
     ];
 
-    expect(array_keys((array) PairRows::forGroup($group->id)->sole()))->toBe($columns)
-        ->and(array_keys((array) PairRows::forLearner($learner->id)->sole()))->toBe($columns);
+    expect(array_keys((array) PairRows::forGroup($group->id, CarbonImmutable::now())->sole()))->toBe($columns)
+        ->and(array_keys((array) PairRows::forLearner($learner->id, CarbonImmutable::now())->sole()))->toBe($columns);
 });
 
 test('the status is derived from the progress row and the due date', function (?string $progress, string $dueAt, string $status) {
@@ -48,16 +48,6 @@ test('the status is derived from the progress row and the due date', function (?
     'completed after the due date' => ['completed late', '2026-10-01 21:59:59', 'completed'],
 ]);
 
-test('without a given moment the database clock decides, not the application clock', function () {
-    CarbonImmutable::setTestNow('2000-01-01 00:00:00');
-    $group = Group::factory()->create();
-    learnerIn($group);
-    Assignment::factory()->for($group)->create(['due_at' => '2001-01-01 00:00:00']);
-
-    expect(PairRows::forGroup($group->id)->sole()->status)->toBe('overdue')
-        ->and(PairRows::forGroup($group->id, CarbonImmutable::now())->sole()->status)->toBe('not_started');
-});
-
 test('a subset assignment pairs only its learners and a removed assignment pairs nobody', function () {
     $group = Group::factory()->create();
     $targeted = learnerIn($group);
@@ -65,7 +55,7 @@ test('a subset assignment pairs only its learners and a removed assignment pairs
     $subset = Assignment::factory()->for($group)->forLearners([$targeted])->create();
     Assignment::factory()->for($group)->removed()->create();
 
-    $pairs = PairRows::forGroup($group->id)->get()->map(fn (stdClass $row) => [$row->assignment_id, $row->user_id]);
+    $pairs = PairRows::forGroup($group->id, CarbonImmutable::now())->get()->map(fn (stdClass $row) => [$row->assignment_id, $row->user_id]);
 
     expect($pairs->all())->toBe([[$subset->id, $targeted->id]]);
 });
@@ -76,7 +66,7 @@ test('an assignment that targets nobody gives one row with a null learner', func
     $assignment = Assignment::factory()->for($group)->forLearners([$leaver])->create();
     $group->learners()->detach($leaver);
 
-    $row = PairRows::forGroup($group->id)->sole();
+    $row = PairRows::forGroup($group->id, CarbonImmutable::now())->sole();
 
     expect($row->assignment_id)->toBe($assignment->id)
         ->and($row->user_id)->toBeNull()
@@ -98,10 +88,10 @@ test('forLearner gives the pairs that target the learner across their groups, in
     Assignment::factory()->for($first)->removed()->create();
     Assignment::factory()->for($notMine)->create();
 
-    $rows = PairRows::forLearner($learner->id)->get();
+    $rows = PairRows::forLearner($learner->id, CarbonImmutable::now())->get();
 
     expect($rows->pluck('assignment_id')->all())->toBe([$sooner->id, $later->id])
         ->and($rows->pluck('user_id')->unique()->all())->toBe([$learner->id])
         ->and($rows->pluck('learner_name')->unique()->all())->toBe([$learner->name])
-        ->and(PairRows::forLearner($learner->id, [$first->id])->pluck('assignment_id')->all())->toBe([$later->id]);
+        ->and(PairRows::forLearner($learner->id, CarbonImmutable::now(), [$first->id])->pluck('assignment_id')->all())->toBe([$later->id]);
 });

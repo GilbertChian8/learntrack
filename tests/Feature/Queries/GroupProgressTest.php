@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\ContentType;
+use App\Enums\DerivedStatus;
 use App\Exceptions\NotFoundException;
 use App\Models\Assignment;
 use App\Models\ContentItem;
@@ -235,6 +236,19 @@ test('a member that no assignment targets appears with zero counts and is not be
         ->and($learner->behind)->toBeFalse()
         ->and($learner->reasons)->toBe([])
         ->and($learner->statuses)->toBe([]);
+});
+
+test('the application clock decides the statuses, not the database clock', function () {
+    CarbonImmutable::setTestNow('2000-01-01 00:00:00');
+    $group = Group::factory()->create();
+    $educator = educatorOf($group);
+    learnerIn($group);
+    Assignment::factory()->for($group)->create(['due_at' => '2001-01-01 00:00:00']);
+
+    $result = GroupProgress::for($educator, $group->id);
+
+    expect($result->learners[0]->statuses[0]->status)->toBe(DerivedStatus::NotStarted)
+        ->and($result->generatedAt->toIso8601String())->toBe('2000-01-01T00:00:00+00:00');
 });
 
 test('another educator\'s group and a missing id are not found, before any pair query runs', function (Closure $groupIdFor) {
