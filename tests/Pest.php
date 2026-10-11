@@ -71,6 +71,35 @@ function learnerIn(Group $group): User
 }
 
 /**
+ * One row as PairRows returns it.
+ *
+ * @param  array<string, mixed>  $columns
+ */
+function pairRow(array $columns = []): stdClass
+{
+    return (object) [
+        'group_id' => 12,
+        'group_name' => 'Cardiology Group A',
+        'user_id' => 101,
+        'learner_name' => 'Sara Lindqvist',
+        'assignment_id' => 41,
+        'scope' => 'group',
+        'due_at' => '2026-10-16 21:59:59',
+        'content_item_id' => 8,
+        'title' => 'Heart Failure Question Set',
+        'topic' => 'Cardiology',
+        'type' => 'question_set',
+        'estimated_minutes' => 30,
+        'progress_status' => null,
+        'score' => null,
+        'started_at' => null,
+        'completed_at' => null,
+        'status' => 'not_started',
+        ...$columns,
+    ];
+}
+
+/**
  * @return array{name: string, columns: list<string>, type: string, unique: bool, primary: bool}|null
  */
 function findIndex(string $table, string $name): ?array

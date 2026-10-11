@@ -27,7 +27,7 @@ One Laravel application serves REST, GraphQL and MCP (ADR-002). The rule that ma
 | MCP | app/Mcp/Servers/EducatorServer, app/Mcp/Tools | Seven tool classes (laravel/mcp) |
 | Web | resources/js/pages/auth, resources/js/pages/mcp | The login, consent and error pages as Inertia pages (React, TypeScript, ADR-017); app.blade.php is the only Blade view |
 
-BehindRule is the one place the rule lives (requirement 6). It exposes the score threshold (50) and one method, isBehind(overdueCount, averageScore). The SQL only produces the two inputs; nothing else in the code base compares a score to 50.
+BehindRule is the one place the rule lives (requirement 6). It exposes the score threshold (50) and the predicate isBehind(overdueCount, averageScore), plus the average over completed question sets, the reasons and the rule in words. The SQL only produces the two inputs; nothing else in the code base compares a score to 50.
 
 # Request path and routing
 
@@ -213,7 +213,7 @@ Notes on the design:
 | in_progress | no | in_progress |
 | none | no | not_started |
 
-- **Behind** (requirement 6): a learner is behind in a group when they have at least one overdue pair in that group, or when the average score of their completed question sets in that group is below 50. A learner with no completed question set has no average and is not behind by score. Exactly 50 is not behind. Only assignments that target the learner count (scope group, or a row in assignment_learners).
+- **Behind** (requirement 6): a learner is behind in a group when they have at least one overdue pair in that group, or when the average score of their completed question sets in that group is below 50. A learner with no completed question set has no average and is not behind by score. Exactly 50 is not behind. BehindRule compares the average rounded to one decimal, the number every interface shows. Only assignments that target the learner count (scope group, or a row in assignment_learners).
 - **Subset assignments.** An assignment with scope group targets every current member of the group, including learners added later. An assignment with scope learners targets only the rows in assignment_learners. This is why a new group member picks up the group's assignments with no extra write, while a remediation assignment stays with the learners it was made for.
 - **Soft delete for assignments** (requirement 4). Removing an assignment sets removed_at and sets removed_key to the row's own id, in the same write; its progress rows stay. removed_key makes the unique key uq_assignments_active mean "one active assignment per content item per group": every active row holds 0, and every removed row carries its own id, so removed rows never collide with each other or with the active row. MySQL has no partial indexes, so this is the standard way to express that rule. The CHECK chk_assignments_removed keeps the two columns in step: removed_at is null exactly when removed_key is 0. After a removal the same content can be assigned again as a new row.
 - **Removing a learner from a group** deletes the group_learners row only. Their progress rows stay, so re-adding them later shows their history, and nothing is lost.
@@ -245,7 +245,7 @@ SELECT a.group_id, g.name AS group_name,
        p.status AS progress_status, p.score, p.started_at, p.completed_at,
        CASE
          WHEN p.status = 'completed'        THEN 'completed'
-         WHEN a.due_at < UTC_TIMESTAMP()    THEN 'overdue'
+         WHEN a.due_at < ?                  THEN 'overdue'   -- the moment of the read, bound
          WHEN p.status = 'in_progress'      THEN 'in_progress'
          ELSE 'not_started'
        END AS status
@@ -261,7 +261,7 @@ LEFT JOIN progress p        ON p.assignment_id = a.id AND p.user_id = gl.user_id
 WHERE a.group_id = ? AND a.removed_at IS NULL;
 ```
 
-The learner variant of the same query (GET /api/v1/me/assignments and get_learner_summary) starts from the learner's group_learners rows and inner joins the active assignments that target them, with the same columns and the same CASE, in one query.
+The learner variant of the same query (GET /api/v1/me/assignments and get_learner_summary) starts from the learner's group_learners rows and inner joins the active assignments that target them, with the same columns and the same CASE, in one query. Both variants bind the moment of the read from the application clock, so the statuses, days_overdue and generatedAt come from one clock, and tests fix it with the test clock.
 
 For the largest group that is 6,000 rows, read once. An assignment that targets nobody yet (an empty group, or a subset whose learners all left the group) appears as one row with a null learner, so the assignment list is always complete; such rows count for the assignment list and are skipped for learner statistics. A member that no assignment targets has no pair row at all; the member list comes from the group lookup (the first query, below), so such a learner appears with zero counts and is not behind. From those rows GroupProgress builds, in PHP, the per learner view (counts by status, average score over completed question sets, the behind flag through BehindRule, and the reasons: which assignments are overdue and since when, or which scores pull the average down) and the per assignment view (targeted learners, completed count, completion rate, average score).
 

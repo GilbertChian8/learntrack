@@ -18,7 +18,9 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progre
 # nginx plus PHP-FPM on PHP 8.5, unprivileged (www-data), HTTP on 8080.
 FROM serversideup/php:8.5.8-fpm-nginx-trixie-v4.5.1
 ENV HEALTHCHECK_PATH=/up \
-    SHOW_WELCOME_MESSAGE=false
+    SHOW_WELCOME_MESSAGE=false \
+    PHP_OPCACHE_ENABLE=1 \
+    PHP_OPCACHE_VALIDATE_TIMESTAMPS=0
 COPY --chown=www-data:www-data . /var/www/html
 COPY --chown=www-data:www-data --from=vendor /app/vendor /var/www/html/vendor
 COPY --chown=www-data:www-data --from=assets /app/public/build /var/www/html/public/build
