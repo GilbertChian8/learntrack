@@ -31,7 +31,7 @@ class GroupResource extends JsonResource
             ],
             'learner_count' => $this->learner_count,
             'assignment_count' => $this->assignment_count,
-            'created_at' => InstitutionTime::format($this->created_at, $this->institution->timezone),
+            'created_at' => (new InstitutionTime($this->institution->timezone))->format($this->created_at),
         ];
     }
 }
