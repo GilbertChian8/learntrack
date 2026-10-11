@@ -18,10 +18,17 @@ Check only these five things:
 4. Files touched are inside the ticket's "Allowed paths" (plus tests), or the PR explains why.
 5. Any document the code disagrees with is changed in the same PR.
 
-Output, at most ten findings, each with file and line:
-- BLOCKERS: must be fixed before merge.
-- NITS: optional, one line each.
-- DESIGN QUESTIONS: only if the ticket or TDD itself seems wrong. Do not propose a fix; name the conflict.
-If there are no blockers, say "No blockers" first.
+Output only the findings. No preamble, no list of what you read or checked, no list of what is fine, no restating of decisions already settled. On a second review of the same PR, report only what is new or still open.
+
+At most ten findings, most severe first, numbered across the sections. Leave out an empty section. If there are no blockers, the first line is "No blockers".
+
+BLOCKERS (must be fixed before merge)
+1. `path:line`: what is wrong, in one sentence. Fix: one sentence.
+
+NITS (optional)
+2. `path:line`: one line.
+
+DESIGN QUESTIONS (only if the ticket or TDD itself seems wrong)
+3. `path:line` against `path:line`: the conflict, in one or two sentences. No fix.
 
 With a PR number, post the report unchanged as one comment on the PR after printing it: write it to a temp file and run `gh pr comment <number> --body-file <file>`, with the first line `## pr-reviewer`. Do not approve or request changes; a comment only. With a local diff, print the report and post nothing.
