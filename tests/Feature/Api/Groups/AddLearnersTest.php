@@ -69,6 +69,39 @@ test('the same call again answers 200 with everyone under already_members and wr
         ->and(DB::table('group_learners')->where('group_id', $group->id)->count())->toBe(2);
 });
 
+test('a duplicate key from a request adding the same learner is caught and answered as already_members', function () {
+    $group = Group::factory()->create();
+    $educator = educatorOf($group);
+    $learner = User::factory()->learner()->create(['institution_id' => $group->institution_id, 'name' => 'Priya Nair']);
+    $step = 'before insert';
+
+    // The other request's row collides with our insert, is rolled back with it, then is there for our re-read.
+    DB::beforeExecuting(function (string $query) use (&$step, $group, $learner) {
+        if ($step === 'before insert' && str_starts_with($query, 'insert into `group_learners`')) {
+            $step = 'before re-read';
+            DB::table('group_learners')->insert(['group_id' => $group->id, 'user_id' => $learner->id]);
+        } elseif ($step === 'before re-read' && str_contains($query, 'inner join `group_learners`')) {
+            $step = 'done';
+            DB::table('group_learners')->insert(['group_id' => $group->id, 'user_id' => $learner->id]);
+        }
+    });
+
+    actingAsEducator($educator);
+
+    postJson("/api/v1/groups/{$group->id}/learners", ['user_ids' => [$learner->id]])
+        ->assertOk()
+        ->assertExactJson([
+            'data' => [
+                'added' => [],
+                'already_members' => [['id' => $learner->id, 'name' => 'Priya Nair']],
+            ],
+        ]);
+
+    expect($step)->toBe('done')
+        ->and(DB::table('group_learners')->where('group_id', $group->id)->pluck('user_id')->all())->toBe([$learner->id])
+        ->and(AuditEntry::query()->count())->toBe(0);
+});
+
 test('an id that is not a learner of the caller\'s institution answers 422 on user_ids.N and writes nothing', function (Closure $makeUserId) {
     $group = Group::factory()->create();
     $educator = educatorOf($group);
