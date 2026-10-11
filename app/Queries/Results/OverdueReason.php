@@ -34,7 +34,7 @@ readonly class OverdueReason implements Reason
             'kind' => 'overdue',
             'assignment_id' => $this->assignmentId,
             'title' => $this->title,
-            'due_at' => InstitutionTime::iso($this->dueAt),
+            'due_at' => InstitutionTime::format($this->dueAt),
             'days_overdue' => $this->daysOverdue,
             'text' => $this->text(),
         ];

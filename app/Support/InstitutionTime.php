@@ -43,10 +43,18 @@ class InstitutionTime
     }
 
     /**
-     * ISO 8601 with the offset, for example 2026-10-16T23:59:59+02:00.
+     * ISO 8601 with the offset, for example 2026-10-16T23:59:59+02:00. Without a time zone the moment keeps its own.
+     *
+     * @return ($moment is null ? null : string)
      */
-    public static function iso(CarbonInterface $time): string
+    public static function format(?CarbonInterface $moment, DateTimeZone|string|null $timezone = null): ?string
     {
-        return $time->toIso8601String();
+        if ($moment === null) {
+            return null;
+        }
+
+        $moment = $moment->toImmutable();
+
+        return ($timezone === null ? $moment : $moment->setTimezone($timezone))->toIso8601String();
     }
 }
