@@ -20,9 +20,9 @@ class GroupLearnerController extends Controller
         return new AddLearnersResultResource($addLearners->handle($educator, $group, $request->userIds(), AuditChannel::Rest));
     }
 
-    public function destroy(Group $group, int $user, #[CurrentUser] User $educator, RemoveLearner $removeLearner): Response
+    public function destroy(Group $group, string $user, #[CurrentUser] User $educator, RemoveLearner $removeLearner): Response
     {
-        $removeLearner->handle($educator, $group, $user, AuditChannel::Rest);
+        $removeLearner->handle($educator, $group, (int) $user, AuditChannel::Rest);
 
         return response()->noContent();
     }

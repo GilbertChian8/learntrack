@@ -48,6 +48,7 @@ test('a user who is not a member answers 204 and writes nothing', function () {
     actingAsEducator($educator);
 
     deleteJson("/api/v1/groups/{$group->id}/learners/{$stranger->id}")->assertNoContent();
+    deleteJson("/api/v1/groups/{$group->id}/learners/99999999999999999999")->assertNoContent();
 
     expect(DB::table('group_learners')->where('group_id', $group->id)->pluck('user_id')->all())->toBe([$member->id])
         ->and(AuditEntry::query()->count())->toBe(0);
