@@ -14,7 +14,7 @@ The AWS account is shared with another project.
 - Every resource name starts with `learntrack-`. Path-style names start with `learntrack/` (the secrets) or `/learntrack/` (the log group, ticket 05).
 - Every resource has the tags `Project=learntrack` and `Environment` (`bootstrap` for the bootstrap, `prod` for the environment), set by the provider's default tags.
 - The account may already have a GitHub OIDC provider. AWS allows only one per URL. Find it with `aws iam list-open-id-connect-providers` and set `github_oidc_provider_arn` to reuse it. Leave it empty to create one.
-- The deploy role changes IAM roles, logs, RDS, ECS, load balancers, alarms, topics, schedules and rules only when their names start with `learntrack-` (or `/learntrack/`). EC2 network resources and ACM certificates have generated ids, so the role can change any of them.
+- The deploy role changes IAM roles, logs, RDS, ECS, load balancers, alarms, topics, schedules and rules only when their names start with `learntrack-` (or `/learntrack/`). EC2 network resources and ACM certificates have generated ids, and ECS task definitions are registered without a resource name, so the role can change any of these.
 
 ## Variables
 
