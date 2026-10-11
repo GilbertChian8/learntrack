@@ -7,6 +7,8 @@ use App\Queries\Results\OverdueReason;
 use App\Queries\Results\Reason;
 use App\Support\InstitutionTime;
 use Carbon\CarbonImmutable;
+use DateTimeImmutable;
+use DateTimeZone;
 use stdClass;
 
 /**
@@ -15,6 +17,11 @@ use stdClass;
 class BehindRule
 {
     public const int SCORE_THRESHOLD = 50;
+
+    /**
+     * @var array<string, int>
+     */
+    private static array $dayNumbers = [];
 
     public static function isBehind(int $overdueCount, ?float $averageScore): bool
     {
@@ -44,12 +51,12 @@ class BehindRule
      */
     public static function reasons(array $overduePairs, array $completedQuestionSets, InstitutionTime $institutionTime, CarbonImmutable $now): array
     {
-        $today = $institutionTime->in($now)->startOfDay();
+        $today = self::dayNumber($institutionTime->in($now)->toDateString());
 
         $reasons = array_map(function (stdClass $pair) use ($institutionTime, $today): Reason {
             $dueAt = $institutionTime->fromUtc((string) $pair->due_at);
 
-            return new OverdueReason($pair->assignment_id, $pair->title, $dueAt, self::calendarDays($dueAt, $today), $institutionTime);
+            return new OverdueReason($pair->assignment_id, $pair->title, $dueAt, $today - self::dayNumber($dueAt->toDateString()), $institutionTime);
         }, $overduePairs);
 
         $averageScore = self::averageScore($completedQuestionSets);
@@ -80,10 +87,10 @@ class BehindRule
     }
 
     /**
-     * Rounded, since a day with a clock change has 23 or 25 hours.
+     * Days since 1970-01-01 for a local Y-m-d date, so a clock change does not count. Cached per date.
      */
-    private static function calendarDays(CarbonImmutable $dueAt, CarbonImmutable $today): int
+    private static function dayNumber(string $date): int
     {
-        return (int) round($dueAt->startOfDay()->diffInDays($today));
+        return self::$dayNumbers[$date] ??= intdiv((new DateTimeImmutable($date, new DateTimeZone('UTC')))->getTimestamp(), 86400);
     }
 }
