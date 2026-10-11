@@ -98,7 +98,7 @@ test('a whole-number average is written without a decimal', function (array $sco
     'an average that rounds to a whole number' => [[39, 41], 'Average question set score 40 is below 50 (scores: 39, 41)'],
 ]);
 
-test('overdue reasons come first in due date order, then one low-average reason', function () {
+test('overdue reasons come first in the order given, then one low-average reason', function () {
     $reasons = BehindRule::reasons(
         [
             pairRow(['assignment_id' => 40, 'due_at' => '2026-10-02 21:59:59', 'status' => 'overdue']),
