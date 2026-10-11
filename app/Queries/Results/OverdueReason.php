@@ -12,6 +12,7 @@ readonly class OverdueReason implements Reason
         public string $title,
         public CarbonImmutable $dueAt,
         public int $daysOverdue,
+        private InstitutionTime $institutionTime,
     ) {}
 
     public function text(): string
@@ -34,7 +35,7 @@ readonly class OverdueReason implements Reason
             'kind' => 'overdue',
             'assignment_id' => $this->assignmentId,
             'title' => $this->title,
-            'due_at' => InstitutionTime::format($this->dueAt),
+            'due_at' => $this->institutionTime->format($this->dueAt),
             'days_overdue' => $this->daysOverdue,
             'text' => $this->text(),
         ];

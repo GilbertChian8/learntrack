@@ -37,24 +37,18 @@ class InstitutionTime
         return $this->converted[$utc] ??= (new CarbonImmutable($utc, 'UTC'))->setTimezone($this->timezone);
     }
 
-    public function in(CarbonImmutable $moment): CarbonImmutable
+    public function in(CarbonInterface $moment): CarbonImmutable
     {
-        return $moment->setTimezone($this->timezone);
+        return $moment->toImmutable()->setTimezone($this->timezone);
     }
 
     /**
-     * ISO 8601 with the offset, for example 2026-10-16T23:59:59+02:00. Without a time zone the moment keeps its own.
+     * ISO 8601 with the institution's offset, for example 2026-10-16T23:59:59+02:00.
      *
      * @return ($moment is null ? null : string)
      */
-    public static function format(?CarbonInterface $moment, DateTimeZone|string|null $timezone = null): ?string
+    public function format(?CarbonInterface $moment): ?string
     {
-        if ($moment === null) {
-            return null;
-        }
-
-        $moment = $moment->toImmutable();
-
-        return ($timezone === null ? $moment : $moment->setTimezone($timezone))->toIso8601String();
+        return $moment === null ? null : $this->in($moment)->toIso8601String();
     }
 }

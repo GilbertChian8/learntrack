@@ -49,7 +49,7 @@ class BehindRule
         $reasons = array_map(function (stdClass $pair) use ($institutionTime, $today): Reason {
             $dueAt = $institutionTime->fromUtc((string) $pair->due_at);
 
-            return new OverdueReason($pair->assignment_id, $pair->title, $dueAt, self::calendarDays($dueAt, $today));
+            return new OverdueReason($pair->assignment_id, $pair->title, $dueAt, self::calendarDays($dueAt, $today), $institutionTime);
         }, $overduePairs);
 
         $averageScore = self::averageScore($completedQuestionSets);
