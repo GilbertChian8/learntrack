@@ -14,7 +14,7 @@ The educator endpoints for groups, membership, the learner directory and the con
 
 ## Allowed paths
 
-`app/Actions/CreateGroup.php`, `app/Actions/AddLearners.php`, `app/Actions/RemoveLearner.php`, `app/Actions/Concerns/**`, `app/Actions/Results/**`, `app/Support/Audit*.php`, `app/Queries/MyGroups.php`, `app/Http/Controllers/Api/{GroupController,GroupLearnerController,LearnerController,ContentController}.php`, `app/Http/Requests/**`, `app/Http/Resources/**`, `app/Http/Pagination/**`, `routes/api.php`, `tests/Feature/Api/{Groups,Learners,Content}/**`, `tests/Unit/Queries/MyGroupsTest.php`.
+`app/Actions/CreateGroup.php`, `app/Actions/AddLearners.php`, `app/Actions/RemoveLearner.php`, `app/Actions/Concerns/**`, `app/Actions/Results/**`, `app/Support/Audit*.php`, `app/Support/InstitutionTime.php`, `app/Queries/{MyGroups,LearnerDirectory,ContentLibrary,GroupDetail}.php`, `app/Policies/GroupPolicy.php` (`addableLearners`), `app/Providers/AppServiceProvider.php` (the `{group}` binding), `bootstrap/app.php` (the role check before bindings), `app/Http/Controllers/Api/{GroupController,GroupLearnerController,LearnerController,ContentController}.php`, `app/Http/Requests/**`, `app/Http/Resources/**`, `app/Http/Pagination/**`, `routes/api.php`, `tests/Feature/Api/{Groups,Learners,Content}/**`, `tests/Unit/Queries/MyGroupsTest.php`.
 
 ## Steps
 
@@ -23,7 +23,7 @@ The educator endpoints for groups, membership, the learner directory and the con
 3. `MyGroups` query: the groups the educator teaches with `learner_count` and `assignment_count` (active only) in one query (joins with grouped counts, no sub-selects per row), ordered by name then id. Used by `GET /api/v1/groups` now and by the `list_my_groups` tool in ticket 12.
 4. Actions, each in one transaction with its audit row written by a shared `AuditWriter` (`app/Support/AuditWriter.php`): `CreateGroup(User $educator, string $name, AuditChannel $channel)` creates the group in the educator's institution and the `group_educators` row, audit `group.created`; `AddLearners(User $educator, Group $group, array $userIds, AuditChannel $channel)` validates every id is a learner of the same institution (else a `ValidationException` with the contract's message on `user_ids.N`, nothing written), inserts the missing `group_learners` rows, writes one `group.learner_added` row per added learner, returns `added` and `already_members`; `RemoveLearner(User $educator, Group $group, int $userId, AuditChannel $channel)` deletes the pivot row if present and writes `group.learner_removed` only then.
 5. Controllers for `GET /groups`, `POST /groups`, `GET /groups/{group}`, `POST /groups/{group}/learners`, `DELETE /groups/{group}/learners/{user}`, `GET /learners`, `GET /content`. Resources: `GroupResource`, `GroupDetailResource`, `LearnerResource` (id, name), `LearnerWithEmailResource` (only for `GET /learners`), `ContentResource`. Date-times through one helper that renders ISO 8601 with the institution's offset (`app/Support/InstitutionTime.php`), reused by every later ticket.
-6. `GET /learners` and `GET /content` search as the contract says (case-insensitive, anywhere in the string), with the stated orders.
+6. `GET /learners` and `GET /content` search as the contract says (case-insensitive, anywhere in the string), with the stated orders, through the `LearnerDirectory` and `ContentLibrary` queries. `GET /groups/{group}` reads through the `GroupDetail` query.
 
 ## Acceptance tests
 

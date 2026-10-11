@@ -2,11 +2,14 @@
 
 namespace App\Providers;
 
+use App\Models\Group;
+use App\Support\Scope;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Passport\Passport;
 
@@ -27,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configurePassport();
+        $this->configureRouteBindings();
     }
 
     /**
@@ -51,5 +55,14 @@ class AppServiceProvider extends ServiceProvider
         Passport::tokensExpireIn(CarbonInterval::hour());
         Passport::refreshTokensExpireIn(CarbonInterval::days(30));
         Passport::personalAccessTokensExpireIn(CarbonInterval::hours(8));
+    }
+
+    /**
+     * A {group} loads only through the scoped lookup, so a group outside scope is 404.
+     */
+    protected function configureRouteBindings(): void
+    {
+        Route::pattern('group', '[0-9]+');
+        Route::bind('group', fn (string $id): Group => Scope::group(request()->user(), (int) $id));
     }
 }
