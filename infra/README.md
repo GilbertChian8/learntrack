@@ -2,7 +2,7 @@
 
 Terraform for the AWS environment. Two folders:
 
-- `bootstrap/`: applied once by hand. The state bucket, the GitHub OIDC provider, the two GitHub roles, the ECR repository and the Route 53 hosted zone. These stay when the environment is destroyed, so images are kept and the nameservers never change.
+- `bootstrap/`: applied once by hand. The state bucket, the GitHub OIDC provider, the two GitHub roles, the permissions boundary, the ECR repository and the Route 53 hosted zone. These stay when the environment is destroyed, so images are kept and the nameservers never change.
 - `env/`: the environment. Network, security groups, RDS MySQL, the four secrets and the certificate. State in the bootstrap's bucket. Ticket 05 adds ECS, the load balancer, the alarms and the pipeline.
 
 Needs Terraform 1.12 or later and AWS credentials with admin rights for the first apply.
@@ -20,6 +20,7 @@ The AWS account is shared with another project.
 Two roles, assumed with GitHub OIDC. No AWS key is stored anywhere.
 
 - `learntrack-deploy`: only for workflows on `main` (deploy, destroy). It pushes images, writes the state and applies. It changes IAM roles, logs, RDS, ECS, load balancers, alarms, topics, schedules, rules and secrets only when their names start with `learntrack-` (or `learntrack/`, `/learntrack/`). EC2 network resources and ACM certificates have generated ids, and ECS task definitions are registered without a resource name, so it can change any of these. It cannot change itself or the plan role, and it cannot read secret values.
+- The deploy role cannot grant more than the boundary. It creates, changes and deletes `learntrack-*` roles only when they carry the permissions boundary `learntrack-boundary`, and it cannot remove a boundary or change the boundary policy. Roles get inline policies only; the deploy role cannot attach managed policies. The boundary allows ECR pull, logs on `/learntrack/*`, reading `learntrack/*` secrets, running `learntrack-*` tasks and passing `learntrack-*` roles to ECS tasks. Nothing else, so no role the pipeline makes can manage IAM.
 - `learntrack-plan`: only for pull requests (plan). Read-only: it reads the state and refreshes every resource, and it can write only the state lock file (`*.tflock`). A pull request branch never holds write access to the environment.
 
 ## Variables
@@ -75,6 +76,7 @@ terraform import aws_iam_role.deploy learntrack-deploy
 terraform import aws_iam_role_policy.deploy learntrack-deploy:learntrack-deploy
 terraform import aws_iam_role.plan learntrack-plan
 terraform import aws_iam_role_policy.plan learntrack-plan:learntrack-plan
+terraform import aws_iam_policy.boundary arn:aws:iam::<account id>:policy/learntrack-boundary
 terraform import aws_ecr_repository.app learntrack-app
 terraform import aws_ecr_lifecycle_policy.app learntrack-app
 terraform import aws_route53_zone.main <hosted zone id>
@@ -92,7 +94,7 @@ terraform apply -var-file=prod.tfvars
 
 The first apply takes about 20 minutes, most of it RDS Multi-AZ. The backend block expects the state bucket in `eu-central-1`. If the bootstrap runs in another region, add `-backend-config="region=<region>"`.
 
-A second environment needs its own variables, its own state key (`-backend-config="key=env/<environment>/terraform.tfstate"`) and its own OIDC role.
+A second environment needs its own variables, its own state key (`-backend-config="key=env/<environment>/terraform.tfstate"`) and its own deploy and plan roles.
 
 ## Secrets
 
