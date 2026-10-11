@@ -379,7 +379,7 @@ enum ContentType { ARTICLE  QUESTION_SET }
 enum Scope { GROUP  LEARNERS }
 ```
 
-The resolver calls GroupProgress, which looks the group up through the educator's scope. A group the caller does not teach answers a null groupProgress with a "Group not found" error, the same answer as for a group that does not exist (ADR-006). A learner's statuses list only the assignments that target them.
+The resolver calls GroupProgress, which looks the group up through the educator's scope. A group the caller does not teach answers a null groupProgress with a "Group not found." error, the same answer as for a group that does not exist (ADR-006). A learner's statuses list only the assignments that target them.
 
 ## OAuth and web pages
 
@@ -455,7 +455,7 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 
 - Passport with keys read from the environment (Secrets Manager in AWS), the personal access client seeded, token lifetimes set.
 - POST login, logout and me. The role middleware (educator, learner).
-- GroupPolicy and AssignmentPolicy, denying with denyAsNotFound(), and the one place that turns "not in scope" into 404 for REST, a not-found error for GraphQL and a not-found answer for MCP.
+- GroupPolicy and AssignmentPolicy, denying with denyAsNotFound(), and NotFoundException as the one exception every scoped lookup throws on a miss, rendered as 404 for REST, a not-found error for GraphQL and a not-found answer for MCP, with the same message in all three.
 - Login rate limits on the database cache store.
 
 4\. **Terraform: network and data (3 days)** [ADR-007, ADR-010, ADR-012, ADR-015]
@@ -583,7 +583,7 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 
 - Passwords are bcrypt hashes. Tokens are Passport RS256 JWTs signed with keys held in Secrets Manager. Lifetimes: MCP access 1 hour with a 30 day refresh, API tokens 8 hours, authorization codes 10 minutes. PKCE is required. [ADR-003]
 - Only educators pass the consent page and the MCP middleware. A learner's token is refused at /mcp with 403 even if it was obtained some other way. [ADR-003]
-- Every read and write of a group's data passes one Policy check: a row in group_educators for the caller. A learner reads and writes only rows with their own user id. Anything outside scope answers 404, from one place in the code. [ADR-006]
+- Every read and write of a group's data passes one Policy check: a row in group_educators for the caller. A learner reads and writes only rows with their own user id. Anything outside scope answers 404 with the same body as a missing record, because every scoped lookup starts from a Policy builder and a miss throws NotFoundException. [ADR-006]
 - MCP answers carry a learner's id and name only. No email, no password hash, no institution data beyond its name. A test over every tool asserts it. [requirement 9]
 - Logs carry user ids, never names, emails, passwords or tokens. A log processor drops those keys from every log context, request bodies are not logged, and the Authorization header never is. The audit log stores ids and resolves names at read time. [requirement: no learner personal data in logs]
 - Secrets (database password, APP_KEY, Passport keys) live in Secrets Manager, are injected into the tasks at start, and never appear in the repository or in the Terraform state. [ADR-013]

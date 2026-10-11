@@ -94,6 +94,8 @@ One shape everywhere, including GraphQL requests rejected before the query runs:
 | 500 | `server_error` | An unexpected failure. The message never contains internals | none |
 | 503 | `service_unavailable` | Maintenance mode | none |
 
+A lookup miss names its subject in the message (`Group not found.`, `Content item not found.`); an unknown path answers `Not found.`.
+
 The 401 response from `/api/v1/*`, `/graphql` and `/mcp` carries `WWW-Authenticate: Bearer`; on `/mcp` it also carries `resource_metadata` pointing at `/.well-known/oauth-protected-resource`, which laravel/mcp adds in ticket 11.
 
 An unknown path answers 404 `not_found`; a known path with the wrong method answers 405 `method_not_allowed`.
@@ -645,7 +647,7 @@ Not found (unknown id, or a group the caller does not teach; ADR-006):
 {
   "data": { "groupProgress": null },
   "errors": [
-    { "message": "Group not found", "path": ["groupProgress"], "extensions": { "code": "not_found" } }
+    { "message": "Group not found.", "path": ["groupProgress"], "extensions": { "code": "not_found" } }
   ]
 }
 ```
