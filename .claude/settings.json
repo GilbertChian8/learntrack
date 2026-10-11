@@ -31,6 +31,11 @@
             "Bash(gh pr checks)",
             "Bash(gh pr checks *)",
             "Bash(gh pr comment *)",
+            "Bash(gh pr create *)",
+            "Bash(git push -u origin feat/*)",
+            "Bash(git push -u origin fix/*)",
+            "Bash(git push origin feat/*)",
+            "Bash(git push origin fix/*)",
             "Bash(gh run *)"
         ],
         "deny": [
@@ -40,6 +45,7 @@
             "Bash(git push * -f*)",
             "Bash(git commit --no-verify*)",
             "Bash(git commit * --no-verify*)",
+            "Bash(gh pr merge*)",
             "Bash(rm -rf *)",
             "Read(./.env)",
             "Read(./.env.testing)"

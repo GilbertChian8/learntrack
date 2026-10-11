@@ -68,14 +68,25 @@ git worktree remove ../learntrack-06
 git branch -d feat/06-groups
 ```
 
+## Stacked pull requests
+
+The next ticket in a lane may start before the previous one is merged, at most two deep. Branch it from the previous ticket's branch and give that branch to `/ticket`:
+
+```
+git worktree add ../learntrack-07 -b feat/07-assignments origin/feat/06-groups
+/ticket 07 feat/06-groups
+```
+
+Its pull request targets `feat/06-groups`. When 06 is merged, GitHub deletes that branch and moves the 07 pull request to `main`; the ruleset on `main` then requires the branch to be up to date, so CI runs again against the real base.
+
 ## How a ticket runs
 
 1. Read the ticket, then the TDD sections and contract sections it lists under "Read first". Do not start from memory of the design; read it.
-2. Create the branch and worktree as above.
+2. Create the branch and worktree as above, from `origin/main` or, when stacked, from the previous ticket's branch.
 3. Write the acceptance tests first. They are the definition of done.
 4. Build until they pass, keeping to "Allowed paths".
-5. Run every check in CLAUDE.md.
-6. Open the pull request with the ticket's PR checklist filled in. The title starts with the ticket number: `06: Groups, membership, learners and content`.
-7. Review comments are addressed on the same branch. Squash on merge.
+5. Run every check in CLAUDE.md, then the pr-reviewer agent on the local diff, and fix its blockers.
+6. Push and open the pull request against the base branch, with the report `/ticket` asks for, including "Decisions to confirm". The title starts with the ticket number: `06: Groups, membership, learners and content`. The builder stops there and never merges.
+7. The owner runs the pr-reviewer agent on the pull request; review fixes go on the same branch. The owner merges with a merge commit: squash and rebase merges are off, so a stacked branch keeps its history.
 
 A ticket that turns out to need a design change stops and raises it. It does not change the design quietly.
