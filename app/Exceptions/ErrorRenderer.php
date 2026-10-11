@@ -29,7 +29,7 @@ class ErrorRenderer
             $exception instanceof InvalidCredentialsException => $this->unauthenticated('invalid_credentials', 'These credentials do not match our records.'),
             $exception instanceof ValidationException => $this->error(422, 'validation_failed', 'The given data was invalid.', $exception->errors()),
             $exception instanceof ConflictException => $this->error(409, $exception->code(), $exception->getMessage(), $exception->details()),
-            $exception instanceof NotFoundException => $this->notFound(),
+            $exception instanceof NotFoundException => $this->error(404, 'not_found', $exception->getMessage()),
             $exception instanceof HttpExceptionInterface => $this->httpError($exception),
             default => $this->error(500, 'server_error', 'Server error.'),
         };

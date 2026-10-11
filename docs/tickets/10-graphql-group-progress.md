@@ -22,7 +22,7 @@
 2. `graphql/schema.graphql` is the TDD schema verbatim, with the `DateTime` scalar bound to `App\GraphQL\Scalars\DateTime` (serializes a `CarbonImmutable` as ISO 8601 with the institution's offset, through `InstitutionTime`) and the enums mapped to the PHP enums.
 3. The route: `POST /graphql` only, middleware `auth:api` and `role:educator` (the HTTP-level failures use the REST error shape, from ticket 03's handler). GET is not registered. Introspection stays on.
 4. `GroupProgressResolver` calls `GroupProgress::for($user, $groupId)` and maps the result objects to the schema types. No query, no `Model` access and no computation in the resolver beyond mapping.
-5. Error mapping: `NotFoundException` becomes a GraphQL error `{ "message": "Group not found", "path": ["groupProgress"], "extensions": { "code": "not_found" } }` with `data.groupProgress` null and HTTP 200. Register it as a Lighthouse error handler so every future resolver gets it. Unexpected exceptions never leak their message in production (`debug` off).
+5. Error mapping: `NotFoundException` becomes a GraphQL error whose message is the exception's message, `{ "message": "Group not found.", "path": ["groupProgress"], "extensions": { "code": "not_found" } }`, with `data.groupProgress` null and HTTP 200. Register it as a Lighthouse error handler so every future resolver gets it. Unexpected exceptions never leak their message in production (`debug` off).
 6. Enum values: `Status` from `DerivedStatus`, `ContentType`, `Scope`. `ID` fields render as strings.
 
 ## Acceptance tests

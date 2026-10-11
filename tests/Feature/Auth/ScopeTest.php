@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\NotFoundException;
 use App\Models\Assignment;
 use App\Models\Group;
 use App\Models\User;
@@ -28,14 +29,14 @@ test('Scope::group throws the same NotFoundException for a missing id and anothe
     $otherEducator = User::factory()->educator()->create(['institution_id' => $group->institution_id]);
     $missingId = $group->id + 1000;
 
-    expect(notFoundSubject(fn () => Scope::group($otherEducator, $group->id)))->toBe('Group')
-        ->and(notFoundSubject(fn () => Scope::group($otherEducator, $missingId)))->toBe('Group');
+    expect(fn () => Scope::group($otherEducator, $group->id))->toThrow(NotFoundException::class, 'Group not found.')
+        ->and(fn () => Scope::group($otherEducator, $missingId))->toThrow(NotFoundException::class, 'Group not found.');
 
     actingAsEducator($otherEducator);
     $foreign = getJson("/api/v1/test/groups/{$group->id}");
     $missing = getJson("/api/v1/test/groups/{$missingId}");
 
-    $foreign->assertNotFound()->assertExactJson(['error' => ['code' => 'not_found', 'message' => 'Not found.']]);
+    $foreign->assertNotFound()->assertExactJson(['error' => ['code' => 'not_found', 'message' => 'Group not found.']]);
 
     expect($missing->status())->toBe(404)
         ->and($missing->getContent())->toBe($foreign->getContent());
@@ -49,14 +50,14 @@ test('Scope::assignment throws the same NotFoundException for a removed assignme
     $missingId = $removed->id + 1000;
 
     expect(Scope::assignment($educator, $active->id)->is($active))->toBeTrue()
-        ->and(notFoundSubject(fn () => Scope::assignment($educator, $removed->id)))->toBe('Assignment')
-        ->and(notFoundSubject(fn () => Scope::assignment($educator, $missingId)))->toBe('Assignment');
+        ->and(fn () => Scope::assignment($educator, $removed->id))->toThrow(NotFoundException::class, 'Assignment not found.')
+        ->and(fn () => Scope::assignment($educator, $missingId))->toThrow(NotFoundException::class, 'Assignment not found.');
 
     actingAsEducator($educator);
     $removedResponse = getJson("/api/v1/test/assignments/{$removed->id}");
     $missingResponse = getJson("/api/v1/test/assignments/{$missingId}");
 
-    $removedResponse->assertNotFound()->assertExactJson(['error' => ['code' => 'not_found', 'message' => 'Not found.']]);
+    $removedResponse->assertNotFound()->assertExactJson(['error' => ['code' => 'not_found', 'message' => 'Assignment not found.']]);
 
     expect($missingResponse->status())->toBe(404)
         ->and($missingResponse->getContent())->toBe($removedResponse->getContent());
@@ -69,5 +70,5 @@ test('Scope::learnerAssignment returns an assignment that targets the learner an
     $foreign = Assignment::factory()->create();
 
     expect(Scope::learnerAssignment($learner, $targeting->id)->is($targeting))->toBeTrue()
-        ->and(notFoundSubject(fn () => Scope::learnerAssignment($learner, $foreign->id)))->toBe('Assignment');
+        ->and(fn () => Scope::learnerAssignment($learner, $foreign->id))->toThrow(NotFoundException::class, 'Assignment not found.');
 });

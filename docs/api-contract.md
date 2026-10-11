@@ -78,7 +78,7 @@ One shape everywhere, including GraphQL requests rejected before the query runs:
 }
 ```
 
-- `code` is a stable machine string from the table below. `message` is for humans and may change. `details` is present only where the table says so.
+- `code` is a stable machine string from the table below; clients branch on it. `message` is for people: clients show it and never parse it. The messages in this document are exact. `details` is present only where the table says so.
 
 | HTTP | code | When | details |
 |---|---|---|---|
@@ -93,6 +93,8 @@ One shape everywhere, including GraphQL requests rejected before the query runs:
 | 429 | `too_many_requests` | A rate limit was hit. The response carries a `Retry-After` header in seconds | `retry_after`: the same number |
 | 500 | `server_error` | An unexpected failure. The message never contains internals | none |
 | 503 | `service_unavailable` | Maintenance mode | none |
+
+Every route finds its resources through a scoped lookup, and a miss names its subject in the message (`Group not found.`, `Content item not found.`). `Not found.` is the answer when there is nothing to name: an unknown path.
 
 The 401 response from `/api/v1/*`, `/graphql` and `/mcp` carries `WWW-Authenticate: Bearer`; on `/mcp` it also carries `resource_metadata` pointing at `/.well-known/oauth-protected-resource`, which laravel/mcp adds in ticket 11.
 
@@ -645,7 +647,7 @@ Not found (unknown id, or a group the caller does not teach; ADR-006):
 {
   "data": { "groupProgress": null },
   "errors": [
-    { "message": "Group not found", "path": ["groupProgress"], "extensions": { "code": "not_found" } }
+    { "message": "Group not found.", "path": ["groupProgress"], "extensions": { "code": "not_found" } }
   ]
 }
 ```
