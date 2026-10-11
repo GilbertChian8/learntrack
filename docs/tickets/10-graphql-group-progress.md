@@ -14,16 +14,17 @@
 
 ## Allowed paths
 
-`graphql/schema.graphql`, `app/GraphQL/**`, `config/lighthouse.php`, `app/Providers/**` (registration only), `routes/graphql.php` if used, `tests/Feature/GraphQL/**`, `composer.json` and `composer.lock` (Lighthouse only).
+`graphql/schema.graphql`, `app/GraphQL/**`, `config/lighthouse.php`, `app/Providers/**` (registration only), `routes/graphql.php` if used, `tests/Feature/GraphQL/**`, `composer.json` and `composer.lock` (Lighthouse only). For step 1 only: `app/Queries/GroupProgress.php`, `app/Queries/PairRows.php`, `app/Queries/LearnerAggregation.php`, `tests/Unit/Queries/**`, `tests/Feature/Queries/**`, and the pair SQL in `docs/tdd.md` if its order changes.
 
 ## Steps
 
-1. Install Lighthouse. If the installed Lighthouse release does not support Laravel 13 or PHP 8.5, stop and raise it: ADR-009 names the fallback and the decision is not this ticket's to make.
-2. `graphql/schema.graphql` is the TDD schema verbatim, with the `DateTime` scalar bound to `App\GraphQL\Scalars\DateTime` (serializes a `CarbonImmutable` as ISO 8601 with the institution's offset, through `InstitutionTime`) and the enums mapped to the PHP enums.
-3. The route: `POST /graphql` only, middleware `auth:api` and `role:educator` (the HTTP-level failures use the REST error shape, from ticket 03's handler). GET is not registered. Introspection stays on.
-4. `GroupProgressResolver` calls `GroupProgress::for($user, $groupId)` and maps the result objects to the schema types. No query, no `Model` access and no computation in the resolver beyond mapping.
-5. Error mapping: `NotFoundException` becomes a GraphQL error whose message is the exception's message, `{ "message": "Group not found.", "path": ["groupProgress"], "extensions": { "code": "not_found" } }`, with `data.groupProgress` null and HTTP 200. Register it as a Lighthouse error handler so every future resolver gets it. Unexpected exceptions never leak their message in production (`debug` off).
-6. Enum values: `Status` from `DerivedStatus`, `ContentType`, `Scope`. `ID` fields render as strings.
+1. Stream the pair rows, as the first commit. At 120 learners and 200 assignments, ticket 09's test peaks at 123 MB of the 128 MB test limit, because `GroupProgress` holds every pair row of the group at once. `PairRows::forGroup` orders by learner (the members' order: name, then id), then the assignment order. `GroupProgress` reads it with `cursor()`, builds one learner's `LearnerProgress` and drops that learner's rows, and keeps running totals per assignment instead of the rows. Still exactly two queries, and the result is unchanged: ticket 09's tests pass as they are. The test memory limit stays at 128M; raising it is not the fix. The PR gives the peak memory of `GroupProgress::for` at 120x200 before and after.
+2. Install Lighthouse. If the installed Lighthouse release does not support Laravel 13 or PHP 8.5, stop and raise it: ADR-009 names the fallback and the decision is not this ticket's to make.
+3. `graphql/schema.graphql` is the TDD schema verbatim, with the `DateTime` scalar bound to `App\GraphQL\Scalars\DateTime` (serializes a `CarbonImmutable` as ISO 8601 with the institution's offset, through `InstitutionTime`) and the enums mapped to the PHP enums.
+4. The route: `POST /graphql` only, middleware `auth:api` and `role:educator` (the HTTP-level failures use the REST error shape, from ticket 03's handler). GET is not registered. Introspection stays on.
+5. `GroupProgressResolver` calls `GroupProgress::for($user, $groupId)` and maps the result objects to the schema types. No query, no `Model` access and no computation in the resolver beyond mapping.
+6. Error mapping: `NotFoundException` becomes a GraphQL error whose message is the exception's message, `{ "message": "Group not found.", "path": ["groupProgress"], "extensions": { "code": "not_found" } }`, with `data.groupProgress` null and HTTP 200. Register it as a Lighthouse error handler so every future resolver gets it. Unexpected exceptions never leak their message in production (`debug` off).
+7. Enum values: `Status` from `DerivedStatus`, `ContentType`, `Scope`. `ID` fields render as strings.
 
 ## Acceptance tests
 
@@ -44,5 +45,6 @@ Mutations, more queries, persisted queries, caching, the comparison with `get_gr
 - [ ] Title `10: GraphQL groupProgress`
 - [ ] Schema file diffed against the TDD: identical
 - [ ] Resolver contains mapping only
+- [ ] Peak memory of `GroupProgress::for` at 120x200, before and after step 1
 - [ ] All checks green
 - [ ] Documents changed, if any, listed with the reason
