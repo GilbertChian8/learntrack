@@ -2,6 +2,8 @@
 
 namespace App\Mcp\Servers;
 
+use App\Mcp\Tools\AssignContent;
+use App\Mcp\Tools\ChangeDueDate;
 use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Instructions;
 use Laravel\Mcp\Server\Attributes\Name;
@@ -18,5 +20,8 @@ class EducatorServer extends Server
         ],
     ];
 
-    protected array $tools = [];
+    protected array $tools = [
+        AssignContent::class,
+        ChangeDueDate::class,
+    ];
 }
