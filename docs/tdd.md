@@ -44,7 +44,7 @@ One host, one certificate, one ALB, one target group. Every path below is served
 | /login, /logout | Web controllers | Web session (database driver) |
 | /up | Laravel health route | Public, used by the ALB health check |
 
-Proxies: the ALB ends TLS, so the app sees plain HTTP. TrustProxies trusts the VPC range and reads X-Forwarded-Proto and X-Forwarded-For, so generated URLs (the discovery documents, redirects) are https and rate limits count the real client address. The ALB redirects port 80 to 443 (301). The app sends Strict-Transport-Security.
+Proxies: the ALB ends TLS, so the app sees plain HTTP. Generated URLs (the discovery documents, redirects) start from APP_URL, so a forged Host header cannot change them. TrustProxies trusts the VPC range and reads X-Forwarded-For, -Proto and -Port, so rate limits count the real client address and the app knows the request came over https. The ALB redirects port 80 to 443 (301). The app sends Strict-Transport-Security.
 
 Region: a Terraform variable. Default eu-central-1 (Frankfurt), so learner data stays inside the EU by default. A different region is one variable change.
 
@@ -394,6 +394,8 @@ The resolver calls GroupProgress, which looks the group up through the educator'
 | POST /oauth/register | Dynamic client registration. Claude registers itself here before the first login |
 | GET /.well-known/oauth-protected-resource/mcp, GET /.well-known/oauth-authorization-server | The discovery documents Claude reads after the first 401, which names the first one. laravel/mcp also serves both at the root and with other path suffixes |
 | POST /mcp | The MCP endpoint. auth:api plus the educator role. Stateless: every call carries the token |
+
+Client registration accepts redirect URIs on https://claude.ai, https://claude.com and http://localhost or http://127.0.0.1 (any port) only (config/mcp.php), so nobody can register a look-alike client that sends an educator's code to their own site.
 
 Token lifetimes: MCP access tokens 1 hour, refresh tokens 30 days (Claude refreshes without asking the educator), authorization codes 10 minutes, API personal access tokens 8 hours. PKCE is required. The Passport signing keys and APP_KEY come from Secrets Manager (ADR-013). The housekeeping task runs passport:purge daily (ADR-014).
 
