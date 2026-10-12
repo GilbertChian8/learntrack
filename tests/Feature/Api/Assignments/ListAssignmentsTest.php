@@ -3,11 +3,13 @@
 use App\Models\Assignment;
 use App\Models\ContentItem;
 use Carbon\CarbonImmutable;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 
 use function Pest\Laravel\deleteJson;
 use function Pest\Laravel\getJson;
+use function Pest\Laravel\withoutMiddleware;
 
 beforeEach(function () {
     CarbonImmutable::setTestNow('2026-10-09 12:00:00');
@@ -116,6 +118,7 @@ test('pages with limit and cursor in due date order', function () {
 });
 
 test('the list runs the same number of queries for 5 and for 100 assignments', function () {
+    withoutMiddleware(ThrottleRequests::class);
     [$group, $educator] = cardiologyGroup();
     $learners = $group->learners()->get()->all();
 

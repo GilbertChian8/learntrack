@@ -8,7 +8,7 @@ use Laravel\Passport\Http\Controllers\AuthorizationController;
 use Laravel\Passport\Http\Controllers\DenyAuthorizationController;
 
 Route::prefix('oauth')->name('passport.')->group(function () {
-    Route::post('token', [AccessTokenController::class, 'issueToken'])->name('token');
+    Route::post('token', [AccessTokenController::class, 'issueToken'])->middleware('throttle:oauth-token')->name('token');
 
     Route::middleware(['web', 'auth', EnsureEducatorOnConsent::class])->group(function () {
         Route::get('authorize', [AuthorizationController::class, 'authorize'])->name('authorizations.authorize');

@@ -5,10 +5,12 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Database\Seeders\ContentSeeder;
 use Database\Seeders\DemoSeeder;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 use function Pest\Laravel\seed;
+use function Pest\Laravel\withoutMiddleware;
 
 beforeEach(function () {
     CarbonImmutable::setTestNow('2026-10-09 12:20:00');
@@ -47,6 +49,7 @@ test('tools/list publishes the five read tools with the contract title, descript
 });
 
 test('a numeric string for an integer argument answers a tool error and reads nothing', function (string $tool, array $arguments, string $message) {
+    withoutMiddleware(ThrottleRequests::class);
     actingAsEducator();
 
     DB::enableQueryLog();

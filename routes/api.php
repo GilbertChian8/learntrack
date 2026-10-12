@@ -16,12 +16,12 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('auth/login', LoginController::class);
 
-Route::middleware('auth:api')->group(function () {
+Route::middleware(['auth:api', 'throttle:api'])->group(function () {
     Route::post('auth/logout', LogoutController::class);
     Route::get('me', MeController::class);
 });
 
-Route::middleware(['auth:api', 'role:educator'])->group(function () {
+Route::middleware(['auth:api', 'role:educator', 'throttle:api'])->group(function () {
     Route::get('groups', [GroupController::class, 'index']);
     Route::post('groups', [GroupController::class, 'store']);
     Route::get('groups/{group}', [GroupController::class, 'show']);
@@ -36,7 +36,7 @@ Route::middleware(['auth:api', 'role:educator'])->group(function () {
     Route::get('groups/{group}/audit', AuditController::class);
 });
 
-Route::middleware(['auth:api', 'role:learner'])->group(function () {
+Route::middleware(['auth:api', 'role:learner', 'throttle:api'])->group(function () {
     Route::get('me/assignments', MyAssignmentController::class);
     Route::put('me/assignments/{learnerAssignment}/progress', ProgressController::class);
 });

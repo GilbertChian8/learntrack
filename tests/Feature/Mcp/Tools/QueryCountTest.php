@@ -3,7 +3,10 @@
 use App\Models\Group;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
+
+use function Pest\Laravel\withoutMiddleware;
 
 beforeEach(function () {
     CarbonImmutable::setTestNow('2026-10-09 12:20:00');
@@ -16,6 +19,7 @@ beforeEach(function () {
  * @return list<string>
  */
 $queriesOf = function (User $educator, string $tool, array $arguments = []): array {
+    withoutMiddleware(ThrottleRequests::class);
     actingAsEducator($educator);
     DB::flushQueryLog();
     DB::enableQueryLog();

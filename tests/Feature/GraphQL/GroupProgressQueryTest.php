@@ -15,6 +15,7 @@ use App\Queries\Results\Reason;
 use Carbon\CarbonImmutable;
 use Database\Seeders\ContentSeeder;
 use Database\Seeders\DemoSeeder;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Testing\TestResponse;
@@ -22,6 +23,7 @@ use Illuminate\Testing\TestResponse;
 use function Pest\Laravel\getJson;
 use function Pest\Laravel\postJson;
 use function Pest\Laravel\seed;
+use function Pest\Laravel\withoutMiddleware;
 
 beforeEach(function () {
     CarbonImmutable::setTestNow('2026-10-09 12:20:00');
@@ -264,6 +266,7 @@ test('introspection shows the TDD schema types and enum values and nothing else'
 });
 
 test('the request runs exactly two queries whatever the group size', function (int $learnerCount, int $assignmentCount) use ($askFor) {
+    withoutMiddleware(ThrottleRequests::class);
     $group = Group::factory()->create();
     $educator = educatorOf($group);
     seedLargeGroup($group, $educator, $learnerCount, $assignmentCount);

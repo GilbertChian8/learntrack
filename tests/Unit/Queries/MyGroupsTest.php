@@ -4,11 +4,14 @@ use App\Models\Assignment;
 use App\Models\Group;
 use App\Models\User;
 use App\Queries\MyGroups;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 
 use function Pest\Laravel\getJson;
+use function Pest\Laravel\withoutMiddleware;
 
 test('MyGroups and GET /groups run one query whatever the number of groups', function (int $groupCount) {
+    withoutMiddleware(ThrottleRequests::class);
     $educator = User::factory()->educator()->create();
     $groups = Group::factory()->count($groupCount)->create(['institution_id' => $educator->institution_id]);
     foreach ($groups as $group) {

@@ -6,9 +6,11 @@ use App\Models\ContentItem;
 use App\Models\Group;
 use App\Models\Progress;
 use Carbon\CarbonImmutable;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 
 use function Pest\Laravel\getJson;
+use function Pest\Laravel\withoutMiddleware;
 
 beforeEach(function () {
     CarbonImmutable::setTestNow('2026-10-09 12:00:00');
@@ -128,6 +130,7 @@ test('pages with limit and cursor in due date then id order', function () {
 });
 
 test('the list runs one query for 5 and for 100 assignments', function () {
+    withoutMiddleware(ThrottleRequests::class);
     [$group, , , $priya, $sara] = cardiologyGroup();
     $other = Group::factory()->for($group->institution)->create();
     $other->learners()->attach($priya);
