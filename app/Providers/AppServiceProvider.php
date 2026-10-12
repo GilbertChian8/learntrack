@@ -17,7 +17,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Passport\Passport;
-use Nuwave\Lighthouse\LighthouseServiceProvider;
 use Nuwave\Lighthouse\Schema\TypeRegistry;
 
 class AppServiceProvider extends ServiceProvider
@@ -28,9 +27,6 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         Passport::ignoreRoutes();
-
-        // Lighthouse's core only: its other providers add types for directives we do not use.
-        $this->app->register(LighthouseServiceProvider::class);
     }
 
     /**
@@ -78,13 +74,11 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * POST /graphql only. The schema's DateTime scalar and enums are bound to PHP types here,
+     * The schema's DateTime scalar and enums are bound to PHP types here,
      * so graphql/schema.graphql stays the TDD schema as written.
      */
     protected function configureGraphQL(): void
     {
-        $this->loadRoutesFrom(base_path('routes/graphql.php'));
-
         $this->callAfterResolving(TypeRegistry::class, function (TypeRegistry $typeRegistry): void {
             $typeRegistry->register(new DateTimeScalar);
             $typeRegistry->overwrite(new BackedEnumType('Status', DerivedStatus::class));
