@@ -1,20 +1,23 @@
 <?php
 
-use Illuminate\Routing\Route as RouteDefinition;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Route;
 
-test('the application registers only home, the login routes and the API routes built so far', function () {
-    Artisan::call('route:list', ['--except-vendor' => true, '--json' => true]);
+test('the application serves only its own routes: no Passport management, no starter kit, no file serving', function () {
+    Artisan::call('route:list', ['--json' => true]);
 
     /** @var list<array{method: string, uri: string}> $routes */
     $routes = json_decode(Artisan::output(), true);
 
-    // /up is registered by the framework, so --except-vendor hides it; HealthTest covers it.
     expect(collect($routes)->map(fn (array $route) => $route['method'].' '.$route['uri'])->sort()->values()->all())
         ->toBe([
             'DELETE api/v1/assignments/{removableAssignment}',
             'DELETE api/v1/groups/{group}/learners/{user}',
+            'DELETE mcp',
+            'DELETE oauth/authorize',
+            'GET|HEAD .well-known/oauth-authorization-server',
+            'GET|HEAD .well-known/oauth-authorization-server/{path}',
+            'GET|HEAD .well-known/oauth-protected-resource',
+            'GET|HEAD .well-known/oauth-protected-resource/{path}',
             'GET|HEAD /',
             'GET|HEAD api/v1/content',
             'GET|HEAD api/v1/groups',
@@ -25,22 +28,22 @@ test('the application registers only home, the login routes and the API routes b
             'GET|HEAD api/v1/me',
             'GET|HEAD api/v1/me/assignments',
             'GET|HEAD login',
+            'GET|HEAD mcp',
+            'GET|HEAD oauth/authorize',
+            'GET|HEAD up',
             'PATCH api/v1/assignments/{assignment}',
             'POST api/v1/auth/login',
             'POST api/v1/auth/logout',
             'POST api/v1/groups',
             'POST api/v1/groups/{group}/assignments',
             'POST api/v1/groups/{group}/learners',
+            'POST graphql',
             'POST login',
             'POST logout',
+            'POST mcp',
+            'POST oauth/authorize',
+            'POST oauth/register',
+            'POST oauth/token',
             'PUT api/v1/me/assignments/{learnerAssignment}/progress',
         ]);
-});
-
-test('Passport registers no routes of its own', function () {
-    $oauthRoutes = collect(Route::getRoutes()->getRoutes())
-        ->map(fn (RouteDefinition $route) => $route->uri())
-        ->filter(fn (string $uri) => str_starts_with($uri, 'oauth'));
-
-    expect($oauthRoutes->all())->toBe([]);
 });
