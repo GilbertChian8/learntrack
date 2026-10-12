@@ -553,9 +553,10 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 
 ## 1. Concurrency
 
+- **Isolation:** every connection runs at READ COMMITTED (config/database.php), not MySQL's default REPEATABLE READ. Each statement sees the latest committed rows, so an Action reads its answer inside its transaction, after its writes and under its locks, and the answer is what it saved. Nothing relies on a snapshot: a row that must not change is locked, and uniqueness comes from the unique keys. READ COMMITTED needs row-based binary logging, the default on RDS for MySQL 8.4.
 - **Two educators assign the same content to the same group at the same moment:** both transactions try to insert the active row. The unique key uq_assignments_active lets one through; the other gets a duplicate key error, which AssignContent catches and turns into "already assigned" by re-reading the row. One assignment, two honest answers. [ADR-005]
 - **A learner's app sends the same progress update twice at once** (a double tap, or a retry): RecordProgress locks the progress row for the pair (SELECT ... FOR UPDATE, or the insert itself when there is no row yet), applies the forward-only rule, and writes. The unique key uq_progress_pair stops a second row if both inserts race. [ADR-005]
-- **A due date changes while a learner completes the assignment:** two different rows, no conflict. Status is derived at read time, so the next read is right for both. [ADR-008]
+- **A due date changes while a learner completes the assignment:** two different rows. RecordProgress holds a shared lock on the assignment row, so one waits briefly for the other, and both writes stay. Status is derived at read time, so the next read is right for both. [ADR-008]
 - **A learner is removed from a group while Claude asks about the group:** the pair query reads committed rows only, so the learner is in the answer or not, never half. Their progress rows stay.
 - **An assignment is removed while a learner submits progress:** RecordProgress checks removed_at inside the same transaction, so the write answers 404 and nothing is saved.
 - **Claude retries assign_content after a timeout:** the second call finds the assignment and reports nothing changed. One audit row. [ADR-005]
