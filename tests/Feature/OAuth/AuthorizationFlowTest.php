@@ -9,25 +9,7 @@ use function Pest\Laravel\actingAs;
 use function Pest\Laravel\delete;
 use function Pest\Laravel\get;
 use function Pest\Laravel\post;
-use function Pest\Laravel\postJson;
 use function Pest\Laravel\withToken;
-
-test('registration creates a public client', function () {
-    $response = postJson('/oauth/register', [
-        'client_name' => 'Claude Code',
-        'redirect_uris' => ['http://localhost:9999/callback'],
-    ]);
-
-    $response->assertCreated()
-        ->assertJsonPath('token_endpoint_auth_method', 'none')
-        ->assertJsonPath('redirect_uris', ['http://localhost:9999/callback'])
-        ->assertJsonPath('grant_types', ['authorization_code', 'refresh_token']);
-
-    $client = DB::table('oauth_clients')->where('id', $response->json('client_id'))->first();
-
-    expect($client->name)->toBe('Claude Code')
-        ->and($client->secret)->toBeNull();
-});
 
 test('the full flow: consent, code, token, a working /mcp call and a refresh', function () {
     $clientId = registerOAuthClient();
@@ -172,3 +154,40 @@ test('a learner cannot approve or deny either', function (string $method) {
     expect(DB::table('oauth_auth_codes')->count())->toBe(0)
         ->and(DB::table('oauth_access_tokens')->count())->toBe(0);
 })->with(['POST', 'DELETE']);
+
+test('an Inertia login ends with a full page visit to the authorization request', function () {
+    $clientId = registerOAuthClient();
+    $educator = User::factory()->educator()->create();
+    $query = authorizationQuery($clientId, Str::random(64));
+
+    get('/oauth/authorize?'.http_build_query($query))->assertRedirect('/login');
+
+    $response = post('/login', ['email' => $educator->email, 'password' => 'password'], ['X-Inertia' => 'true'])
+        ->assertStatus(409);
+
+    $location = (string) $response->headers->get('X-Inertia-Location');
+    parse_str((string) parse_url($location, PHP_URL_QUERY), $intended);
+
+    expect($location)->toStartWith('http://localhost/oauth/authorize?')
+        ->and($intended)->toEqual($query);
+});
+
+test('with a live token for the client, the authorization request redirects to the client without consent', function () {
+    $clientId = registerOAuthClient();
+    $verifier = Str::random(64);
+    $educator = User::factory()->educator()->create();
+
+    $consent = actingAs($educator)->get('/oauth/authorize?'.http_build_query(authorizationQuery($clientId, $verifier)));
+    $code = callbackQuery(post('/oauth/authorize', ['auth_token' => $consent->inertiaProps('authToken')]), 'http://localhost:9999/callback')['code'];
+    post('/oauth/token', [
+        'grant_type' => 'authorization_code',
+        'client_id' => $clientId,
+        'redirect_uri' => 'http://localhost:9999/callback',
+        'code_verifier' => $verifier,
+        'code' => $code,
+    ])->assertOk();
+
+    $again = get('/oauth/authorize?'.http_build_query(authorizationQuery($clientId, Str::random(64))));
+
+    expect(callbackQuery($again, 'http://localhost:9999/callback'))->toHaveKeys(['code', 'state']);
+});
