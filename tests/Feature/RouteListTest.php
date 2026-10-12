@@ -23,6 +23,7 @@ test('the application registers only home, the login routes and the API routes b
             'GET|HEAD api/v1/groups/{group}/audit',
             'GET|HEAD api/v1/learners',
             'GET|HEAD api/v1/me',
+            'GET|HEAD api/v1/me/assignments',
             'GET|HEAD login',
             'PATCH api/v1/assignments/{assignment}',
             'POST api/v1/auth/login',
@@ -32,6 +33,7 @@ test('the application registers only home, the login routes and the API routes b
             'POST api/v1/groups/{group}/learners',
             'POST login',
             'POST logout',
+            'PUT api/v1/me/assignments/{learnerAssignment}/progress',
         ]);
 });
 
