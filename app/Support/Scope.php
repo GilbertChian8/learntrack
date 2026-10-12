@@ -24,6 +24,11 @@ class Scope
         return AssignmentPolicy::manageableBy($educator)->whereKey($id)->firstOr(fn () => throw NotFoundException::assignment());
     }
 
+    public static function removableAssignment(User $educator, int $id): Assignment
+    {
+        return AssignmentPolicy::removableBy($educator)->whereKey($id)->firstOr(fn () => throw NotFoundException::assignment());
+    }
+
     public static function learnerAssignment(User $learner, int $id): Assignment
     {
         return AssignmentPolicy::targeting($learner)->whereKey($id)->firstOr(fn () => throw NotFoundException::assignment());

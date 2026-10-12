@@ -94,7 +94,7 @@ class Assignment extends Model
     }
 
     /**
-     * The learners a subset assignment targets. Empty when the scope is "group".
+     * The learners a subset assignment targets. A widened assignment keeps its rows; scope "group" then targets every member.
      *
      * @return BelongsToMany<User, $this>
      */

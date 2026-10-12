@@ -7,6 +7,7 @@ use App\Enums\ContentType;
 use App\Enums\DerivedStatus;
 use App\GraphQL\BackedEnumType;
 use App\GraphQL\Scalars\DateTime as DateTimeScalar;
+use App\Models\Assignment;
 use App\Models\Group;
 use App\Support\Scope;
 use Carbon\CarbonImmutable;
@@ -65,12 +66,19 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * A {group} loads only through the scoped lookup, so a group outside scope is 404.
+     * A {group} or an assignment loads only through the scoped lookup, so one outside scope is 404.
+     * {removableAssignment} also finds removed assignments, so a repeated removal answers 204.
      */
     protected function configureRouteBindings(): void
     {
         Route::pattern('group', '[0-9]+');
         Route::bind('group', fn (string $id): Group => Scope::group(request()->user(), (int) $id));
+
+        Route::pattern('assignment', '[0-9]+');
+        Route::bind('assignment', fn (string $id): Assignment => Scope::assignment(request()->user(), (int) $id));
+
+        Route::pattern('removableAssignment', '[0-9]+');
+        Route::bind('removableAssignment', fn (string $id): Assignment => Scope::removableAssignment(request()->user(), (int) $id));
     }
 
     /**

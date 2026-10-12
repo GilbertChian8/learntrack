@@ -28,7 +28,7 @@ Server instructions (the `instructions` text the client receives on initialize):
 - **Result shape.** Every successful call returns structured content (the object described under Output) and one text content item (the summary described under Text). The output schema published in `tools/list` describes the structured content. Both are built from the same PHP array, so they never disagree.
 - **Errors** are tool errors (`isError: true`) with one text item holding the exact message listed under Errors. They are not JSON-RPC protocol errors. Input that fails the schema is rejected by laravel/mcp validation with its own message; the schema's `description` fields are written so that message is useful.
 - **Not found.** A group, learner, assignment or content item that does not exist, or that the educator may not see, gets the same message (ADR-006): `Group not found.`, `Learner not found.`, `Assignment not found.`, `Content item not found.` (the shared exception's message, the same in every interface).
-- **Dates.** Every date-time in an answer is ISO 8601 with the institution's offset, for example `2026-10-16T23:59:59+02:00`. A `due_date` input accepts `YYYY-MM-DD` (23:59:59 on that day in the institution's time zone) or a full ISO 8601 date-time with an offset. It must be in the future.
+- **Dates.** Every date-time in an answer is ISO 8601 with the institution's offset, for example `2026-10-16T23:59:59+02:00`. A `due_date` input accepts `YYYY-MM-DD` (23:59:59 on that day in the institution's time zone) or an RFC 3339 date-time with an offset, for example `2026-10-16T18:00:00+02:00`; a fraction of a second is dropped. It must be in the future.
 - **Learners** appear as `{ "id": 101, "name": "Sara Lindqvist" }` and nothing else. No tool has an email field, and no text summary contains an email address. A test asserts both over every tool.
 - **Numbers.** `average_score` is rounded to 1 decimal and `null` when there is nothing to average. `completion_rate` is a fraction from 0 to 1 rounded to 2 decimals. Text summaries write rates as whole percentages (`29%`).
 - **Annotations.** Read tools carry `readOnlyHint: true` and `idempotentHint: true`. Write tools carry `readOnlyHint: false`, `destructiveHint: false` and `idempotentHint: true`. `destructiveHint` must be set to false explicitly, because the protocol's default is true.
@@ -444,6 +444,8 @@ Output:
 | `already_had_it` | array of learner | Learners named in `learner_ids` (or every member, when no ids were given) who were already targeted |
 | `candidates` | array of object | Empty unless `result` is `candidates`. Each: `id`, `title`, `topic`, `type` |
 | `message` | string | What happened, in one or two sentences. Also the text summary |
+
+`added`, `already_had_it` and the assignment's `learners` are ordered by name, then id.
 
 The result rules are the AssignContent rules in the TDD, with REST's 409 case returned here as `result: already_assigned` and `changed: false`, because for an AI client that is an answer, not a failure.
 

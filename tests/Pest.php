@@ -1,6 +1,9 @@
 <?php
 
+use App\Enums\ContentType;
+use App\Models\ContentItem;
 use App\Models\Group;
+use App\Models\Institution;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +24,7 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
-    ->in('Feature', 'Unit/Policies', 'Unit/Queries');
+    ->in('Feature', 'Unit/Actions', 'Unit/Policies', 'Unit/Queries');
 
 /*
 |--------------------------------------------------------------------------
@@ -68,6 +71,35 @@ function learnerIn(Group $group): User
     $group->learners()->attach($learner);
 
     return $learner;
+}
+
+/**
+ * Cardiology Group A (Europe/Berlin), taught by Anna Keller, with Priya Nair,
+ * Sara Lindqvist and Tom Becker, and the Heart Failure Question Set.
+ *
+ * @return array{Group, User, ContentItem, User, User, User} group, educator, content, Priya, Sara, Tom
+ */
+function cardiologyGroup(): array
+{
+    $institution = Institution::factory()->create(['name' => 'Northside Medical School', 'timezone' => 'Europe/Berlin']);
+    $group = Group::factory()->for($institution)->create(['name' => 'Cardiology Group A']);
+    $educator = User::factory()->educator()->for($institution)->create(['name' => 'Anna Keller']);
+    $group->educators()->attach($educator);
+    $content = ContentItem::factory()->create([
+        'title' => 'Heart Failure Question Set',
+        'topic' => 'Cardiology',
+        'type' => ContentType::QuestionSet,
+        'estimated_minutes' => 30,
+    ]);
+
+    $learners = collect(['Priya Nair', 'Sara Lindqvist', 'Tom Becker'])->map(function (string $name) use ($institution, $group): User {
+        $learner = User::factory()->learner()->for($institution)->create(['name' => $name]);
+        $group->learners()->attach($learner);
+
+        return $learner;
+    });
+
+    return [$group, $educator, $content, ...$learners->all()];
 }
 
 /**
