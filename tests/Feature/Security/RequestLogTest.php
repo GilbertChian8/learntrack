@@ -25,20 +25,20 @@ test('a request line has the request id, the user id, the route and the status, 
     $lines = captureLogLines();
 
     $token = postJson('/api/v1/auth/login', ['email' => 'anna.keller@example.edu', 'password' => 'tr0ub4dor-and-3'])->assertOk()->json('data.token');
-    getJson('/api/v1/me', ['Authorization' => "Bearer {$token}"])->assertOk();
+    postJson('/api/v1/groups', ['name' => 'Body Marker Group'], ['Authorization' => "Bearer {$token}"])->assertCreated();
 
-    [$login, $me] = requestLines($lines());
+    [$login, $create] = requestLines($lines());
 
     expect($login['context'])->toMatchArray(['method' => 'POST', 'route' => 'api/v1/auth/login', 'status' => 200, 'user_id' => $user->id])
-        ->and($me['context'])->toMatchArray(['method' => 'GET', 'route' => 'api/v1/me', 'status' => 200, 'user_id' => $user->id])
-        ->and($me['context']['duration_ms'])->toBeInt()->toBeGreaterThanOrEqual(0)
+        ->and($create['context'])->toMatchArray(['method' => 'POST', 'route' => 'api/v1/groups', 'status' => 201, 'user_id' => $user->id])
+        ->and($create['context']['duration_ms'])->toBeInt()->toBeGreaterThanOrEqual(0)
         ->and($login['extra']['request_id'])->toBeUuid()
-        ->and($me['extra']['request_id'])->toBeUuid()
-        ->and($me['extra']['request_id'] === $login['extra']['request_id'])->toBeFalse();
+        ->and($create['extra']['request_id'])->toBeUuid()
+        ->and($create['extra']['request_id'] === $login['extra']['request_id'])->toBeFalse();
 
     $everything = (string) json_encode($lines());
 
-    expect(array_filter(['anna.keller', 'tr0ub4dor', $token, 'Bearer'], fn (string $secret) => str_contains($everything, $secret)))->toBe([]);
+    expect(array_filter(['anna.keller', 'tr0ub4dor', 'Body Marker', $token, 'Bearer'], fn (string $secret) => str_contains($everything, $secret)))->toBe([]);
 });
 
 test('a named route logs its name, an unknown path no route, and a guest no user id', function () {
