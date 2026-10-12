@@ -27,6 +27,12 @@ variable "db_instance_class" {
   default = "db.t4g.micro"
 }
 
+variable "db_max_connections" {
+  type        = number
+  default     = 60
+  description = "max_connections of db_instance_class (about 60 on 1 GiB classes). The connections alarm fires at 80%."
+}
+
 variable "app_cpu" {
   type    = number
   default = 512
