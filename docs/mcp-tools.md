@@ -445,18 +445,18 @@ Output:
 | `candidates` | array of object | Empty unless `result` is `candidates`. Each: `id`, `title`, `topic`, `type` |
 | `message` | string | What happened, in one or two sentences. Also the text summary |
 
-`added`, `already_had_it` and the assignment's `learners` are ordered by name, then id.
+`added`, `already_had_it` and the assignment's `learners` are ordered by name, then id. `candidates` are ordered by title, then id.
 
 The result rules are the AssignContent rules in the TDD, with REST's 409 case returned here as `result: already_assigned` and `changed: false`, because for an AI client that is an answer, not a failure.
 
 | Case | `changed` | `result` | `message` |
 |---|---|---|---|
 | Created | true | `created` | `Assigned Heart Failure Question Set to Cardiology Group A, due 2026-10-16T23:59:59+02:00, for 2 learners: Sara Lindqvist, Tom Becker.` For the whole group: `..., for all 42 learners.` |
-| Learners added to a subset assignment | true | `learners_added` | `Heart Failure Question Set was already assigned in Cardiology Group A, due 2026-10-16T23:59:59+02:00. Added 1 learner: Priya Nair. 2 learners already had it: Sara Lindqvist, Tom Becker.` |
+| Learners added to a subset assignment | true | `learners_added` | `Heart Failure Question Set was already assigned in Cardiology Group A, due 2026-10-16T23:59:59+02:00. Added 1 learner: Priya Nair. 2 learners already had it: Sara Lindqvist, Tom Becker.` (the last sentence is left out when none of the named learners had it) |
 | Subset widened to the whole group (no `learner_ids` given) | true | `learners_added` | `Heart Failure Question Set was already assigned in Cardiology Group A to 2 learners, due 2026-10-16T23:59:59+02:00. Now assigned to the whole group, including learners who join later. Added 40 learners.` (names are listed after the count when 10 or fewer were added; when nobody was added the last sentence is `Every current learner already had it.`) |
 | Nothing to do | false | `unchanged` | `Heart Failure Question Set is already assigned to Cardiology Group A, due 2026-10-16T23:59:59+02:00, and every learner you named already has it. Nothing changed.` With no `learner_ids`: `..., and the whole group already has it. Nothing changed.` |
 | Different due date | false | `already_assigned` | `Heart Failure Question Set is already assigned to Cardiology Group A, due 2026-10-16T23:59:59+02:00, not 2026-10-23. Nothing changed. To move it, call change_due_date with assignment_id 41.` |
-| Several titles match | false | `candidates` | `3 content items match "heart": Heart Failure Question Set (question_set, Cardiology), Heart Sounds (article, Cardiology), Congenital Heart Disease (article, Pediatrics). Ask which one is meant, then call again with content_item_id.` |
+| Several titles match | false | `candidates` | `3 content items match "heart": Congenital Heart Disease (article, Pediatrics), Heart Failure Question Set (question_set, Cardiology), Heart Sounds (article, Cardiology). Ask which one is meant, then call again with content_item_id.` |
 
 Example (created):
 
