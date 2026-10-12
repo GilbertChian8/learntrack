@@ -25,7 +25,7 @@ The MCP tools have their own contract in [mcp-tools.md](mcp-tools.md). The reaso
 - Every date-time in a response is ISO 8601 with the UTC offset of the institution the data belongs to, for example `2026-10-16T23:59:59+02:00`. The database stores UTC; the offset is applied when the response is built.
 - A due date in a request (`due_at`) accepts two formats:
   - `YYYY-MM-DD`, read as 23:59:59 on that day in the institution's time zone.
-  - A full ISO 8601 date-time with an offset, for example `2026-10-16T18:00:00+02:00`.
+  - An RFC 3339 date-time with an offset, for example `2026-10-16T18:00:00+02:00`; a fraction of a second is dropped.
 - A due date must be in the future at the moment of the request, else 422.
 - Date-time values stored inside audit `changes` are UTC with a `Z` suffix and are returned as stored.
 
@@ -56,7 +56,8 @@ A list, always paged:
 ```
 
 - `?limit` is the page size: default 50, maximum 200. A value above 200 or below 1 answers 422.
-- `?cursor` is the opaque string from the previous page's `meta.next_cursor`. A malformed cursor answers 422.
+- `?cursor` is the opaque string from the previous page's `meta.next_cursor`. A malformed cursor, or one from another list, answers 422 on `cursor` with `The cursor is invalid.`
+- An empty `limit` or `cursor` means the default: 50, and the first page.
 - `next_cursor` is `null` on the last page.
 - Every list has a stated order (see each endpoint); the cursor follows that order.
 
@@ -96,9 +97,9 @@ One shape everywhere, including GraphQL requests rejected before the query runs:
 
 Every route finds its resources through a scoped lookup, and a miss names its subject in the message (`Group not found.`, `Content item not found.`). `Not found.` is the answer when there is nothing to name: an unknown path.
 
-The 401 response from `/api/v1/*`, `/graphql` and `/mcp` carries `WWW-Authenticate: Bearer`; on `/mcp` it also carries `resource_metadata` pointing at `/.well-known/oauth-protected-resource`, which laravel/mcp adds in ticket 11.
+The 401 response from `/api/v1/*` and `/graphql` carries `WWW-Authenticate: Bearer`. On `/mcp`, laravel/mcp sets it to `Bearer realm="mcp", resource_metadata="<APP_URL>/.well-known/oauth-protected-resource/mcp"`.
 
-An unknown path answers 404 `not_found`; a known path with the wrong method answers 405 `method_not_allowed`.
+An unknown path answers 404 `not_found`; a known path with the wrong method answers 405 `method_not_allowed`. One exception: `GET` and `DELETE /mcp` answer 405 with an empty body and `Allow: POST`, as the MCP transport asks of a server that opens no event stream (laravel/mcp).
 
 Any other HTTP error keeps its status with a snake_case code of its reason phrase; a failure that is not an HTTP error is 500 `server_error`.
 
@@ -152,7 +153,7 @@ Any other HTTP error keeps its status with a snake_case code of its reason phras
 ```
 
 - `targeted_count`: the number of current group members the assignment targets. For scope `group` that is the group's learner count.
-- `learners`: the targeted learners who are current members of the group when scope is `learners` (so its length equals `targeted_count`); `null` when scope is `group`.
+- `learners`: the targeted learners who are current members of the group when scope is `learners` (so its length equals `targeted_count`), ordered by name, then id; `null` when scope is `group`.
 
 `audit_entry`:
 
@@ -324,6 +325,8 @@ The message is the same for an id that does not exist, so nothing leaks.
 }
 ```
 
+`added` and `already_members` are ordered by name, then id.
+
 Repeating the call answers 200 with everyone under `already_members`.
 
 ### DELETE /api/v1/groups/{group}/learners/{user}
@@ -418,6 +421,7 @@ Outcomes:
 
 - `added`: learners targeted for the first time by this call. For a created scope `group` assignment that is every current member.
 - `already_had_it`: learners named in `learner_ids` (or every member, when no ids were given) who were already targeted.
+- `added` and `already_had_it` are ordered by name, then id.
 
 409:
 
@@ -521,7 +525,7 @@ Request:
 Validation (422 otherwise):
 
 - `status` required, `in_progress` or `completed`.
-- `score`: only accepted with `status: completed`. Required for a question set, must be absent for an article. Integer 0 to 100.
+- `score`: only accepted with `status: completed`. Required for a question set, must be absent for an article. Integer 0 to 100. A `null` score is the same as no score. The messages, on `score`: `A score is only accepted with the status completed.`, `A completed question set needs a score.`, `An article does not take a score.`
 
 Transitions:
 
@@ -566,6 +570,8 @@ Completing after the due date is allowed; the status becomes `completed` and `co
   }
 }
 ```
+
+An article has no score: its message is `This assignment is already completed.` and `score` is `null`.
 
 ## 5. GraphQL
 
@@ -641,7 +647,7 @@ Rules:
 - `behind` and `reasons` come from BehindRule, see below.
 - `generatedAt`: the moment the pair query ran. Every status is "as of" this time.
 
-Not found (unknown id, or a group the caller does not teach; ADR-006):
+Not found (an unknown or malformed id, or a group the caller does not teach; ADR-006):
 
 ```json
 {
@@ -685,5 +691,6 @@ Low average (at most one):
 
 - `scores`: every completed question set of the learner in the group, in due date order, so the AI can say which ones pull the average down.
 - `average_score` is rounded to 1 decimal; a whole number is written without a decimal in `text` (`"score 40 is below 50"`).
+- BehindRule compares the average rounded to one decimal, the number every interface shows.
 
 The rule in words, returned by `find_learners_behind` as `rule`: "A learner is behind when they have at least one overdue assignment in the group, or their average score over completed question sets in the group is below 50."

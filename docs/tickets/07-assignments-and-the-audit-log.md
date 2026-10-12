@@ -8,13 +8,13 @@ The three assignment actions (AssignContent with its five rules, ChangeDueDate, 
 
 ## Read first
 
-- TDD: Educator endpoints (the last five rows and the AssignContent rules), Database Design notes (Soft delete, Subset assignments, Time zones, Audit log actions), Concurrency (the first and the sixth bullet).
+- TDD: Educator endpoints (the last five rows and the AssignContent rules), Database Design notes (Soft delete, Subset assignments, Time zones, Audit log actions), Concurrency (the bullets about two educators assigning the same content and Claude retrying assign_content).
 - api-contract.md: Dates and times, Shared objects (`assignment`, `audit_entry`, the `changes` table), section 3 from `GET /api/v1/groups/{group}/assignments` to the end.
 - ADR-004, ADR-005.
 
 ## Allowed paths
 
-`app/Actions/{AssignContent,ChangeDueDate,RemoveAssignment}.php`, `app/Actions/Results/**`, `app/Exceptions/{AlreadyAssignedException,DueDateException}.php`, `app/Support/DueDate.php`, `app/Http/Controllers/Api/{AssignmentController,GroupAssignmentController,AuditController}.php`, `app/Http/Requests/**`, `app/Http/Resources/{AssignmentResource,AuditEntryResource,AssignResultResource}.php`, `app/Policies/AssignmentPolicy.php` (only if a method is missing), `routes/api.php`, `tests/Feature/Api/{Assignments,Audit}/**`, `tests/Unit/Actions/**`, `tests/Unit/Support/DueDateTest.php`.
+`app/Actions/{AssignContent,ChangeDueDate,RemoveAssignment}.php`, `app/Actions/Results/**`, `app/Exceptions/{AlreadyAssignedException,DueDateException}.php`, `app/Support/DueDate.php`, `app/Http/Controllers/Api/{AssignmentController,GroupAssignmentController,AuditController}.php`, `app/Http/Requests/**`, `app/Http/Resources/{AssignmentResource,AuditEntryResource,AssignResultResource,ChangeDueDateResultResource}.php`, `app/Queries/{GroupAssignments,GroupAudit}.php`, `app/Enums/AssignOutcome.php`, `app/Policies/AssignmentPolicy.php` (only if a method is missing), `app/Support/Scope.php` (`removableAssignment`), `app/Providers/AppServiceProvider.php` (route bindings only), `routes/api.php`, `tests/Feature/Api/{Assignments,Audit}/**`, `tests/Unit/Actions/**`, `tests/Unit/Support/DueDateTest.php`.
 
 ## Steps
 

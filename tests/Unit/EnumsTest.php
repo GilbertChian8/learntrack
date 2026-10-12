@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\AssignmentScope;
+use App\Enums\AssignOutcome;
 use App\Enums\AuditAction;
 use App\Enums\AuditChannel;
 use App\Enums\ContentType;
@@ -26,4 +27,5 @@ test('enums carry the exact strings of the contract', function (string $enum, ar
         'assignment.due_changed',
         'assignment.removed',
     ]],
+    'assign result' => [AssignOutcome::class, ['created', 'learners_added', 'unchanged']],
 ]);

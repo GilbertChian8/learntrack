@@ -19,11 +19,11 @@ The five read tools of mcp-tools.md, each with its input schema, output schema, 
 
 ## Steps
 
-1. Every tool extends `App\Mcp\Tools\BaseTool` from ticket 11 (structured content plus text, the not-found mapping). Input validation goes through the published schema.
+1. Every tool extends `App\Mcp\Tools\BaseTool` from ticket 11 (structured content plus text, the not-found mapping). laravel/mcp does not check input against the schema: each tool checks its arguments with Laravel validation rules that mirror its schema, and BaseTool refuses argument names the schema does not have.
 2. Output schemas (`outputSchema`) for every tool, matching the Output tables in mcp-tools.md, built from the shared pieces in `app/Mcp/Schemas` (ticket 11).
 3. `list_my_groups` on `MyGroups` (ticket 06): the institution as its name.
 4. `get_group_progress` and `find_learners_behind` on `GroupProgress`. The first renders learners without the per-assignment statuses (those are GraphQL only) plus `assignments`; the second filters to `behind` learners and adds `rule` and `threshold` from `BehindRule`.
-5. `LearnerSummary::for(User $educator, int $learnerId)`: query 1, the educator's groups that contain the learner (`GroupPolicy::taughtBy` joined with `group_learners` for the learner, with the institution time zone; none throws `NotFoundException::learner()`); query 2, `PairRows::forLearner($learnerId, $groupIds)` for those groups; then the per group view (behind, reasons, average, counts, assignments) through `LearnerAggregation` from ticket 09, per group. `LearnerSummary::candidates(User $educator, string $name)`: learners of the educator's groups whose name contains the string, case-insensitive, with the group names, ordered by name then id, one query.
+5. `LearnerSummary::for(User $educator, int $learnerId)`: query 1, the educator's groups that contain the learner (`GroupPolicy::taughtBy` joined with `group_learners` for the learner, with the institution time zone; none throws `NotFoundException::learner()`); query 2, `PairRows::forLearner($learnerId, Date::now(), $groupIds)` for those groups (the moment from the application clock); then the per group view (behind, reasons, average, counts, assignments) through `LearnerAggregation` from ticket 09, per group. `LearnerSummary::candidates(User $educator, string $name)`: learners of the educator's groups whose name contains the string, case-insensitive, with the group names, ordered by name then id, one query.
 6. `get_learner_summary`: `learner_id` wins over `name`; one candidate means the summary; several mean `candidates` and `learner: null`; none means `Learner not found.`; neither argument means the `Give a learner_id or a name.` error.
 7. `HardestAssignments::for(User $educator, int $groupId, int $limit)` on `GroupProgress`: drop assignments with `targeted_count` 0, sort by `completion_rate` ascending, then `average_score` ascending with nulls last, then `due_at`, then id, take `limit`, and add the `reason` string in the contract's format.
 8. Text summaries exactly as mcp-tools.md gives them, including the empty cases.
@@ -31,14 +31,14 @@ The five read tools of mcp-tools.md, each with its input schema, output schema, 
 
 ## Acceptance tests
 
-Through the laravel/mcp test helpers, acting as a seeded educator with a fixed clock:
+Through `POST /mcp` (`callTool` in tests/Pest.php), acting as a seeded educator with a fixed clock:
 
 - `tools/list` returns the five names (plus the two write tools once ticket 13 merges), each with `readOnlyHint: true`, `idempotentHint: true` and an `outputSchema`.
 - `list_my_groups`: only the caller's groups, ordered by name, counts correct, text matches the contract; an educator with no groups gets the empty text.
 - `get_group_progress`: the structured content matches the contract's fields; `learners` has every member and no `statuses` key; `behind_count` equals the number of `behind: true` entries; the text's completion percentage is total completed over total targeted.
 - `find_learners_behind`: only learners with reasons; `rule` equals `BehindRule::ruleText()`; `threshold` 50; the group with nobody behind gives an empty list and the "Nobody" text.
 - `get_learner_summary` by id: groups are only the ones the caller teaches (a learner shared with another educator's group shows that group only when the caller teaches it too); by a unique name: the same answer; by an ambiguous name: `candidates` with group names and `learner: null`, text as the contract; by a name that only matches learners outside the caller's groups: `Learner not found.`; no arguments: the exact error text.
-- `find_hardest_assignments`: order verified against hand-computed rates and averages, nulls last, `limit` respected, assignments targeting nobody absent, `reason` strings exact, `limit` 0 or 21 rejected by the schema.
+- `find_hardest_assignments`: order verified against hand-computed rates and averages, nulls last, `limit` respected, assignments targeting nobody absent, `reason` strings exact, `limit` 0 or 21 rejected as a tool error.
 - Cross-interface: for the same seeded group, `get_group_progress` and `POST /graphql` report the same `behind` flags, the same reason texts, the same `counts` and the same assignment `completion_rate` and `average_score` values (one test walking both answers).
 - One test per tool with another educator's group id, learner id or assignment id: the exact not-found message and `isError: true`.
 - Privacy, one test over all five tools on the seeded data: the structured content has no key named `email` at any depth and the text contains no `@`.

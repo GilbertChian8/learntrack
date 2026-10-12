@@ -19,15 +19,15 @@ One Laravel application serves REST, GraphQL and MCP (ADR-002). The rule that ma
 | Layer | Folder | What lives there |
 |---|---|---|
 | Models | app/Models | Institution, User, Group (table learner_groups), ContentItem, Assignment, Progress, AuditEntry |
-| Policies | app/Policies | GroupPolicy (an educator teaches the group) and AssignmentPolicy (an educator manages it through its group; a learner records progress on it when it targets them). Every scope check in the system goes through these, and they deny with denyAsNotFound(), so the Gate answers 404 as well |
+| Policies | app/Policies | GroupPolicy (an educator teaches the group; the learners an educator may add to a group are the learners of their institution) and AssignmentPolicy (an educator manages it through its group; a learner records progress on it when it targets them). Every scope check in the system goes through these, and they deny with denyAsNotFound(), so the Gate answers 404 as well |
 | Actions | app/Actions | AssignContent, ChangeDueDate, RemoveAssignment, CreateGroup, AddLearners, RemoveLearner, RecordProgress. Each one runs in one transaction and writes its audit row inside that transaction |
-| Queries | app/Queries | GroupProgress (the pair query and the per learner and per assignment aggregates), BehindRule (the rule itself: thresholds and the predicate), LearnerSummary, HardestAssignments, MyGroups |
+| Queries | app/Queries | GroupProgress (the group header and members, then the pair rows aggregated per learner and per assignment), PairRows (the pair query), LearnerAggregation (one learner's counts, average, behind and statuses), BehindRule (the threshold, the predicate, the average, the reasons and the rule in words), LearnerSummary, HardestAssignments, MyGroups, LearnerDirectory, ContentLibrary, GroupDetail, GroupAssignments (a group's active assignments with their targeted learners), GroupAudit (a group's audit rows, newest first) |
 | REST | app/Http/Controllers/Api, app/Http/Requests, app/Http/Resources | Thin controllers, Form Requests and API Resources |
 | GraphQL | graphql/schema.graphql, app/GraphQL | The groupProgress query and its resolver (Lighthouse) |
 | MCP | app/Mcp/Servers/EducatorServer, app/Mcp/Tools | Seven tool classes (laravel/mcp) |
 | Web | resources/js/pages/auth, resources/js/pages/mcp | The login, consent and error pages as Inertia pages (React, TypeScript, ADR-017); app.blade.php is the only Blade view |
 
-BehindRule is the one place the rule lives (requirement 6). It exposes the score threshold (50) and one method, isBehind(overdueCount, averageScore). The SQL only produces the two inputs; nothing else in the code base compares a score to 50.
+BehindRule is the one place the rule lives (requirement 6). It exposes the score threshold (50) and the predicate isBehind(overdueCount, averageScore), plus the average over completed question sets, the reasons and the rule in words. The SQL only produces the two inputs; nothing else in the code base compares a score to 50.
 
 # Request path and routing
 
@@ -37,14 +37,14 @@ One host, one certificate, one ALB, one target group. Every path below is served
 |---|---|---|
 | /api/v1/* | REST controllers | Bearer token (Passport), auth:api |
 | /graphql | Lighthouse | Bearer token, auth:api, educator role |
-| /mcp | laravel/mcp web server (Streamable HTTP) | Bearer token from the OAuth flow, auth:api, educator role |
+| /mcp | laravel/mcp web server (Streamable HTTP). POST only; GET and DELETE answer 405 | Bearer token from the OAuth flow, auth:api, educator role |
 | /oauth/authorize, /oauth/token, /oauth/register | Passport and Mcp::oauthRoutes() | Web session for authorize, public for token and register |
-| /.well-known/oauth-protected-resource, /.well-known/oauth-authorization-server | Mcp::oauthRoutes() | Public |
+| /.well-known/oauth-protected-resource, /.well-known/oauth-authorization-server, each also with a path suffix (/.well-known/oauth-protected-resource/mcp is the one the 401 names) | Mcp::oauthRoutes() | Public |
 | / | Web controller | Guest: redirect to /login. Signed in: the notice page (ticket 11) |
 | /login, /logout | Web controllers | Web session (database driver) |
 | /up | Laravel health route | Public, used by the ALB health check |
 
-Proxies: the ALB ends TLS, so the app sees plain HTTP. TrustProxies trusts the VPC range and reads X-Forwarded-Proto and X-Forwarded-For, so generated URLs (the discovery documents, redirects) are https and rate limits count the real client address. The ALB redirects port 80 to 443 (301). The app sends Strict-Transport-Security.
+Proxies: the ALB ends TLS, so the app sees plain HTTP. Generated URLs (the discovery documents, redirects) start from APP_URL, so a forged Host header cannot change them. TrustProxies trusts the VPC range and reads X-Forwarded-For, -Proto and -Port, so rate limits count the real client address and the app knows the request came over https. The ALB redirects port 80 to 443 (301). The app sends Strict-Transport-Security.
 
 Region: a Terraform variable. Default eu-central-1 (Frankfurt), so learner data stays inside the EU by default. A different region is one variable change.
 
@@ -155,7 +155,7 @@ CREATE TABLE assignments (
   FOREIGN KEY (created_by)      REFERENCES users (id)
 );
 
-CREATE TABLE assignment_learners (                     -- rows exist only when scope = 'learners'
+CREATE TABLE assignment_learners (                     -- rows are written for scope 'learners'; widening to 'group' keeps them
   assignment_id  BIGINT UNSIGNED NOT NULL,
   user_id        BIGINT UNSIGNED NOT NULL,
   created_at     TIMESTAMP NULL,
@@ -213,7 +213,7 @@ Notes on the design:
 | in_progress | no | in_progress |
 | none | no | not_started |
 
-- **Behind** (requirement 6): a learner is behind in a group when they have at least one overdue pair in that group, or when the average score of their completed question sets in that group is below 50. A learner with no completed question set has no average and is not behind by score. Exactly 50 is not behind. Only assignments that target the learner count (scope group, or a row in assignment_learners).
+- **Behind** (requirement 6): a learner is behind in a group when they have at least one overdue pair in that group, or when the average score of their completed question sets in that group is below 50. A learner with no completed question set has no average and is not behind by score. Exactly 50 is not behind. BehindRule compares the average rounded to one decimal, the number every interface shows. Only assignments that target the learner count (scope group, or a row in assignment_learners).
 - **Subset assignments.** An assignment with scope group targets every current member of the group, including learners added later. An assignment with scope learners targets only the rows in assignment_learners. This is why a new group member picks up the group's assignments with no extra write, while a remediation assignment stays with the learners it was made for.
 - **Soft delete for assignments** (requirement 4). Removing an assignment sets removed_at and sets removed_key to the row's own id, in the same write; its progress rows stay. removed_key makes the unique key uq_assignments_active mean "one active assignment per content item per group": every active row holds 0, and every removed row carries its own id, so removed rows never collide with each other or with the active row. MySQL has no partial indexes, so this is the standard way to express that rule. The CHECK chk_assignments_removed keeps the two columns in step: removed_at is null exactly when removed_key is 0. After a removal the same content can be assigned again as a new row.
 - **Removing a learner from a group** deletes the group_learners row only. Their progress rows stay, so re-adding them later shows their history, and nothing is lost.
@@ -245,7 +245,7 @@ SELECT a.group_id, g.name AS group_name,
        p.status AS progress_status, p.score, p.started_at, p.completed_at,
        CASE
          WHEN p.status = 'completed'        THEN 'completed'
-         WHEN a.due_at < UTC_TIMESTAMP()    THEN 'overdue'
+         WHEN a.due_at < ?                  THEN 'overdue'   -- the moment of the read, bound
          WHEN p.status = 'in_progress'      THEN 'in_progress'
          ELSE 'not_started'
        END AS status
@@ -258,12 +258,13 @@ LEFT JOIN group_learners gl ON gl.group_id = a.group_id
                   WHERE al.assignment_id = a.id AND al.user_id = gl.user_id))
 LEFT JOIN users u           ON u.id = gl.user_id
 LEFT JOIN progress p        ON p.assignment_id = a.id AND p.user_id = gl.user_id
-WHERE a.group_id = ? AND a.removed_at IS NULL;
+WHERE a.group_id = ? AND a.removed_at IS NULL
+ORDER BY gl.user_id, a.due_at, a.id;   -- one learner's rows together
 ```
 
-The learner variant of the same query (GET /api/v1/me/assignments and get_learner_summary) starts from the learner's group_learners rows and inner joins the active assignments that target them, with the same columns and the same CASE, in one query.
+The learner variant of the same query (GET /api/v1/me/assignments and get_learner_summary) starts from the learner's group_learners rows and inner joins the active assignments that target them, with the same columns and the same CASE, in one query. Both variants bind the moment of the read from the application clock, so the statuses, days_overdue and generatedAt come from one clock, and tests fix it with the test clock.
 
-For the largest group that is 6,000 rows, read once. An assignment that targets nobody yet (an empty group, or a subset whose learners all left the group) appears as one row with a null learner, so the assignment list is always complete; such rows count for the assignment list and are skipped for learner statistics. A member that no assignment targets has no pair row at all; the member list comes from the group lookup (the first query, below), so such a learner appears with zero counts and is not behind. From those rows GroupProgress builds, in PHP, the per learner view (counts by status, average score over completed question sets, the behind flag through BehindRule, and the reasons: which assignments are overdue and since when, or which scores pull the average down) and the per assignment view (targeted learners, completed count, completion rate, average score).
+For the largest group that is 6,000 rows, read once as a stream: GroupProgress holds one learner's rows at a time and keeps running totals per assignment. An assignment that targets nobody yet (an empty group, or a subset whose learners all left the group) appears as one row with a null learner, so the assignment list is always complete; such rows count for the assignment list and are skipped for learner statistics. A member that no assignment targets has no pair row at all; the member list comes from the group lookup (the first query, below), so such a learner appears with zero counts and is not behind. From those rows GroupProgress builds, in PHP, the per learner view (counts by status, average score over completed question sets, the behind flag through BehindRule, and the reasons: which assignments are overdue and since when, or which scores pull the average down) and the per assignment view (targeted learners, completed count, completion rate, average score).
 
 Query counts, fixed by tests:
 
@@ -391,8 +392,10 @@ The resolver calls GroupProgress, which looks the group up through the educator'
 | POST /oauth/authorize, DELETE /oauth/authorize | Approve or deny |
 | POST /oauth/token | Authorization code with PKCE, and refresh |
 | POST /oauth/register | Dynamic client registration. Claude registers itself here before the first login |
-| GET /.well-known/oauth-protected-resource, GET /.well-known/oauth-authorization-server | The discovery documents Claude reads after the first 401 |
+| GET /.well-known/oauth-protected-resource/mcp, GET /.well-known/oauth-authorization-server | The discovery documents Claude reads after the first 401, which names the first one. laravel/mcp also serves both at the root and with other path suffixes |
 | POST /mcp | The MCP endpoint. auth:api plus the educator role. Stateless: every call carries the token |
+
+Client registration accepts redirect URIs on https://claude.ai, https://claude.com and http://localhost, http://127.0.0.1 or http://[::1] (any port) only (config/mcp.php), so nobody can register a look-alike client that sends an educator's code to their own site.
 
 Token lifetimes: MCP access tokens 1 hour, refresh tokens 30 days (Claude refreshes without asking the educator), authorization codes 10 minutes, API personal access tokens 8 hours. PKCE is required. The Passport signing keys and APP_KEY come from Secrets Manager (ADR-013). The housekeeping task runs passport:purge daily (ADR-014).
 
@@ -513,7 +516,7 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 11\. **MCP server and the OAuth flow (3 days)** [ADR-001, ADR-002, ADR-003, ADR-017]
 
 - laravel/mcp, EducatorServer at /mcp, Mcp::oauthRoutes(), the educator-only middleware.
-- The login, consent and error pages as Inertia pages (React, TypeScript, Tailwind), trimmed from the Laravel React starter kit. Passport::authorizationView returns Inertia::render with the client name, the scopes, the auth token and the state. The learner message on consent.
+- The login, consent and error pages as Inertia pages (React, TypeScript, Tailwind), trimmed from the Laravel React starter kit. Passport::authorizationView returns Inertia::render with the client name, what the client will be able to do, the auth token and the state. The learner message on consent.
 - TrustProxies, token lifetimes, the housekeeping command (passport:purge and expired cache rows).
 - Checked with the MCP Inspector locally and with Claude Code against http://localhost. Claude Desktop and the Claude app require HTTPS, so their check is against a tunnel (cloudflared) and then the deployed environment (item 15).
 
@@ -550,9 +553,10 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 
 ## 1. Concurrency
 
+- **Isolation:** every connection runs at READ COMMITTED (config/database.php), not MySQL's default REPEATABLE READ. Each statement sees the latest committed rows, so an Action reads its answer inside its transaction, after its writes and under its locks, and the answer is what it saved. Nothing relies on a snapshot: a row that must not change is locked, and uniqueness comes from the unique keys. READ COMMITTED needs row-based binary logging, the default on RDS for MySQL 8.4.
 - **Two educators assign the same content to the same group at the same moment:** both transactions try to insert the active row. The unique key uq_assignments_active lets one through; the other gets a duplicate key error, which AssignContent catches and turns into "already assigned" by re-reading the row. One assignment, two honest answers. [ADR-005]
 - **A learner's app sends the same progress update twice at once** (a double tap, or a retry): RecordProgress locks the progress row for the pair (SELECT ... FOR UPDATE, or the insert itself when there is no row yet), applies the forward-only rule, and writes. The unique key uq_progress_pair stops a second row if both inserts race. [ADR-005]
-- **A due date changes while a learner completes the assignment:** two different rows, no conflict. Status is derived at read time, so the next read is right for both. [ADR-008]
+- **A due date changes while a learner completes the assignment:** two different rows. RecordProgress holds a shared lock on the assignment row, so one waits briefly for the other, and both writes stay. Status is derived at read time, so the next read is right for both. [ADR-008]
 - **A learner is removed from a group while Claude asks about the group:** the pair query reads committed rows only, so the learner is in the answer or not, never half. Their progress rows stay.
 - **An assignment is removed while a learner submits progress:** RecordProgress checks removed_at inside the same transaction, so the write answers 404 and nothing is saved.
 - **Claude retries assign_content after a timeout:** the second call finds the assignment and reports nothing changed. One audit row. [ADR-005]
@@ -577,7 +581,7 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 - **A rate limit is hit:** 429 with Retry-After. Claude tells the educator to wait a moment.
 - **The audit write fails:** the whole transaction rolls back, so no change ever exists without its audit row.
 - **The housekeeping task fails:** expired tokens accumulate until the next day. An alarm fires on the failed invocation. Nothing user facing breaks. [ADR-014]
-- **The MCP client sends a malformed tool call:** laravel/mcp validation answers an error with the message from the input schema, so Claude can correct the call.
+- **The MCP client sends a malformed tool call:** the tool checks its arguments against the input schema (Laravel validation rules, and no argument the schema does not name) and answers a tool error that names the bad argument, so Claude can correct the call. Nothing is written.
 
 ## 3. Security and access
 
@@ -597,7 +601,7 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 - **Unit tests for BehindRule and the status derivation**, with a fixed clock: not started, in progress, completed, overdue; behind by overdue; behind by average below 50; exactly 50 is not behind; the average covers completed question sets only; an article never carries a score; a subset assignment counts only for its learners; a late completion is completed, not overdue.
 - **Feature tests per REST endpoint**: the happy path, validation (422), the 404 rule with another educator's group on every route, the role rule (a learner on an educator route gets 403), and the repeat rules: the same assign twice gives one row; a different due date answers 409 with no change; the same PUT progress twice gives one row and changed: false; a backward status answers 409; completed with a different score answers 409.
 - **Action tests** for the audit log: every change writes exactly one row with the right action and channel, and a failed write leaves no row.
-- **MCP tool tests** with the laravel/mcp test helpers, acting as an educator: one test per tool for a group outside their scope (not found); one privacy test over every tool that asserts no email key and no email string in the whole answer; the content title candidates case; the learner name candidates case; a repeated write answers changed: false.
+- **MCP tool tests** call `POST /mcp` acting as an educator (`callTool` in tests/Pest.php), so they can assert the exact text and the whole structured content (the laravel/mcp test helpers only check that a text contains a string): one test per tool for a group outside their scope (not found); one privacy test over every tool that asserts no email key and no email string in the whole answer; the content title candidates case; the learner name candidates case; a repeated write answers changed: false.
 - **GraphQL tests**: the full groupProgress on a seeded group, the not-found answer for a foreign group, and a comparison test that asserts GraphQL and get_group_progress report the same statuses, behind flags and reasons for the same group.
 - **Query-count tests**: seed a group with 60 learners and 100 assignments, run groupProgress and every MCP read tool, assert the exact query count; double the learners and the assignments and assert the same count.
 - **Timing check**: time the pair query at full size locally (expected tens of milliseconds); the real p95 is measured in AWS in item 15 against the 300 ms and 1 s targets.

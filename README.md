@@ -16,7 +16,7 @@ php artisan migrate --seed      # demo data
 npm run dev                     # Vite, for the three pages
 ```
 
-The app container serves the assets built into its image. After a frontend change, run `docker compose up -d --build`. For hot reload, run the app on the host with `php artisan serve` (http://localhost:8000) next to `npm run dev`.
+The app container serves the assets built into its image. After a frontend change, run `docker compose up -d --build`. For hot reload, stop the app container with `docker compose stop app` and run `php artisan serve --port=8080` next to `npm run dev`, so the app keeps its APP_URL address.
 
 Tests run against MySQL, in the `learntrack_test` database that compose creates. Copy the test settings once with `cp .env.testing.example .env.testing`. Larastan needs a PHP `memory_limit` of at least 256M. The checks to run before every pull request are listed in [CLAUDE.md](CLAUDE.md).
 

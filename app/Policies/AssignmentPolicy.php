@@ -24,6 +24,18 @@ class AssignmentPolicy
     }
 
     /**
+     * The assignments of the groups the educator teaches, removed ones too,
+     * so a repeated removal finds its row.
+     *
+     * @return Builder<Assignment>
+     */
+    public static function removableBy(User $educator): Builder
+    {
+        return Assignment::query()
+            ->whereIn('assignments.group_id', GroupPolicy::taughtBy($educator)->select('learner_groups.id'));
+    }
+
+    /**
      * The active assignments in the learner's groups that target them:
      * scope group, or an assignment_learners row.
      *

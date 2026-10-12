@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Run the migrations. Rows exist only when the assignment's scope is "learners".
+     * Run the migrations. Rows are written for scope "learners"; widening to "group" keeps them.
      */
     public function up(): void
     {
