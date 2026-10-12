@@ -25,6 +25,8 @@ ENV HEALTHCHECK_PATH=/up \
     PHP_OPCACHE_VALIDATE_TIMESTAMPS=0
 RUN sed -i '/^add_header /d' /etc/nginx/server-opts.d/security.conf \
     && sed -i 's/\$LOG_OUTPUT_LEVEL;/crit;/' /etc/nginx/nginx.conf.template
+# The RDS certificate authorities, for MYSQL_ATTR_SSL_CA in AWS.
+COPY docker/rds-global-bundle.pem /etc/ssl/certs/rds-global-bundle.pem
 COPY --chown=www-data:www-data . /var/www/html
 COPY --chown=www-data:www-data --from=vendor /app/vendor /var/www/html/vendor
 COPY --chown=www-data:www-data --from=assets /app/public/build /var/www/html/public/build

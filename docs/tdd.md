@@ -66,7 +66,7 @@ The diagram ([architecture.png](architecture.png)) carries these arrows, numbere
 12. GitHub Actions -> IAM = assume a role with OIDC, no stored keys: pull requests the read-only plan role, main the deploy role (dashed)
 13. GitHub Actions -> ECR = push the image tagged with the git SHA
 14. GitHub Actions -> Terraform state (S3) and AWS = terraform plan and apply
-15. GitHub Actions -> ECS = run the migration task, register the task definition revision, update the service
+15. GitHub Actions -> ECS = register the app task definition revision, run the migration task with it, update the service, register the housekeeping revision and move the schedule to it
 
 # Database Design
 
@@ -477,7 +477,7 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 - ALB: HTTPS listener with the ACM certificate, HTTP listener that redirects to HTTPS, target group with health check GET /up and a 30 second deregistration delay.
 - CloudWatch: one log group (JSON logs, 30 day retention) and the alarms listed in the launch plan.
 - EventBridge Scheduler rule that runs the housekeeping command as a one-off task once a day.
-- GitHub Actions: ci (Pint, Larastan, Pest against a MySQL service container, eslint, tsc) on every pull request, plus terraform plan posted on the pull request; deploy on main: build the image tagged with the git SHA, push to ECR, terraform apply, run the migration task and stop on failure, register the task definition revision, update the service, wait until stable; a manual destroy workflow as the off switch for cost.
+- GitHub Actions: ci (Pint, Larastan, Pest against a MySQL service container, eslint, tsc) on every pull request, plus terraform plan posted on the pull request; deploy on main: build the image tagged with the git SHA, push to ECR, terraform apply, register the app task definition revision, run the migration task with it and stop on failure, update the service, wait until stable and fail if the circuit breaker rolled it back, register the housekeeping revision and move the schedule to it; a manual destroy workflow as the off switch for cost.
 - The environment name and the region are variables; a second environment is one set of variables, one state key and its own deploy and plan roles.
 
 ## Flows 2 and 3: groups, assignments and progress (REST)
@@ -621,5 +621,5 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 - **Environments**: docker compose locally; one AWS environment built and destroyed by the pipeline. The environment name and the region are Terraform variables, so a second environment is one set of variables, one state key and its own deploy and plan roles. [ADR-015, ADR-016]
 - **Rollout in three steps**: 1) deploy with seed data and connect one educator's Claude; 2) one pilot group with real educators and learners for two weeks, watching the alarms and the audit log; 3) onboard institutions by adding their accounts with the account command, since v1 has no admin screen.
 - **Rollback**: one command to the previous task definition revision. Migrations are forward-only, so a rollback never needs a schema change. [ADR-016]
-- **Monitoring** (minimal on purpose): CloudWatch alarms on ALB 5xx rate, unhealthy target count, running task count below 2, target response time p95 above 1 s, RDS CPU, free storage and connection count, and a failed housekeeping invocation. JSON logs in CloudWatch with 30 day retention. An email topic receives the alarms.
+- **Monitoring** (minimal on purpose): CloudWatch alarms on ALB 5xx rate, unhealthy target count, running task count below 2, target response time p95 above 1 s, RDS CPU, free storage and connection count, and a failed housekeeping run (the task stops with a non-zero exit code or fails to start, or the schedule cannot start it). JSON logs in CloudWatch with 30 day retention. An email topic receives the alarms.
 - **Success check after launch**: the blueprint metrics. groupProgress p95 under 300 ms on the largest group, every MCP tool p95 under 1 s, 99.9% uptime, a fixed query count at any group size, and no tool returning data from a group the educator does not teach.

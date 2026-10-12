@@ -12,6 +12,7 @@ compose.yaml
 Dockerfile
 .dockerignore
 docker
+!docker/rds-global-bundle.pem
 docs
 infra
 tests
