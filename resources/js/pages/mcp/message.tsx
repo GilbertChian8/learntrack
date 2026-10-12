@@ -2,7 +2,6 @@ import { Head, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
-import AuthLayout from '@/layouts/auth-layout';
 
 type MessageProps = {
     title: string;
@@ -10,7 +9,7 @@ type MessageProps = {
     signOut: boolean;
 };
 
-export default function Message({ title, message, signOut }: MessageProps) {
+export default function Message({ title, signOut }: MessageProps) {
     const { post, processing } = useForm({});
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -20,7 +19,7 @@ export default function Message({ title, message, signOut }: MessageProps) {
     };
 
     return (
-        <AuthLayout title={title} description={message}>
+        <>
             <Head title={title} />
 
             {signOut && (
@@ -36,6 +35,11 @@ export default function Message({ title, message, signOut }: MessageProps) {
                     </Button>
                 </form>
             )}
-        </AuthLayout>
+        </>
     );
 }
+
+Message.layout = (props: MessageProps) => ({
+    title: props.title,
+    description: props.message,
+});

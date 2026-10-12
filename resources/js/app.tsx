@@ -6,7 +6,8 @@ const appName = import.meta.env.VITE_APP_NAME || 'LearnTrack';
 
 void createInertiaApp({
     title: (title: string) => (title ? `${title} - ${appName}` : appName),
-    layout: (name: string) => (name.startsWith('auth/') ? AuthLayout : null),
+    layout: (name: string) =>
+        name.startsWith('auth/') || name.startsWith('mcp/') ? AuthLayout : null,
     strictMode: true,
     progress: {
         color: '#4B5563',

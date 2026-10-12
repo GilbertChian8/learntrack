@@ -1,7 +1,6 @@
 import { Head } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import AuthLayout from '@/layouts/auth-layout';
 
 type ConsentProps = {
     clientName: string;
@@ -14,7 +13,6 @@ type ConsentProps = {
 
 export default function Consent({
     clientName,
-    userName,
     capabilities,
     authToken,
     state,
@@ -29,10 +27,7 @@ export default function Consent({
     );
 
     return (
-        <AuthLayout
-            title={`Connect ${clientName}`}
-            description={`You are signed in as ${userName}.`}
-        >
+        <>
             <Head title="Connect an AI assistant" />
 
             <div className="flex flex-col gap-6">
@@ -63,9 +58,14 @@ export default function Consent({
                     </AuthorizationForm>
                 </div>
             </div>
-        </AuthLayout>
+        </>
     );
 }
+
+Consent.layout = (props: ConsentProps) => ({
+    title: `Connect ${props.clientName}`,
+    description: `You are signed in as ${props.userName}.`,
+});
 
 function AuthorizationForm({
     fields,
