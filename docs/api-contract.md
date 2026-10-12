@@ -525,7 +525,7 @@ Request:
 Validation (422 otherwise):
 
 - `status` required, `in_progress` or `completed`.
-- `score`: only accepted with `status: completed`. Required for a question set, must be absent for an article. Integer 0 to 100.
+- `score`: only accepted with `status: completed`. Required for a question set, must be absent for an article. Integer 0 to 100. A `null` score is the same as no score. The messages, on `score`: `A score is only accepted with the status completed.`, `A completed question set needs a score.`, `An article does not take a score.`
 
 Transitions:
 
@@ -570,6 +570,8 @@ Completing after the due date is allowed; the status becomes `completed` and `co
   }
 }
 ```
+
+An article has no score: its message is `This assignment is already completed.` and `score` is `null`.
 
 ## 5. GraphQL
 
