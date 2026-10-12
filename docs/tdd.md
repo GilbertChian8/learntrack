@@ -580,7 +580,7 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 - **A rate limit is hit:** 429 with Retry-After. Claude tells the educator to wait a moment.
 - **The audit write fails:** the whole transaction rolls back, so no change ever exists without its audit row.
 - **The housekeeping task fails:** expired tokens accumulate until the next day. An alarm fires on the failed invocation. Nothing user facing breaks. [ADR-014]
-- **The MCP client sends a malformed tool call:** laravel/mcp validation answers an error with the message from the input schema, so Claude can correct the call.
+- **The MCP client sends a malformed tool call:** the tool checks its arguments against the input schema (Laravel validation rules, and no argument the schema does not name) and answers a tool error that names the bad argument, so Claude can correct the call. Nothing is written.
 
 ## 3. Security and access
 
