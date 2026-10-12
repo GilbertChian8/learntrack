@@ -143,12 +143,19 @@ class AssignContent extends BaseTool
 
     /**
      * The action names every learner who is not a member, keyed learner_ids.{index}; the answer names the first.
+     * Any other validation error goes out unchanged.
      *
      * @param  list<int>  $learnerIds
      */
     private function notAMember(ValidationException $exception, array $learnerIds, Group $group): ValidationException
     {
-        $index = (int) Str::after((string) array_key_first($exception->errors()), 'learner_ids.');
+        $key = (string) array_key_first($exception->errors());
+
+        if (! str_starts_with($key, 'learner_ids.')) {
+            return $exception;
+        }
+
+        $index = (int) Str::after($key, 'learner_ids.');
 
         return ValidationException::withMessages(['learner_ids' => "Learner {$learnerIds[$index]} is not a member of {$group->name}."]);
     }
