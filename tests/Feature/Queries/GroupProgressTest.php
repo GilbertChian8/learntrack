@@ -270,70 +270,7 @@ test('another educator\'s group and a missing id are not found, before any pair 
 test('a group\'s progress is exactly two queries whatever its size', function (int $learnerCount, int $assignmentCount) {
     $group = Group::factory()->create();
     $educator = educatorOf($group);
-    $stamp = now()->toDateTimeString();
-
-    DB::table('users')->insert(array_map(fn (int $i) => [
-        'institution_id' => $group->institution_id,
-        'name' => "Learner {$i}",
-        'email' => "learner{$i}@example.edu",
-        'password' => 'unused',
-        'role' => 'learner',
-        'created_at' => $stamp,
-        'updated_at' => $stamp,
-    ], range(1, $learnerCount)));
-    $learnerIds = DB::table('users')->where('role', 'learner')->orderBy('id')->pluck('id')->all();
-    DB::table('group_learners')->insert(array_map(fn (int $id) => ['group_id' => $group->id, 'user_id' => $id, 'created_at' => $stamp], $learnerIds));
-
-    DB::table('content_items')->insert(array_map(fn (int $i) => [
-        'title' => "Content {$i}",
-        'topic' => 'Cardiology',
-        'type' => $i % 2 === 0 ? 'question_set' : 'article',
-        'estimated_minutes' => 20,
-        'created_at' => $stamp,
-        'updated_at' => $stamp,
-    ], range(0, $assignmentCount)));
-    $contentIds = DB::table('content_items')->orderBy('id')->pluck('id')->all();
-
-    DB::table('assignments')->insert(array_map(fn (int $i) => [
-        'group_id' => $group->id,
-        'content_item_id' => $contentIds[$i],
-        'due_at' => now()->addDays($i % 30 - 15)->toDateTimeString(),
-        'scope' => $i === $assignmentCount ? 'learners' : 'group',
-        'created_by' => $educator->id,
-        'removed_key' => 0,
-        'created_at' => $stamp,
-        'updated_at' => $stamp,
-    ], array_keys($contentIds)));
-    $assignmentIds = DB::table('assignments')->orderBy('id')->pluck('id')->all();
-    DB::table('assignment_learners')->insert(array_map(
-        fn (int $id) => ['assignment_id' => $assignmentIds[$assignmentCount], 'user_id' => $id, 'created_at' => $stamp],
-        array_slice($learnerIds, 0, 5),
-    ));
-
-    $progress = [];
-    foreach (array_slice($assignmentIds, 0, $assignmentCount) as $a => $assignmentId) {
-        foreach ($learnerIds as $l => $learnerId) {
-            if (($a + $l) % 2 === 1) {
-                continue;
-            }
-
-            $completed = $l % 4 !== 0;
-            $progress[] = [
-                'assignment_id' => $assignmentId,
-                'user_id' => $learnerId,
-                'status' => $completed ? 'completed' : 'in_progress',
-                'score' => $completed && $a % 2 === 0 ? ($a * 7 + $l * 3) % 101 : null,
-                'started_at' => $stamp,
-                'completed_at' => $completed ? now()->subMinutes($a * $learnerCount + $l)->toDateTimeString() : null,
-            ];
-
-            if (count($progress) === 1000) {
-                DB::table('progress')->insert($progress);
-                $progress = [];
-            }
-        }
-    }
-    DB::table('progress')->insert($progress);
+    seedLargeGroup($group, $educator, $learnerCount, $assignmentCount);
 
     DB::enableQueryLog();
     $result = GroupProgress::for($educator, $group->id);
