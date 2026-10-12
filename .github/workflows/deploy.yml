@@ -1,0 +1,107 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+  TF_VAR_region: ${{ vars.AWS_REGION }}
+  TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
+  TF_VAR_hosted_zone_id: ${{ vars.HOSTED_ZONE_ID }}
+  TF_IN_AUTOMATION: 'true'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+
+      - name: Build and push the image
+        id: image
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/learntrack-app:${{ github.sha }}
+        run: |
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "uri=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.16.4
+          terraform_wrapper: false
+
+      - name: terraform apply
+        working-directory: infra/env
+        run: |
+          terraform init -input=false -lockfile=readonly \
+            -backend-config="bucket=$TF_STATE_BUCKET" \
+            -backend-config="region=$AWS_REGION"
+          terraform apply -auto-approve -input=false
+
+      - name: Read the outputs
+        id: env
+        working-directory: infra/env
+        run: |
+          for name in url cluster app_service app_family housekeeping_family task_subnet_ids task_security_group_id; do
+            value="$(terraform output -raw "$name")"
+            echo "$name=$value" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Register the app revision
+        id: app
+        env:
+          FAMILY: ${{ steps.env.outputs.app_family }}
+          IMAGE: ${{ steps.image.outputs.uri }}
+        run: |
+          arn="$(scripts/deploy/register-task-definition.sh "$FAMILY" "$IMAGE")"
+          echo "arn=$arn" >> "$GITHUB_OUTPUT"
+
+      - name: Run the migration
+        env:
+          CLUSTER: ${{ steps.env.outputs.cluster }}
+          TASK_DEFINITION: ${{ steps.app.outputs.arn }}
+          SUBNETS: ${{ steps.env.outputs.task_subnet_ids }}
+          SECURITY_GROUP: ${{ steps.env.outputs.task_security_group_id }}
+        run: scripts/deploy/run-migration.sh "$CLUSTER" "$TASK_DEFINITION" "$SUBNETS" "$SECURITY_GROUP"
+
+      - name: Register the housekeeping revision
+        env:
+          FAMILY: ${{ steps.env.outputs.housekeeping_family }}
+          IMAGE: ${{ steps.image.outputs.uri }}
+        run: scripts/deploy/register-task-definition.sh "$FAMILY" "$IMAGE"
+
+      - name: Update the service
+        env:
+          CLUSTER: ${{ steps.env.outputs.cluster }}
+          SERVICE: ${{ steps.env.outputs.app_service }}
+          TASK_DEFINITION: ${{ steps.app.outputs.arn }}
+        run: scripts/deploy/update-service.sh "$CLUSTER" "$SERVICE" "$TASK_DEFINITION"
+
+      - name: Print the URL
+        env:
+          URL: ${{ steps.env.outputs.url }}
+          TASK_DEFINITION: ${{ steps.app.outputs.arn }}
+        run: |
+          echo "$URL runs $TASK_DEFINITION"
+          echo "$URL runs \`$TASK_DEFINITION\`" >> "$GITHUB_STEP_SUMMARY"
