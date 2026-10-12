@@ -2,7 +2,6 @@
 
 namespace App\Actions;
 
-use App\Actions\Results\AssignDecision;
 use App\Actions\Results\AssignResult;
 use App\Enums\AssignmentScope;
 use App\Enums\AssignOutcome;
@@ -40,23 +39,15 @@ class AssignContent
         $this->ensureEveryIdIsAMember($learnerIds, $members);
 
         $named = $learnerIds === [] ? $members : $members->whereIn('id', $learnerIds)->values();
-        $decide = fn (): AssignDecision => DB::transaction(
-            fn (): AssignDecision => $this->applyRules($educator, $group, $item, $dueAt, $named, $learnerIds !== [], $channel),
+        $assign = fn (): AssignResult => DB::transaction(
+            fn (): AssignResult => $this->applyRules($educator, $group, $item, $dueAt, $named, $learnerIds !== [], $channel),
         );
 
         try {
-            $decision = $decide();
+            return $assign();
         } catch (UniqueConstraintViolationException) {
-            $decision = $decide();
+            return $assign();
         }
-
-        $assignment = $this->show($group, $decision->assignmentId);
-
-        if ($decision->outcome === null) {
-            throw new AlreadyAssignedException($assignment);
-        }
-
-        return new AssignResult($decision->outcome, $assignment, $decision->added, $decision->alreadyHadIt);
     }
 
     /**
@@ -79,12 +70,11 @@ class AssignContent
     }
 
     /**
-     * Decides and writes inside the transaction. The caller reads the answer after
-     * the commit, so it shows what other requests committed while this one waited.
-     *
      * @param  Collection<int, User>  $named  the named learners, or every member when none are named
+     *
+     * @throws AlreadyAssignedException
      */
-    private function applyRules(User $educator, Group $group, ContentItem $item, CarbonImmutable $dueAt, Collection $named, bool $namesLearners, AuditChannel $channel): AssignDecision
+    private function applyRules(User $educator, Group $group, ContentItem $item, CarbonImmutable $dueAt, Collection $named, bool $namesLearners, AuditChannel $channel): AssignResult
     {
         $existing = $this->lockActiveAssignment($group, $item);
 
@@ -93,18 +83,18 @@ class AssignContent
         }
 
         if (! $existing->due_at->equalTo($dueAt)) {
-            return AssignDecision::alreadyAssigned($existing->id);
+            throw new AlreadyAssignedException($this->show($group, $existing->id));
         }
 
         if ($existing->scope === AssignmentScope::Group) {
-            return AssignDecision::made(AssignOutcome::Unchanged, $existing->id, new Collection, $named);
+            return $this->result(AssignOutcome::Unchanged, $group, $existing->id, new Collection, $named);
         }
 
         $targetedIds = $existing->learners()->sharedLock()->pluck('users.id');
         [$alreadyHadIt, $added] = $named->partition(fn (User $learner) => $targetedIds->contains($learner->id));
 
         if ($namesLearners && $added->isEmpty()) {
-            return AssignDecision::made(AssignOutcome::Unchanged, $existing->id, $added, $alreadyHadIt);
+            return $this->result(AssignOutcome::Unchanged, $group, $existing->id, $added, $alreadyHadIt);
         }
 
         $changes = ['learner_ids' => self::sortedIds($added)];
@@ -118,29 +108,23 @@ class AssignContent
 
         AuditWriter::record($educator, $channel, AuditAction::AssignmentLearnersAdded, $existing, $changes);
 
-        return AssignDecision::made(AssignOutcome::LearnersAdded, $existing->id, $added, $alreadyHadIt);
+        return $this->result(AssignOutcome::LearnersAdded, $group, $existing->id, $added, $alreadyHadIt);
     }
 
-    /**
-     * A plain read first: a locking read of a missing key takes a gap lock, and
-     * two racing creates would then deadlock instead of hitting the unique key.
-     * Reads after it lock too, so they see rows committed since that first read.
-     */
     private function lockActiveAssignment(Group $group, ContentItem $item): ?Assignment
     {
-        $id = Assignment::query()
+        return Assignment::query()
+            ->active()
             ->where('group_id', $group->id)
             ->where('content_item_id', $item->id)
-            ->where('removed_key', 0)
-            ->value('id');
-
-        return $id === null ? null : Assignment::query()->active()->whereKey($id)->lockForUpdate()->first();
+            ->lockForUpdate()
+            ->first();
     }
 
     /**
      * @param  Collection<int, User>  $named
      */
-    private function create(User $educator, Group $group, ContentItem $item, CarbonImmutable $dueAt, Collection $named, bool $namesLearners, AuditChannel $channel): AssignDecision
+    private function create(User $educator, Group $group, ContentItem $item, CarbonImmutable $dueAt, Collection $named, bool $namesLearners, AuditChannel $channel): AssignResult
     {
         $assignment = Assignment::query()->create([
             'group_id' => $group->id,
@@ -161,7 +145,16 @@ class AssignContent
             'learner_ids' => $namesLearners ? self::sortedIds($named) : [],
         ]);
 
-        return AssignDecision::made(AssignOutcome::Created, $assignment->id, $named, new Collection);
+        return $this->result(AssignOutcome::Created, $group, $assignment->id, $named, new Collection);
+    }
+
+    /**
+     * @param  Collection<int, User>  $added
+     * @param  Collection<int, User>  $alreadyHadIt
+     */
+    private function result(AssignOutcome $outcome, Group $group, int $assignmentId, Collection $added, Collection $alreadyHadIt): AssignResult
+    {
+        return new AssignResult($outcome, $this->show($group, $assignmentId), $added->values(), $alreadyHadIt->values());
     }
 
     private function show(Group $group, int $assignmentId): Assignment

@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\GroupAssignmentController;
 use App\Http\Controllers\Api\GroupController;
 use App\Http\Controllers\Api\GroupLearnerController;
 use App\Http\Controllers\Api\LearnerController;
+use App\Http\Controllers\Api\Me\AssignmentController as MyAssignmentController;
+use App\Http\Controllers\Api\Me\ProgressController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('auth/login', LoginController::class);
@@ -32,4 +34,9 @@ Route::middleware(['auth:api', 'role:educator'])->group(function () {
     Route::patch('assignments/{assignment}', [AssignmentController::class, 'update']);
     Route::delete('assignments/{removableAssignment}', [AssignmentController::class, 'destroy']);
     Route::get('groups/{group}/audit', AuditController::class);
+});
+
+Route::middleware(['auth:api', 'role:learner'])->group(function () {
+    Route::get('me/assignments', MyAssignmentController::class);
+    Route::put('me/assignments/{learnerAssignment}/progress', ProgressController::class);
 });
