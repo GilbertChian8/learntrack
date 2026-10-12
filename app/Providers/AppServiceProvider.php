@@ -68,6 +68,7 @@ class AppServiceProvider extends ServiceProvider
     /**
      * A {group} or an assignment loads only through the scoped lookup, so one outside scope is 404.
      * {removableAssignment} also finds removed assignments, so a repeated removal answers 204.
+     * {learnerAssignment} finds the active assignments that target the learner.
      */
     protected function configureRouteBindings(): void
     {
@@ -79,6 +80,9 @@ class AppServiceProvider extends ServiceProvider
 
         Route::pattern('removableAssignment', '[0-9]+');
         Route::bind('removableAssignment', fn (string $id): Assignment => Scope::removableAssignment(request()->user(), (int) $id));
+
+        Route::pattern('learnerAssignment', '[0-9]+');
+        Route::bind('learnerAssignment', fn (string $id): Assignment => Scope::learnerAssignment(request()->user(), (int) $id));
     }
 
     /**

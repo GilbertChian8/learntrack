@@ -6,10 +6,12 @@ use App\Http\Requests\ListRequest;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
 use Illuminate\Validation\ValidationException;
+use stdClass;
 use UnexpectedValueException;
 
 /**
@@ -18,7 +20,7 @@ use UnexpectedValueException;
 class CursorPage extends ResourceCollection
 {
     /**
-     * @param  CursorPaginator<int, covariant Model>  $paginator
+     * @param  CursorPaginator<int, covariant Model|stdClass>  $paginator
      * @param  class-string<JsonResource>  $collects
      */
     public function __construct(CursorPaginator $paginator, string $collects)
@@ -33,12 +35,12 @@ class CursorPage extends ResourceCollection
      *
      * @template TModel of Model
      *
-     * @param  Builder<TModel>  $query
+     * @param  Builder<TModel>|QueryBuilder  $query
      * @param  class-string<JsonResource>  $collects
      *
      * @throws ValidationException
      */
-    public static function of(Builder $query, ListRequest $request, string $collects): self
+    public static function of(Builder|QueryBuilder $query, ListRequest $request, string $collects): self
     {
         try {
             $paginator = $query->cursorPaginate($request->limit(), cursor: $request->cursor());
