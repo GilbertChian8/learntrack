@@ -12,6 +12,12 @@ test('a call without a token answers 401 and points at the resource metadata', f
         ->assertExactJson(['error' => ['code' => 'unauthenticated', 'message' => 'Unauthenticated.']]);
 });
 
+test('a forged Host header does not change the resource metadata URL', function () {
+    postJson('http://evil.example/mcp', mcpRequest('initialize'))
+        ->assertUnauthorized()
+        ->assertHeader('WWW-Authenticate', 'Bearer realm="mcp", resource_metadata="http://localhost/.well-known/oauth-protected-resource/mcp"');
+});
+
 test('a bad token answers 401 with the same header', function () {
     postJson('/mcp', mcpRequest('initialize'), ['Authorization' => 'Bearer not-a-token'])
         ->assertUnauthorized()

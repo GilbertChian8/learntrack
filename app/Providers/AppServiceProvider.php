@@ -13,9 +13,11 @@ use App\Support\Scope;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
 use Laravel\Passport\Passport;
@@ -38,6 +40,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureUrls();
         $this->configurePassport();
         $this->configureRouteBindings();
         $this->configureGraphQL();
@@ -55,6 +58,15 @@ class AppServiceProvider extends ServiceProvider
         DB::prohibitDestructiveCommands(
             app()->isProduction(),
         );
+    }
+
+    /**
+     * Generated URLs start from APP_URL, so a forged Host header cannot change them.
+     * The scheme still comes from the request, through TrustProxies behind the ALB.
+     */
+    protected function configureUrls(): void
+    {
+        URL::forceRootUrl(Config::string('app.url'));
     }
 
     /**

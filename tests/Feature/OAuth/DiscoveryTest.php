@@ -54,14 +54,28 @@ test('X-Forwarded-Proto is trusted only from a trusted proxy', function (string 
     '/.well-known/oauth-authorization-server',
 ]);
 
-test('the X-Forwarded-Host header is not trusted, even from a trusted proxy', function () {
+test('the documents name APP_URL, whatever Host or X-Forwarded headers the request carries', function (string $url, array $headers, string $remoteAddress) {
     config(['trustedproxy.proxies' => '10.0.0.0/16']);
 
-    withHeaders(['X-Forwarded-Host' => 'evil.example'])
-        ->withServerVariables(['REMOTE_ADDR' => '10.0.12.34'])
-        ->get('/.well-known/oauth-authorization-server')
-        ->assertJsonPath('authorization_endpoint', 'http://localhost/oauth/authorize');
-});
+    $hosts = withHeaders($headers)
+        ->withServerVariables(['REMOTE_ADDR' => $remoteAddress])
+        ->get($url)
+        ->assertOk()
+        ->collect()
+        ->flatten()
+        ->filter(fn (mixed $value) => is_string($value) && str_contains($value, '://'))
+        ->map(fn (string $value) => parse_url($value, PHP_URL_HOST))
+        ->unique()
+        ->values()
+        ->all();
+
+    expect($hosts)->toBe(['localhost']);
+})->with([
+    'a forged Host' => ['http://evil.example/.well-known/oauth-authorization-server', [], '203.0.113.9'],
+    'a forged Host on the resource document' => ['http://evil.example/.well-known/oauth-protected-resource/mcp', [], '203.0.113.9'],
+    'X-Forwarded-Host from a trusted proxy' => ['/.well-known/oauth-authorization-server', ['X-Forwarded-Host' => 'evil.example'], '10.0.12.34'],
+    'X-Forwarded-Host from an untrusted address' => ['/.well-known/oauth-authorization-server', ['X-Forwarded-Host' => 'evil.example'], '203.0.113.9'],
+]);
 
 test('the discovery documents need no session', function () {
     get('/.well-known/oauth-authorization-server')->assertOk()->assertCookieMissing(config('session.cookie'));
