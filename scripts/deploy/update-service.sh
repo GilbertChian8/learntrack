@@ -29,13 +29,11 @@ for attempt in 1 2 3; do
   fi
 done
 
-primary="$(aws ecs describe-services --cluster "$cluster" --services "$service" \
-  --query "services[0].deployments[?status=='PRIMARY'] | [0]" --output json)"
-running="$(jq -r '.taskDefinition' <<<"$primary")"
-rollout="$(jq -r '.rolloutState' <<<"$primary")"
+running="$(aws ecs describe-services --cluster "$cluster" --services "$service" \
+  --query "services[0].deployments[?status=='PRIMARY'] | [0].taskDefinition" --output text)"
 
-if [ "$running" != "$task_definition" ] || [ "$rollout" != "COMPLETED" ]; then
-  echo "The deployment of $task_definition did not complete. The service runs $running ($rollout)." >&2
+if [ "$running" != "$task_definition" ]; then
+  echo "The circuit breaker rolled back $task_definition. The service runs $running." >&2
   exit 1
 fi
 

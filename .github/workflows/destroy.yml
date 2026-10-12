@@ -69,4 +69,4 @@ jobs:
 
       - name: terraform destroy
         working-directory: infra/env
-        run: terraform destroy -auto-approve -input=false
+        run: terraform destroy -auto-approve -input=false -lock-timeout=10m

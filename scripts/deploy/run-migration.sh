@@ -34,7 +34,14 @@ if [ -z "$task" ]; then
 fi
 
 echo "Migration task: $task"
-aws ecs wait tasks-stopped --cluster "$cluster" --tasks "$task"
+
+# Each wait gives up after 10 minutes.
+for attempt in 1 2 3; do
+  if aws ecs wait tasks-stopped --cluster "$cluster" --tasks "$task"; then
+    break
+  fi
+  echo "The migration task is still running after $((attempt * 10)) minutes."
+done
 
 stopped="$(aws ecs describe-tasks --cluster "$cluster" --tasks "$task" --output json)"
 exit_code="$(jq -r '.tasks[0].containers[0].exitCode // empty' <<<"$stopped")"
@@ -51,6 +58,11 @@ aws logs get-log-events \
   --start-from-head \
   --query 'events[].[message]' \
   --output text || echo "No logs."
+
+if [ "$(jq -r '.tasks[0].lastStatus' <<<"$stopped")" != "STOPPED" ]; then
+  echo "The migration task did not stop within 30 minutes." >&2
+  exit 1
+fi
 
 if [ -z "$exit_code" ]; then
   echo "The migration task stopped without an exit code: $(jq -r '.tasks[0].stoppedReason' <<<"$stopped")" >&2
