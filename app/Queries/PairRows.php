@@ -10,12 +10,13 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * One row per learner and active assignment that targets them, with the status
- * derived against $now, in due date order.
+ * derived against $now.
  */
 class PairRows
 {
     /**
-     * An assignment that targets nobody gives one row with a null learner.
+     * Grouped by learner id, each learner's rows in due date order. An assignment that
+     * targets nobody gives one row with a null learner, before the others.
      */
     public static function forGroup(int $groupId, CarbonImmutable $now): Builder
     {
@@ -31,12 +32,14 @@ class PairRows
                 ->on('p.user_id', '=', 'gl.user_id'))
             ->where('a.group_id', $groupId)
             ->whereNull('a.removed_at')
+            ->orderBy('gl.user_id')
             ->orderBy('a.due_at')
             ->orderBy('a.id');
     }
 
     /**
-     * The learner's groups come from their group_learners rows, restricted to $groupIds when given.
+     * In due date order. The learner's groups come from their group_learners rows,
+     * restricted to $groupIds when given.
      *
      * @param  list<int>|null  $groupIds
      */

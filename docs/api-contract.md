@@ -645,7 +645,7 @@ Rules:
 - `behind` and `reasons` come from BehindRule, see below.
 - `generatedAt`: the moment the pair query ran. Every status is "as of" this time.
 
-Not found (unknown id, or a group the caller does not teach; ADR-006):
+Not found (an unknown or malformed id, or a group the caller does not teach; ADR-006):
 
 ```json
 {

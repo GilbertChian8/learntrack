@@ -258,12 +258,13 @@ LEFT JOIN group_learners gl ON gl.group_id = a.group_id
                   WHERE al.assignment_id = a.id AND al.user_id = gl.user_id))
 LEFT JOIN users u           ON u.id = gl.user_id
 LEFT JOIN progress p        ON p.assignment_id = a.id AND p.user_id = gl.user_id
-WHERE a.group_id = ? AND a.removed_at IS NULL;
+WHERE a.group_id = ? AND a.removed_at IS NULL
+ORDER BY gl.user_id, a.due_at, a.id;   -- one learner's rows together
 ```
 
 The learner variant of the same query (GET /api/v1/me/assignments and get_learner_summary) starts from the learner's group_learners rows and inner joins the active assignments that target them, with the same columns and the same CASE, in one query. Both variants bind the moment of the read from the application clock, so the statuses, days_overdue and generatedAt come from one clock, and tests fix it with the test clock.
 
-For the largest group that is 6,000 rows, read once. An assignment that targets nobody yet (an empty group, or a subset whose learners all left the group) appears as one row with a null learner, so the assignment list is always complete; such rows count for the assignment list and are skipped for learner statistics. A member that no assignment targets has no pair row at all; the member list comes from the group lookup (the first query, below), so such a learner appears with zero counts and is not behind. From those rows GroupProgress builds, in PHP, the per learner view (counts by status, average score over completed question sets, the behind flag through BehindRule, and the reasons: which assignments are overdue and since when, or which scores pull the average down) and the per assignment view (targeted learners, completed count, completion rate, average score).
+For the largest group that is 6,000 rows, read once as a stream: GroupProgress holds one learner's rows at a time and keeps running totals per assignment. An assignment that targets nobody yet (an empty group, or a subset whose learners all left the group) appears as one row with a null learner, so the assignment list is always complete; such rows count for the assignment list and are skipped for learner statistics. A member that no assignment targets has no pair row at all; the member list comes from the group lookup (the first query, below), so such a learner appears with zero counts and is not behind. From those rows GroupProgress builds, in PHP, the per learner view (counts by status, average score over completed question sets, the behind flag through BehindRule, and the reasons: which assignments are overdue and since when, or which scores pull the average down) and the per assignment view (targeted learners, completed count, completion rate, average score).
 
 Query counts, fixed by tests:
 

@@ -1,0 +1,35 @@
+type Query {
+  groupProgress(groupId: ID!): GroupProgress
+}
+
+type GroupProgress {
+  group: Group!
+  assignments: [Assignment!]!
+  learners: [LearnerProgress!]!
+  generatedAt: DateTime!
+}
+
+type Group { id: ID!  name: String!  institution: String! }
+
+type Assignment {
+  id: ID!  title: String!  topic: String!  type: ContentType!
+  dueAt: DateTime!  scope: Scope!
+  targetedCount: Int!  completedCount: Int!  completionRate: Float!  averageScore: Float
+}
+
+type LearnerProgress {
+  learner: Learner!
+  behind: Boolean!
+  reasons: [String!]!
+  averageScore: Float
+  counts: StatusCounts!
+  statuses: [AssignmentStatus!]!
+}
+
+type Learner { id: ID!  name: String! }
+type StatusCounts { notStarted: Int!  inProgress: Int!  completed: Int!  overdue: Int! }
+type AssignmentStatus { assignmentId: ID!  status: Status!  score: Int  completedAt: DateTime }
+
+enum Status { NOT_STARTED  IN_PROGRESS  COMPLETED  OVERDUE }
+enum ContentType { ARTICLE  QUESTION_SET }
+enum Scope { GROUP  LEARNERS }

@@ -25,3 +25,4 @@ COPY --chown=www-data:www-data . /var/www/html
 COPY --chown=www-data:www-data --from=vendor /app/vendor /var/www/html/vendor
 COPY --chown=www-data:www-data --from=assets /app/public/build /var/www/html/public/build
 RUN php artisan package:discover --ansi
+RUN php artisan lighthouse:cache

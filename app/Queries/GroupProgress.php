@@ -13,10 +13,14 @@ use App\Queries\Results\GroupProgressResult;
 use App\Queries\Results\LearnerProgress;
 use App\Support\InstitutionTime;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Enumerable;
 use stdClass;
 
 /**
- * One group's progress in two queries: the group and its members, then the pair rows.
+ * One group's progress in two queries: the group and its members, then the pair rows,
+ * read one learner at a time.
+ *
+ * @phpstan-type AssignmentTotals array{row: stdClass, targeted: int, completed: int, scoreSum: int, scoreCount: int}
  */
 class GroupProgress
 {
@@ -43,14 +47,21 @@ class GroupProgress
         $institutionTime = new InstitutionTime($group->timezone);
         $now = CarbonImmutable::now()->startOfSecond();
 
-        $rowsByAssignment = [];
-        $rowsByLearner = [];
+        $progressByLearner = [];
+        $totalsByAssignment = [];
 
-        foreach (PairRows::forGroup($groupId, $now)->get() as $row) {
-            $rowsByAssignment[$row->assignment_id][] = $row;
+        $rowsPerLearner = PairRows::forGroup($groupId, $now)->cursor()
+            ->chunkWhile(fn (stdClass $row, int $key, Enumerable $rows) => $row->user_id === $rows->last()->user_id);
 
-            if ($row->user_id !== null) {
-                $rowsByLearner[$row->user_id][] = $row;
+        foreach ($rowsPerLearner as $rows) {
+            foreach ($rows as $row) {
+                $totalsByAssignment[$row->assignment_id] = self::addToTotals($totalsByAssignment[$row->assignment_id] ?? null, $row);
+            }
+
+            $learner = $rows->first();
+
+            if ($learner->user_id !== null) {
+                $progressByLearner[$learner->user_id] = LearnerAggregation::fromRows($learner->user_id, $learner->learner_name, $rows, $institutionTime, $now);
             }
         }
 
@@ -58,9 +69,12 @@ class GroupProgress
 
         foreach ($members as $member) {
             if ($member->user_id !== null) {
-                $learners[] = LearnerAggregation::fromRows($member->user_id, $member->learner_name, $rowsByLearner[$member->user_id] ?? [], $institutionTime, $now);
+                $learners[] = $progressByLearner[$member->user_id]
+                    ?? LearnerAggregation::fromRows($member->user_id, $member->learner_name, [], $institutionTime, $now);
             }
         }
+
+        usort($totalsByAssignment, fn (array $a, array $b) => [$a['row']->due_at, $a['row']->assignment_id] <=> [$b['row']->due_at, $b['row']->assignment_id]);
 
         return new GroupProgressResult(
             groupId: $group->group_id,
@@ -70,36 +84,56 @@ class GroupProgress
             learnerCount: count($learners),
             behindCount: count(array_filter($learners, fn (LearnerProgress $learner) => $learner->behind)),
             learners: $learners,
-            assignments: array_map(fn (array $rows) => self::assignmentStats($rows, $institutionTime), array_values($rowsByAssignment)),
+            assignments: array_map(fn (array $totals) => self::assignmentStats($totals, $institutionTime), $totalsByAssignment),
         );
     }
 
     /**
-     * Rows with a null learner count for the list but target nobody.
+     * A row with a null learner adds the assignment to the list but targets nobody.
      *
-     * @param  non-empty-list<stdClass>  $rows  one assignment's pair rows
+     * @param  AssignmentTotals|null  $totals
+     * @return AssignmentTotals
      */
-    private static function assignmentStats(array $rows, InstitutionTime $institutionTime): AssignmentStats
+    private static function addToTotals(?array $totals, stdClass $row): array
     {
-        $assignment = $rows[0];
-        $type = ContentType::from($assignment->type);
-        $targeted = array_filter($rows, fn (stdClass $row) => $row->user_id !== null);
-        $completed = array_filter($targeted, fn (stdClass $row) => $row->status === DerivedStatus::Completed->value);
-        $scores = $type === ContentType::QuestionSet
-            ? array_filter(array_column($completed, 'score'), fn (mixed $score) => $score !== null)
-            : [];
+        $totals ??= ['row' => $row, 'targeted' => 0, 'completed' => 0, 'scoreSum' => 0, 'scoreCount' => 0];
+
+        if ($row->user_id === null) {
+            return $totals;
+        }
+
+        $totals['targeted']++;
+
+        if ($row->status === DerivedStatus::Completed->value) {
+            $totals['completed']++;
+
+            if ($row->type === ContentType::QuestionSet->value && $row->score !== null) {
+                $totals['scoreSum'] += $row->score;
+                $totals['scoreCount']++;
+            }
+        }
+
+        return $totals;
+    }
+
+    /**
+     * @param  AssignmentTotals  $totals
+     */
+    private static function assignmentStats(array $totals, InstitutionTime $institutionTime): AssignmentStats
+    {
+        $assignment = $totals['row'];
 
         return new AssignmentStats(
             id: $assignment->assignment_id,
             title: $assignment->title,
             topic: $assignment->topic,
-            type: $type,
+            type: ContentType::from($assignment->type),
             dueAt: $institutionTime->fromUtc((string) $assignment->due_at),
             scope: AssignmentScope::from($assignment->scope),
-            targetedCount: count($targeted),
-            completedCount: count($completed),
-            completionRate: $targeted === [] ? 0.0 : round(count($completed) / count($targeted), 2),
-            averageScore: $scores === [] ? null : round(array_sum($scores) / count($scores), 1),
+            targetedCount: $totals['targeted'],
+            completedCount: $totals['completed'],
+            completionRate: $totals['targeted'] === 0 ? 0.0 : round($totals['completed'] / $totals['targeted'], 2),
+            averageScore: $totals['scoreCount'] === 0 ? null : round($totals['scoreSum'] / $totals['scoreCount'], 1),
         );
     }
 }

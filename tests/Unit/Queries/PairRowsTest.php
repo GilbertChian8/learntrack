@@ -73,6 +73,28 @@ test('an assignment that targets nobody gives one row with a null learner', func
         ->and($row->learner_name)->toBeNull();
 });
 
+test('forGroup gives the rows for nobody first, then each learner\'s rows together by id, in due date order', function () {
+    $group = Group::factory()->create();
+    $zoe = User::factory()->learner()->create(['institution_id' => $group->institution_id, 'name' => 'Zoe Young']);
+    $ada = User::factory()->learner()->create(['institution_id' => $group->institution_id, 'name' => 'Ada Brandt']);
+    $group->learners()->attach([$zoe->id, $ada->id]);
+    $leaver = learnerIn($group);
+    $later = Assignment::factory()->for($group)->create(['due_at' => '2026-10-20 21:59:59']);
+    $sooner = Assignment::factory()->for($group)->create(['due_at' => '2026-10-12 21:59:59']);
+    $nobody = Assignment::factory()->for($group)->forLearners([$leaver])->create(['due_at' => '2026-10-30 21:59:59']);
+    $group->learners()->detach($leaver);
+
+    $pairs = PairRows::forGroup($group->id, CarbonImmutable::now())->get()->map(fn (stdClass $row) => [$row->assignment_id, $row->user_id]);
+
+    expect($pairs->all())->toBe([
+        [$nobody->id, null],
+        [$sooner->id, $zoe->id],
+        [$later->id, $zoe->id],
+        [$sooner->id, $ada->id],
+        [$later->id, $ada->id],
+    ]);
+});
+
 test('forLearner gives the pairs that target the learner across their groups, in due date order', function () {
     $learner = User::factory()->learner()->create();
     $first = Group::factory()->create(['institution_id' => $learner->institution_id]);
