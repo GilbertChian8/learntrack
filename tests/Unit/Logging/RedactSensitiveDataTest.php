@@ -2,6 +2,7 @@
 
 use App\Enums\Role;
 use App\Logging\RedactSensitiveData;
+use Illuminate\Http\Request;
 use Monolog\Level;
 use Monolog\LogRecord;
 
@@ -63,7 +64,7 @@ test('an exception keeps its class, code and file, and loses the email in its me
     ])->and($logged['file'])->toStartWith(__FILE__.':');
 });
 
-test('an object is checked like an array: JSON, plain and string objects', function () use ($redact) {
+test('a JsonSerializable object loses the same keys as an array', function () use ($redact) {
     $user = new class implements JsonSerializable
     {
         /**
@@ -74,20 +75,37 @@ test('an object is checked like an array: JSON, plain and string objects', funct
             return ['id' => 5, 'name' => 'Sara Lindqvist', 'email' => 'sara@example.edu', 'role' => 'learner'];
         }
     };
+
+    expect($redact(['user' => $user])->context)->toBe(['user' => ['id' => 5, 'role' => 'learner']]);
+});
+
+test('any other object is logged by its class name only', function () use ($redact) {
     $row = (object) ['user_id' => 5, 'name' => 'Sara Lindqvist', 'contact' => 'sara@example.edu'];
     $text = new class implements Stringable
     {
         public function __toString(): string
         {
-            return 'Invite sent to sara@example.edu';
+            return 'Invite sent to Sara Lindqvist';
         }
     };
 
-    expect($redact(['user' => $user, 'row' => $row, 'text' => $text])->context)->toBe([
-        'user' => ['id' => 5, 'role' => 'learner'],
-        'row' => ['user_id' => 5, 'contact' => '[redacted]'],
-        'text' => 'Invite sent to [redacted]',
-    ]);
+    expect($redact(['row' => $row, 'text' => $text])->context)->toBe(['row' => stdClass::class, 'text' => $text::class]);
+});
+
+test('a request is logged by its class name, without its Authorization header, cookie or body', function () use ($redact) {
+    $request = Request::create(
+        '/api/v1/groups',
+        'POST',
+        cookies: ['laravel_session' => 'cookie-5d1e'],
+        server: ['HTTP_AUTHORIZATION' => 'Bearer tok-8f2c', 'CONTENT_TYPE' => 'application/json'],
+        content: '{"note":"Body Marker"}',
+    );
+
+    $record = $redact(['request' => $request]);
+    $json = (string) json_encode($record->toArray());
+
+    expect($record->context)->toBe(['request' => Request::class])
+        ->and(array_filter(['tok-8f2c', 'cookie-5d1e', 'Body Marker'], fn (string $secret) => str_contains($json, $secret)))->toBe([]);
 });
 
 test('dates and enums stay as they are', function () use ($redact) {
@@ -97,9 +115,16 @@ test('dates and enums stay as they are', function () use ($redact) {
 });
 
 test('an object that points to itself stops at nine levels', function () use ($redact) {
-    $node = new stdClass;
-    $node->id = 1;
-    $node->next = $node;
+    $node = new class implements JsonSerializable
+    {
+        /**
+         * @return array<string, mixed>
+         */
+        public function jsonSerialize(): array
+        {
+            return ['id' => 1, 'next' => $this];
+        }
+    };
 
     $logged = $redact(['node' => $node])->context;
 

@@ -7,12 +7,13 @@ use JsonSerializable;
 use Monolog\Formatter\JsonFormatter;
 use Monolog\LogRecord;
 use Monolog\Processor\ProcessorInterface;
-use Stringable;
 use Throwable;
 use UnitEnum;
 
 /**
  * Removes names, emails, passwords and tokens from a log record, at any depth.
+ * Any other object is logged by its class name only, never its contents: exceptions and JsonSerializable
+ * objects lose the same keys as arrays, and dates and enums stay as they are.
  */
 class RedactSensitiveData implements ProcessorInterface
 {
@@ -65,8 +66,7 @@ class RedactSensitiveData implements ProcessorInterface
             $value instanceof Throwable => $this->redact((new JsonFormatter)->normalizeValue($value), $depth),
             $value instanceof JsonSerializable => $this->redact($value->jsonSerialize(), $depth),
             $value instanceof DateTimeInterface, $value instanceof UnitEnum => $value,
-            $value instanceof Stringable => $this->redactString((string) $value),
-            is_object($value) => $this->redactArray(get_object_vars($value), $depth),
+            is_object($value) => $value::class,
             default => $value,
         };
     }
