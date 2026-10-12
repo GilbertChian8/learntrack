@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Queries\Results\AssignmentStats;
 use App\Queries\Results\HardestAssignmentsResult;
 use App\Queries\Results\RankedAssignment;
+use App\Support\Score;
 use Illuminate\Support\Str;
 
 /**
@@ -55,14 +56,6 @@ class HardestAssignments
         $reason = "{$assignment->completedCount} of {$assignment->targetedCount} ".Str::plural('learner', $assignment->targetedCount)
             .' completed it ('.(int) round($assignment->completionRate * 100).'%)';
 
-        if ($assignment->averageScore === null) {
-            return $reason;
-        }
-
-        $average = $assignment->averageScore === floor($assignment->averageScore)
-            ? (string) (int) $assignment->averageScore
-            : number_format($assignment->averageScore, 1, '.', '');
-
-        return "{$reason}, average score {$average}";
+        return $assignment->averageScore === null ? $reason : $reason.', average score '.Score::format($assignment->averageScore);
     }
 }

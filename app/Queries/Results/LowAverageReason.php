@@ -3,6 +3,7 @@
 namespace App\Queries\Results;
 
 use App\Queries\BehindRule;
+use App\Support\Score;
 
 readonly class LowAverageReason implements Reason
 {
@@ -16,9 +17,7 @@ readonly class LowAverageReason implements Reason
 
     public function text(): string
     {
-        $average = $this->averageScore === floor($this->averageScore)
-            ? (string) (int) $this->averageScore
-            : number_format($this->averageScore, 1, '.', '');
+        $average = Score::format($this->averageScore);
         $scores = implode(', ', array_column($this->scores, 'score'));
 
         return "Average question set score {$average} is below ".BehindRule::SCORE_THRESHOLD." (scores: {$scores})";
