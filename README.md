@@ -120,6 +120,26 @@ Five questions to start with, as Anna Keller:
 
 Claude asks before it changes anything, and the answer says exactly what changed.
 
+## Deployment
+
+LearnTrack runs on AWS: two ECS Fargate tasks behind a load balancer, RDS MySQL Multi-AZ, and a daily housekeeping task, all in Terraform. [infra/README.md](infra/README.md) has the details: variables, roles, secrets and costs.
+
+**Bootstrap, once per AWS account.** With admin credentials, fill in `infra/bootstrap/terraform.tfvars` from its example (the region, `<domain>`, the GitHub OIDC subject and the alarm email), then run `terraform init` and `terraform apply` in `infra/bootstrap`. Then delegate `<domain>` to the four name servers it prints, confirm the alarm email, and set the GitHub repository variables from its outputs. The steps are in [infra/README.md](infra/README.md) (Bootstrap, GitHub variables).
+
+**The pipeline.** Every pull request runs the checks and `terraform validate`, and a pull request that changes `infra/` also gets the plan as a comment. A push to `main`:
+
+1. builds the image and pushes it to ECR, tagged with the git SHA;
+2. applies Terraform in `infra/env`;
+3. runs the migrations as a one-off task, and stops if they fail;
+4. moves the service to the new image and waits until it is stable;
+5. moves the daily housekeeping task to the new image.
+
+The app then answers on `https://<domain>`, so `<host>` above is `<domain>`. A new environment starts with an empty database: the pipeline runs the migrations only.
+
+**Roll back.** A new image that fails the `/up` health check is rolled back by ECS by itself. To go back to an earlier deploy, move the service to that run's app revision with one command, as in [infra/README.md](infra/README.md) (Roll back). Migrations only add, so an older image runs on the newer schema.
+
+**Destroy and rebuild.** To stop paying, run the destroy workflow from `main` (Actions, destroy, Run workflow) and type `destroy`. The bootstrap stays: the state, the roles, the images, the hosted zone and the confirmed alarm email. To rebuild, run the deploy workflow from `main` or push to `main`. This deploy takes about 20 minutes longer than a normal one, because RDS Multi-AZ is created again.
+
 ## Documents
 
 Everything about the design is in [docs/](docs/):
