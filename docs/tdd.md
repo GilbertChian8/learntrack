@@ -434,7 +434,7 @@ Counters live in the database cache store (ADR-013), so both tasks count togethe
 | MCP endpoint | 60 requests per minute | educator (token owner) |
 | REST and GraphQL | 300 requests per minute | user |
 
-Cost: the database store adds 6 queries to every throttled request, and 8 to the first request of a window. It reads the counter to check the limit, checks that the timer row and the counter row exist (each a read, plus an insert the first time), reads the counter for update and writes it, and reads it again for the X-RateLimit-Remaining header. A test pins these counts; the endpoints' own query-count tests leave the limiter out.
+Cost: the database store adds 6 queries to each request under the limit, 8 to the first request of a window and 3 to a 429. Under the limit it reads the counter to check the limit, checks that the timer row and the counter row exist (each a read, plus an insert the first time), reads the counter for update and writes it, and reads it again for the X-RateLimit-Remaining header; a 429 reads the counter, checks the timer and reads it for Retry-After. A test pins these counts; the endpoints' own query-count tests leave the limiter out.
 
 # Flow Walkthroughs with Estimates (Release 1)
 
@@ -594,7 +594,7 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 - Logs carry user ids, never names, emails, passwords or tokens. A log processor drops those keys from every log context, request bodies are not logged, and the Authorization header never is. The audit log stores ids and resolves names at read time. [requirement: no learner personal data in logs]
 - Secrets (database password, APP_KEY, Passport keys) live in Secrets Manager, are injected into the tasks at start, and never appear in the repository or in the Terraform state. [ADR-013]
 - Transport: HTTPS at the ALB with an ACM certificate, HTTP redirected with 301, HSTS from the app, TLS required on the MySQL connection. [ADR-011]
-- Security headers: the app sets X-Content-Type-Options nosniff, X-Frame-Options DENY and Referrer-Policy strict-origin-when-cross-origin on every response it renders, and HSTS when the request came over https; responses that nginx or the ALB generate for transport failures (413, 502, 504) carry none.
+- Security headers: the app sets X-Content-Type-Options nosniff, X-Frame-Options DENY and Referrer-Policy strict-origin-when-cross-origin on every response it renders, and HSTS when the request came over https; responses that nginx or the ALB serve themselves carry none: the static files under /build, nginx's 403 for dotfiles, and 413, 502 and 504.
 - Content-Security-Policy: only on the three pages (responses that render app.blade.php): self, plus a new nonce per response on the inline script and styles, plus the Vite dev server in local; Laravel's own error pages keep their inline styles.
 - The policy has no form-action, because Chrome applies it to the redirect after the consent form, and that redirect goes to the client's callback on another origin.
 - nginx writes no access log and logs errors at crit only, because nginx writes the full request line with its query string, and the contract's ?search= holds names.
