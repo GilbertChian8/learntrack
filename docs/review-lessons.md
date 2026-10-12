@@ -7,3 +7,4 @@ Rules added after a review found a mistake that could happen again in a later ti
 - MySQL JSON columns reorder object keys: compare decoded JSON with `toEqual`, not `toBe`.
 - laravel/mcp adds `resultType`, `_meta` and cache hints to every JSON-RPC result: assert `result.*` paths, never the whole response.
 - Cursor paging reads each order column from the row by name: order only by columns the row really has (page joined or aliased rows as a derived table).
+- laravel/mcp 1.0.1 does not check tool input against the schema: a tool validates its own arguments with rules that mirror the schema.
