@@ -38,8 +38,9 @@ data "aws_iam_policy_document" "github_trust" {
 }
 
 resource "aws_iam_role" "deploy" {
-  name               = "learntrack-deploy"
-  assume_role_policy = data.aws_iam_policy_document.github_trust["deploy"].json
+  name                 = "learntrack-deploy"
+  assume_role_policy   = data.aws_iam_policy_document.github_trust["deploy"].json
+  max_session_duration = 7200
 }
 
 resource "aws_iam_role_policy" "deploy" {
