@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Gives every log line of a request its request id, and writes one line per request.
+ * Gives every log line of a request its request id, and writes one line per request, except the health check.
  * The line names the route, never the path or the query, and holds no header or body.
  */
 class LogRequests
@@ -29,6 +29,10 @@ class LogRequests
 
     public function terminate(Request $request, Response $response): void
     {
+        if ($request->is('up')) {
+            return;
+        }
+
         $route = $request->route();
         $startedAt = (float) $request->server('REQUEST_TIME_FLOAT', microtime(true));
 

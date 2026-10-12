@@ -10,16 +10,9 @@ use function Pest\Laravel\getJson;
 use function Pest\Laravel\postJson;
 use function Pest\Laravel\seed;
 
-/**
- * @param  list<array<string, mixed>>  $lines
- * @return list<array<string, mixed>>
- */
-function requestLines(array $lines): array
-{
-    return array_values(array_filter($lines, fn (array $line) => $line['message'] === 'Request handled.'));
-}
+$requestLines = fn (array $lines): array => array_values(array_filter($lines, fn (array $line) => $line['message'] === 'Request handled.'));
 
-test('a request line has the request id, the user id, the route and the status, never the body or the Authorization header', function () {
+test('a request line has the request id, the user id, the route and the status, never the body or the Authorization header', function () use ($requestLines) {
     seed(PassportSeeder::class);
     $user = User::factory()->educator()->create(['email' => 'anna.keller@example.edu', 'password' => 'tr0ub4dor-and-3']);
     $lines = captureLogLines();
@@ -27,7 +20,7 @@ test('a request line has the request id, the user id, the route and the status, 
     $token = postJson('/api/v1/auth/login', ['email' => 'anna.keller@example.edu', 'password' => 'tr0ub4dor-and-3'])->assertOk()->json('data.token');
     postJson('/api/v1/groups', ['name' => 'Cardiology Group D', 'note' => 'Body Marker'], ['Authorization' => "Bearer {$token}"])->assertCreated();
 
-    [$login, $create] = requestLines($lines());
+    [$login, $create] = $requestLines($lines());
 
     expect($login['context'])->toMatchArray(['method' => 'POST', 'route' => 'api/v1/auth/login', 'status' => 200, 'user_id' => $user->id])
         ->and($create['context'])->toMatchArray(['method' => 'POST', 'route' => 'api/v1/groups', 'status' => 201, 'user_id' => $user->id])
@@ -41,13 +34,13 @@ test('a request line has the request id, the user id, the route and the status, 
     expect(array_filter(['anna.keller', 'tr0ub4dor', 'Body Marker', $token, 'Bearer'], fn (string $secret) => str_contains($everything, $secret)))->toBe([]);
 });
 
-test('a named route logs its name, an unknown path no route, and a guest no user id', function () {
+test('a named route logs its name, an unknown path no route, and a guest no user id', function () use ($requestLines) {
     $lines = captureLogLines();
 
     get('/login')->assertOk();
     getJson('/api/v1/no-such-route')->assertNotFound();
 
-    [$page, $missing] = requestLines($lines());
+    [$page, $missing] = $requestLines($lines());
 
     expect($page['context'])->toMatchArray(['method' => 'GET', 'route' => 'login', 'status' => 200])
         ->and($missing['context'])->toMatchArray(['method' => 'GET', 'route' => null, 'status' => 404])
@@ -76,4 +69,14 @@ test('every line written during a request carries its request id', function () {
         "Inside the request. {$second}",
         "Request handled. {$second}",
     ]);
+});
+
+test('the health check writes no line, and the next request still does', function () use ($requestLines) {
+    $lines = captureLogLines();
+
+    get('/up')->assertOk();
+    getJson('/up')->assertOk();
+    get('/login')->assertOk();
+
+    expect(array_column(array_column($requestLines($lines()), 'context'), 'route'))->toBe(['login']);
 });
