@@ -242,22 +242,25 @@ test('GET /graphql answers 405 and runs no query', function () use ($query) {
     expect(DB::getQueryLog())->toBe([]);
 });
 
-test('introspection shows the TDD schema types and nothing else', function () {
+test('introspection shows the TDD schema types and enum values and nothing else', function () {
     actingAsEducator();
 
-    $types = postJson('/graphql', ['query' => '{ __schema { types { name } } }'])
+    $types = postJson('/graphql', ['query' => '{ __schema { types { name enumValues { name } } } }'])
         ->assertOk()
         ->collect('data.__schema.types')
-        ->pluck('name')
-        ->reject(fn (string $name) => str_starts_with($name, '__'))
-        ->sort()
-        ->values()
-        ->all();
+        ->reject(fn (array $type) => str_starts_with($type['name'], '__'))
+        ->mapWithKeys(fn (array $type) => [$type['name'] => $type['enumValues'] === null ? null : array_column($type['enumValues'], 'name')])
+        ->sortKeys();
 
-    expect($types)->toBe([
+    expect($types->keys()->all())->toBe([
         'Assignment', 'AssignmentStatus', 'Boolean', 'ContentType', 'DateTime', 'Float', 'Group', 'GroupProgress',
         'ID', 'Int', 'Learner', 'LearnerProgress', 'Query', 'Scope', 'Status', 'StatusCounts', 'String',
-    ]);
+    ])
+        ->and($types->only(['ContentType', 'Scope', 'Status'])->all())->toBe([
+            'ContentType' => ['ARTICLE', 'QUESTION_SET'],
+            'Scope' => ['GROUP', 'LEARNERS'],
+            'Status' => ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED', 'OVERDUE'],
+        ]);
 });
 
 test('the request runs exactly two queries whatever the group size', function (int $learnerCount, int $assignmentCount) use ($askFor) {
