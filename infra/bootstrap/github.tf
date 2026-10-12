@@ -1,13 +1,10 @@
 resource "aws_iam_openid_connect_provider" "github" {
-  count = var.github_oidc_provider_arn == "" ? 1 : 0
-
   url            = "https://token.actions.githubusercontent.com"
   client_id_list = ["sts.amazonaws.com"]
 }
 
 locals {
-  account_id               = data.aws_caller_identity.current.account_id
-  github_oidc_provider_arn = coalesce(var.github_oidc_provider_arn, one(aws_iam_openid_connect_provider.github[*].arn))
+  account_id = data.aws_caller_identity.current.account_id
 
   github_subjects = {
     deploy = "repo:${var.github_repository}:ref:refs/heads/main"
@@ -23,7 +20,7 @@ data "aws_iam_policy_document" "github_trust" {
 
     principals {
       type        = "Federated"
-      identifiers = [local.github_oidc_provider_arn]
+      identifiers = [aws_iam_openid_connect_provider.github.arn]
     }
 
     condition {

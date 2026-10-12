@@ -1,4 +1,4 @@
-region                   = "eu-central-1"
-domain_name              = "learntrack.example.com"
-github_repository        = "your-org/learntrack"
-github_oidc_provider_arn = ""
+region            = "eu-central-1"
+domain_name       = "learntrack.example.com"
+github_repository = "your-org/learntrack"
+alarm_email       = "alarms@example.com"

@@ -22,10 +22,6 @@ variable "hosted_zone_id" {
   description = "The bootstrap's hosted zone for domain_name."
 }
 
-variable "alarm_email" {
-  type = string
-}
-
 variable "db_instance_class" {
   type    = string
   default = "db.t4g.micro"
@@ -33,12 +29,12 @@ variable "db_instance_class" {
 
 variable "app_cpu" {
   type    = number
-  default = 256
+  default = 512
 }
 
 variable "app_memory" {
   type    = number
-  default = 512
+  default = 1024
 }
 
 variable "desired_count" {

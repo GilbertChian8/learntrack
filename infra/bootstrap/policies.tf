@@ -155,7 +155,6 @@ data "aws_iam_policy_document" "deploy" {
       "logs:*",
       "rds:*",
       "scheduler:*",
-      "sns:*",
     ]
     resources = [
       "arn:aws:cloudwatch:*:${local.account_id}:alarm:learntrack-*",
@@ -175,7 +174,6 @@ data "aws_iam_policy_document" "deploy" {
       "arn:aws:rds:*:${local.account_id}:snapshot:learntrack-*",
       "arn:aws:rds:*:${local.account_id}:subgrp:learntrack-*",
       "arn:aws:scheduler:*:${local.account_id}:schedule/*/learntrack-*",
-      "arn:aws:sns:*:${local.account_id}:learntrack-*",
     ]
   }
 

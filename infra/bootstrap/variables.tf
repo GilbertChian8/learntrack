@@ -12,8 +12,7 @@ variable "github_repository" {
   description = "owner/name of the GitHub repository the GitHub roles trust."
 }
 
-variable "github_oidc_provider_arn" {
+variable "alarm_email" {
   type        = string
-  default     = ""
-  description = "Empty creates the GitHub OIDC provider. Set it to reuse one that already exists in the account."
+  description = "Gets the alarms of every environment."
 }

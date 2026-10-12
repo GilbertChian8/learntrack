@@ -22,6 +22,10 @@ output "name_servers" {
   value = aws_route53_zone.main.name_servers
 }
 
+output "alarm_topic_arn" {
+  value = aws_sns_topic.alarms.arn
+}
+
 output "boundary_policy_arn" {
   value = aws_iam_policy.boundary.arn
 }
