@@ -1,9 +1,12 @@
 <?php
 
+use App\Http\Controllers\Api\AssignmentController;
+use App\Http\Controllers\Api\AuditController;
 use App\Http\Controllers\Api\Auth\LoginController;
 use App\Http\Controllers\Api\Auth\LogoutController;
 use App\Http\Controllers\Api\Auth\MeController;
 use App\Http\Controllers\Api\ContentController;
+use App\Http\Controllers\Api\GroupAssignmentController;
 use App\Http\Controllers\Api\GroupController;
 use App\Http\Controllers\Api\GroupLearnerController;
 use App\Http\Controllers\Api\LearnerController;
@@ -24,4 +27,9 @@ Route::middleware(['auth:api', 'role:educator'])->group(function () {
     Route::delete('groups/{group}/learners/{user}', [GroupLearnerController::class, 'destroy'])->whereNumber('user');
     Route::get('learners', LearnerController::class);
     Route::get('content', ContentController::class);
+    Route::get('groups/{group}/assignments', [GroupAssignmentController::class, 'index']);
+    Route::post('groups/{group}/assignments', [GroupAssignmentController::class, 'store']);
+    Route::patch('assignments/{assignment}', [AssignmentController::class, 'update'])->whereNumber('assignment');
+    Route::delete('assignments/{assignment}', [AssignmentController::class, 'destroy'])->whereNumber('assignment');
+    Route::get('groups/{group}/audit', AuditController::class);
 });
