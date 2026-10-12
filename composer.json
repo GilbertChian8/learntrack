@@ -88,7 +88,9 @@
     },
     "extra": {
         "laravel": {
-            "dont-discover": [],
+            "dont-discover": [
+                "nuwave/lighthouse"
+            ],
             "installer": {
                 "post-create-project": []
             }

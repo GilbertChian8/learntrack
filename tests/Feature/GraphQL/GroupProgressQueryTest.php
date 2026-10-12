@@ -232,10 +232,32 @@ test('GET /graphql answers 405 and runs no query', function () use ($query) {
     $group = Group::factory()->create();
     actingAsEducator(educatorOf($group));
 
+    DB::enableQueryLog();
     getJson('/graphql?'.http_build_query(['query' => $query, 'variables' => json_encode(['groupId' => (string) $group->id])]))
         ->assertMethodNotAllowed()
         ->assertHeader('Allow', 'POST')
         ->assertExactJson(['error' => ['code' => 'method_not_allowed', 'message' => 'Method not allowed.']]);
+    DB::disableQueryLog();
+
+    expect(DB::getQueryLog())->toBe([]);
+});
+
+test('introspection shows the TDD schema types and nothing else', function () {
+    actingAsEducator();
+
+    $types = postJson('/graphql', ['query' => '{ __schema { types { name } } }'])
+        ->assertOk()
+        ->collect('data.__schema.types')
+        ->pluck('name')
+        ->reject(fn (string $name) => str_starts_with($name, '__'))
+        ->sort()
+        ->values()
+        ->all();
+
+    expect($types)->toBe([
+        'Assignment', 'AssignmentStatus', 'Boolean', 'ContentType', 'DateTime', 'Float', 'Group', 'GroupProgress',
+        'ID', 'Int', 'Learner', 'LearnerProgress', 'Query', 'Scope', 'Status', 'StatusCounts', 'String',
+    ]);
 });
 
 test('the request runs exactly two queries whatever the group size', function (int $learnerCount, int $assignmentCount) use ($askFor) {

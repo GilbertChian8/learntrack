@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Passport\Passport;
+use Nuwave\Lighthouse\LighthouseServiceProvider;
 use Nuwave\Lighthouse\Schema\TypeRegistry;
 
 class AppServiceProvider extends ServiceProvider
@@ -27,6 +28,9 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         Passport::ignoreRoutes();
+
+        // Lighthouse's core only: its other providers add types for directives we do not use.
+        $this->app->register(LighthouseServiceProvider::class);
     }
 
     /**
