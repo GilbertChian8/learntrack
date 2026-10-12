@@ -1,10 +1,12 @@
 <?php
 
+use App\Enums\AssignmentScope;
 use App\Enums\ContentType;
 use App\Models\Assignment;
 use App\Models\ContentItem;
 use App\Models\Group;
 use App\Models\Institution;
+use App\Models\Progress;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -251,6 +253,44 @@ function seedLargeGroup(Group $group, User $educator, int $learnerCount, int $as
         }
     }
     DB::table('progress')->insert($progress);
+}
+
+/**
+ * cardiologyGroup() with five assignments and progress, read at 2026-10-09 12:20 UTC:
+ * Priya is on track, Sara is behind by a low average, Tom by two overdue assignments.
+ * Lipid Disorders targets nobody.
+ *
+ * @return array{group: Group, educator: User, priya: User, sara: User, tom: User, assignments: array{ecg: Assignment, arrhythmia: Assignment, heartFailure: Assignment, lipids: Assignment, cardiomyopathy: Assignment}}
+ */
+function cardiologyProgress(): array
+{
+    [$group, $educator, $heartFailure, $priya, $sara, $tom] = cardiologyGroup();
+
+    $content = fn (string $title, ContentType $type) => ContentItem::factory()->create(['title' => $title, 'topic' => 'Cardiology', 'type' => $type]);
+    $assign = fn (ContentItem $content, string $dueAt, AssignmentScope $scope = AssignmentScope::Group) => Assignment::factory()
+        ->for($group)->for($content, 'contentItem')
+        ->create(['due_at' => $dueAt, 'scope' => $scope, 'created_by' => $educator->id]);
+    $complete = fn (Assignment $assignment, User $learner, ?int $score, string $at) => Progress::factory()
+        ->for($assignment)->for($learner, 'user')->completed($score)
+        ->create(['started_at' => $at, 'completed_at' => $at]);
+
+    $assignments = [
+        'ecg' => $assign($content('ECG Basics', ContentType::Article), '2026-10-02 21:59:59'),
+        'arrhythmia' => $assign($content('Arrhythmia Question Set', ContentType::QuestionSet), '2026-10-05 21:59:59'),
+        'heartFailure' => $assign($heartFailure, '2026-10-16 21:59:59', AssignmentScope::Learners),
+        'lipids' => $assign($content('Lipid Disorders Question Set', ContentType::QuestionSet), '2026-10-20 21:59:59', AssignmentScope::Learners),
+        'cardiomyopathy' => $assign($content('Cardiomyopathy Question Set', ContentType::QuestionSet), '2026-10-23 21:59:59'),
+    ];
+    $assignments['heartFailure']->learners()->attach([$sara->id, $tom->id]);
+
+    $complete($assignments['ecg'], $priya, null, '2026-10-01 08:00:00');
+    $complete($assignments['ecg'], $sara, null, '2026-10-01 16:02:00');
+    $complete($assignments['arrhythmia'], $priya, 90, '2026-10-04 10:00:00');
+    $complete($assignments['arrhythmia'], $sara, 45, '2026-10-05 09:00:00');
+    $complete($assignments['heartFailure'], $sara, 40, '2026-10-08 18:15:00');
+    Progress::factory()->for($assignments['heartFailure'])->for($tom, 'user')->create(['started_at' => '2026-10-08 09:00:00']);
+
+    return compact('group', 'educator', 'priya', 'sara', 'tom', 'assignments');
 }
 
 /**

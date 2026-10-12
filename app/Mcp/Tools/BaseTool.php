@@ -30,7 +30,7 @@ abstract class BaseTool extends Tool
             return Response::error($exception->getMessage());
         }
 
-        return Response::make(Response::text($this->summary($answer)))->withStructuredContent($answer);
+        return Response::make(Response::text($this->summary($answer, $request)))->withStructuredContent($answer);
     }
 
     /**
@@ -50,9 +50,11 @@ abstract class BaseTool extends Tool
     abstract protected function answer(Request $request): array;
 
     /**
+     * The text, built from the answer and the request, nothing else.
+     *
      * @param  array<string, mixed>  $answer
      */
-    abstract protected function summary(array $answer): string;
+    abstract protected function summary(array $answer, Request $request): string;
 
     /**
      * An argument the input schema does not name is an error, not ignored.

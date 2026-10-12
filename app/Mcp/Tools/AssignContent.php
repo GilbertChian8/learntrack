@@ -115,7 +115,7 @@ class AssignContent extends BaseTool
         return $this->assigned($result, $learnerIds !== []);
     }
 
-    protected function summary(array $answer): string
+    protected function summary(array $answer, Request $request): string
     {
         return $answer['message'];
     }
