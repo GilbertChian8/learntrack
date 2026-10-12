@@ -21,6 +21,8 @@ class RedactSensitiveData implements ProcessorInterface
         'access_token', 'refresh_token', 'authorization', 'cookie',
     ];
 
+    private const int MAX_DEPTH = 9;
+
     private const string EMAIL = '/[^\s@\'"<>(),;:]+@[^\s@\'"<>(),;:]+\.[^\s@\'"<>(),;:.]+/';
 
     public function __invoke(LogRecord $record): LogRecord
@@ -36,7 +38,7 @@ class RedactSensitiveData implements ProcessorInterface
      * @param  array<array-key, mixed>  $values
      * @return array<array-key, mixed>
      */
-    private function redactArray(array $values): array
+    private function redactArray(array $values, int $depth = 0): array
     {
         $redacted = [];
 
@@ -45,22 +47,26 @@ class RedactSensitiveData implements ProcessorInterface
                 continue;
             }
 
-            $redacted[$key] = $this->redact($value);
+            $redacted[$key] = $this->redact($value, $depth + 1);
         }
 
         return $redacted;
     }
 
-    private function redact(mixed $value): mixed
+    private function redact(mixed $value, int $depth): mixed
     {
+        if ($depth > self::MAX_DEPTH && (is_array($value) || is_object($value))) {
+            return '[too deep]';
+        }
+
         return match (true) {
             is_string($value) => $this->redactString($value),
-            is_array($value) => $this->redactArray($value),
-            $value instanceof Throwable => $this->redact((new JsonFormatter)->normalizeValue($value)),
-            $value instanceof JsonSerializable => $this->redact($value->jsonSerialize()),
+            is_array($value) => $this->redactArray($value, $depth),
+            $value instanceof Throwable => $this->redact((new JsonFormatter)->normalizeValue($value), $depth),
+            $value instanceof JsonSerializable => $this->redact($value->jsonSerialize(), $depth),
             $value instanceof DateTimeInterface, $value instanceof UnitEnum => $value,
             $value instanceof Stringable => $this->redactString((string) $value),
-            is_object($value) => $this->redactArray(get_object_vars($value)),
+            is_object($value) => $this->redactArray(get_object_vars($value), $depth),
             default => $value,
         };
     }

@@ -95,3 +95,14 @@ test('dates and enums stay as they are', function () use ($redact) {
 
     expect($redact(['at' => $date, 'role' => Role::Learner])->context)->toBe(['at' => $date, 'role' => Role::Learner]);
 });
+
+test('an object that points to itself stops at nine levels', function () use ($redact) {
+    $node = new stdClass;
+    $node->id = 1;
+    $node->next = $node;
+
+    $logged = $redact(['node' => $node])->context;
+
+    expect(data_get($logged, 'node'.str_repeat('.next', 9)))->toBe('[too deep]')
+        ->and(data_get($logged, 'node'.str_repeat('.next', 8).'.id'))->toBe(1);
+});
