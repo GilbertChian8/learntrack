@@ -2,24 +2,21 @@
 
 Terraform for the AWS environment. Two folders:
 
-- `bootstrap/`: applied once by hand. The state bucket, the GitHub OIDC provider, the two GitHub roles, the permissions boundary, the ECR repository and the Route 53 hosted zone. These stay when the environment is destroyed, so images are kept and the nameservers never change.
+- `bootstrap/`: applied once by hand. The state bucket, the GitHub OIDC provider, the two GitHub roles, the permissions boundary, the ECR repository, the Route 53 hosted zone and the alarm topic with its email subscription. These stay when the environment is destroyed, so images are kept, the nameservers never change and the alarm email is confirmed only once.
 - `env/`: the environment. Network, security groups, RDS MySQL, the four secrets and the certificate. State in the bootstrap's bucket. Ticket 05 adds ECS, the load balancer, the alarms and the pipeline.
 
 Needs Terraform 1.12 or later and AWS credentials with admin rights for the first apply.
 
-## Shared account
+## Names and tags
 
-The AWS account is shared with another project.
-
-- Every resource name starts with `learntrack-`. Path-style names start with `learntrack/` (the secrets) or `/learntrack/` (the log group, ticket 05).
+- Every resource name starts with `learntrack-`. Path-style names start with `learntrack/` (the secrets) or `/learntrack/` (the log group, ticket 05). The deploy role's permissions are scoped by these names.
 - Every resource has the tags `Project=learntrack` and `Environment` (`bootstrap` for the bootstrap, `prod` for the environment), set by the provider's default tags.
-- The account may already have a GitHub OIDC provider. AWS allows only one per URL. Find it with `aws iam list-open-id-connect-providers` and set `github_oidc_provider_arn` to reuse it. Leave it empty to create one.
 
 ## GitHub roles
 
 Two roles, assumed with GitHub OIDC. No AWS key is stored anywhere.
 
-- `learntrack-deploy`: only for workflows on `main` (deploy, destroy). It pushes images, writes the state and applies. It changes IAM roles, logs, RDS, ECS, load balancers, alarms, topics, schedules, rules and secrets only when their names start with `learntrack-` (or `learntrack/`, `/learntrack/`). EC2 network resources and ACM certificates have generated ids, and ECS task definitions are registered without a resource name, so it can change any of these. It cannot change itself or the plan role, and it cannot read secret values.
+- `learntrack-deploy`: only for workflows on `main` (deploy, destroy). It pushes images, writes the state and applies. It changes IAM roles, logs, RDS, ECS, load balancers, alarms, schedules, rules and secrets only when their names start with `learntrack-` (or `learntrack/`, `/learntrack/`). EC2 network resources and ACM certificates have generated ids, and ECS task definitions are registered without a resource name, so it can change any of these. It cannot change itself or the plan role, and it cannot read secret values.
 - The deploy role cannot grant more than the boundary. It creates, changes and deletes `learntrack-*` roles only when they carry the permissions boundary `learntrack-boundary`, and it cannot remove a boundary or change the boundary policy. Roles get inline policies only; the deploy role cannot attach managed policies. The boundary allows ECR pull, logs on `/learntrack/*`, reading `learntrack/*` secrets, running `learntrack-*` tasks and passing `learntrack-*` roles to ECS tasks. Nothing else, so no role the pipeline makes can manage IAM.
 - `learntrack-plan`: only for pull requests (plan). Read-only: it reads the state and refreshes every resource, and it can write only the state lock file (`*.tflock`). A pull request branch never holds write access to the environment.
 
@@ -34,7 +31,7 @@ Bootstrap (`bootstrap/terraform.tfvars.example`):
 | `region` | `eu-central-1` | Region of the bucket, the role and the repository |
 | `domain_name` | none | The domain the app runs on. The hosted zone is for this name |
 | `github_repository` | none | `owner/name` of the repository the GitHub roles trust |
-| `github_oidc_provider_arn` | empty | Empty creates the OIDC provider, an ARN reuses it |
+| `alarm_email` | none | Gets the alarms of every environment. Confirm it once from the AWS email |
 
 Environment (`env/prod.tfvars.example`):
 
@@ -44,9 +41,8 @@ Environment (`env/prod.tfvars.example`):
 | `region` | `eu-central-1` | Region of the environment |
 | `domain_name` | none | Same as the bootstrap |
 | `hosted_zone_id` | none | The bootstrap output `hosted_zone_id` |
-| `alarm_email` | none | Gets the alarms (ticket 05) |
 | `db_instance_class` | `db.t4g.micro` | RDS instance class |
-| `app_cpu`, `app_memory` | `256`, `512` | Task size (ticket 05) |
+| `app_cpu`, `app_memory` | `512`, `1024` | Task size (ticket 05) |
 | `desired_count` | `2` | Number of app tasks (ticket 05) |
 | `skip_final_snapshot` | `true` | The environment is rebuilt from code, so no snapshot on destroy |
 
@@ -62,7 +58,15 @@ terraform apply
 terraform output
 ```
 
-Then set the nameservers at your domain registrar to the `name_servers` output. The certificate in `env/` cannot be validated before this.
+Then:
+
+1. Delegate `domain_name` to the 4 `name_servers`. For a subdomain, add 4 NS records with that name at the parent domain's DNS provider. For a whole domain, set them at the registrar.
+2. Before the first apply in `env/`, check the delegation and the CAA records. The certificate cannot be validated without them.
+   ```
+   dig NS <domain_name> +short        # the 4 name_servers
+   dig CAA <parent domain> +short     # nothing, or a record that allows amazon.com
+   ```
+3. Confirm the alarm email from the AWS message. Once: the subscription stays when the environment is destroyed.
 
 The bootstrap state is local (`infra/bootstrap/terraform.tfstate`, gitignored). Keep a copy outside the repository. If it is lost, write the same `terraform.tfvars` and import the resources:
 
@@ -71,7 +75,7 @@ terraform import aws_s3_bucket.state learntrack-tfstate-<account id>
 terraform import aws_s3_bucket_versioning.state learntrack-tfstate-<account id>
 terraform import aws_s3_bucket_server_side_encryption_configuration.state learntrack-tfstate-<account id>
 terraform import aws_s3_bucket_public_access_block.state learntrack-tfstate-<account id>
-terraform import 'aws_iam_openid_connect_provider.github[0]' <provider arn>   # only if the bootstrap created it
+terraform import aws_iam_openid_connect_provider.github <provider arn>
 terraform import aws_iam_role.deploy learntrack-deploy
 terraform import aws_iam_role_policy.deploy learntrack-deploy:learntrack-deploy
 terraform import aws_iam_role.plan learntrack-plan
@@ -80,6 +84,9 @@ terraform import aws_iam_policy.boundary arn:aws:iam::<account id>:policy/learnt
 terraform import aws_ecr_repository.app learntrack-app
 terraform import aws_ecr_lifecycle_policy.app learntrack-app
 terraform import aws_route53_zone.main <hosted zone id>
+terraform import aws_sns_topic.alarms arn:aws:sns:<region>:<account id>:learntrack-alarms
+terraform import aws_sns_topic_policy.alarms arn:aws:sns:<region>:<account id>:learntrack-alarms
+terraform import aws_sns_topic_subscription.alarm_email <subscription arn>
 ```
 
 ## Plan and apply the environment
