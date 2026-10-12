@@ -32,7 +32,7 @@ Tests run against MySQL, in the `learntrack_test` database that compose creates.
 |---|---|---|
 | `anna.keller@example.edu` | educator | Northside Medical School (Europe/Berlin). Teaches Cardiology Group A, Nephrology Group A and Neurology Group A |
 | `sara.lindqvist@example.edu` | learner | Northside, in Cardiology Group A. Behind: her first question set is overdue |
-| `emily.carter@example.edu` | learner | Riverside College of Medicine (Europe/London), in Endocrinology Group A. Behind: her average score is 35 |
+| `emily.carter@example.edu` | learner | Riverside College of Medicine (Europe/London), in Endocrinology Group A and Pediatrics Group B. Behind in both by a low average: 35 and 25.7 |
 
 The other educators are `jonas.weber`, `miriam.hoffmann`, `oliver.bennett`, `priya.shah` and `hannah.clarke`, all `@example.edu`.
 
