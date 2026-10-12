@@ -4,6 +4,7 @@ use App\Exceptions\ErrorRenderer;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\SecurityHeaders;
 use App\Logging\LogRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -28,7 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_X_FORWARDED_PORT);
 
-        $middleware->prepend(LogRequests::class);
+        $middleware->prepend([LogRequests::class, SecurityHeaders::class]);
 
         $middleware->encryptCookies(except: ['appearance']);
 
