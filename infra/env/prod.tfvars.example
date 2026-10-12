@@ -1,0 +1,9 @@
+environment         = "prod"
+region              = "eu-central-1"
+domain_name         = "learntrack.example.com"
+hosted_zone_id      = "Z0000000000000000000"
+db_instance_class   = "db.t4g.micro"
+app_cpu             = 512
+app_memory          = 1024
+desired_count       = 2
+skip_final_snapshot = true

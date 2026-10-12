@@ -45,4 +45,5 @@ yarn-error.log
 # Passport keys (local), Terraform
 /storage/oauth-*.key
 infra/**/.terraform
+infra/**/*.tfvars
 *.tfstate*
