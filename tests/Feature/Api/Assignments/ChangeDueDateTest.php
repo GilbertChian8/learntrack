@@ -134,6 +134,21 @@ test('another educator\'s assignment, a removed assignment and a missing id answ
         ->and(AuditEntry::query()->count())->toBe(0);
 });
 
+test('another educator\'s assignment and a missing id answer 404 before the body is checked', function () {
+    [, $educator] = cardiologyGroup();
+    $foreignGroup = Group::factory()->create();
+    educatorOf($foreignGroup);
+    $foreign = Assignment::factory()->for($foreignGroup)->create();
+
+    actingAsEducator($educator);
+
+    foreach ([$foreign->id, $foreign->id + 1000] as $id) {
+        patchJson("/api/v1/assignments/{$id}", [])
+            ->assertNotFound()
+            ->assertExactJson(['error' => ['code' => 'not_found', 'message' => 'Assignment not found.']]);
+    }
+});
+
 test('a non-numeric id answers 404 Not found.', function () {
     actingAsEducator();
 

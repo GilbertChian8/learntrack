@@ -8,25 +8,23 @@ use App\Enums\AuditChannel;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\DueDateRequest;
 use App\Http\Resources\ChangeDueDateResultResource;
+use App\Models\Assignment;
 use App\Models\User;
-use App\Support\Scope;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\Response;
 
 class AssignmentController extends Controller
 {
-    public function update(DueDateRequest $request, string $assignment, #[CurrentUser] User $educator, ChangeDueDate $changeDueDate): ChangeDueDateResultResource
+    public function update(DueDateRequest $request, Assignment $assignment, #[CurrentUser] User $educator, ChangeDueDate $changeDueDate): ChangeDueDateResultResource
     {
-        $active = Scope::assignment($educator, (int) $assignment);
-
         return new ChangeDueDateResultResource(
-            $changeDueDate->handle($educator, $active, $request->dueAt($active->group->institution), AuditChannel::Rest),
+            $changeDueDate->handle($educator, $assignment, $request->dueAt($assignment->group->institution), AuditChannel::Rest),
         );
     }
 
-    public function destroy(string $assignment, #[CurrentUser] User $educator, RemoveAssignment $removeAssignment): Response
+    public function destroy(Assignment $removableAssignment, #[CurrentUser] User $educator, RemoveAssignment $removeAssignment): Response
     {
-        $removeAssignment->handle($educator, Scope::removableAssignment($educator, (int) $assignment), AuditChannel::Rest);
+        $removeAssignment->handle($educator, $removableAssignment, AuditChannel::Rest);
 
         return response()->noContent();
     }

@@ -113,8 +113,8 @@ test('targeting lists only active assignments that target the learner', function
 });
 
 test('Gate::authorize on a denied ability renders 404 not_found, not 403', function (string $ability, Closure $actAs) {
-    Route::middleware(['api', 'auth:api'])->get('api/v1/test/assignments/{assignment}', function (Assignment $assignment) use ($ability) {
-        Gate::authorize($ability, $assignment);
+    Route::middleware(['api', 'auth:api'])->get('api/v1/test/assignments/{model}', function (Assignment $model) use ($ability) {
+        Gate::authorize($ability, $model);
 
         return response()->noContent();
     });

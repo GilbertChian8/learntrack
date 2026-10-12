@@ -29,7 +29,7 @@ Route::middleware(['auth:api', 'role:educator'])->group(function () {
     Route::get('content', ContentController::class);
     Route::get('groups/{group}/assignments', [GroupAssignmentController::class, 'index']);
     Route::post('groups/{group}/assignments', [GroupAssignmentController::class, 'store']);
-    Route::patch('assignments/{assignment}', [AssignmentController::class, 'update'])->whereNumber('assignment');
-    Route::delete('assignments/{assignment}', [AssignmentController::class, 'destroy'])->whereNumber('assignment');
+    Route::patch('assignments/{assignment}', [AssignmentController::class, 'update']);
+    Route::delete('assignments/{removableAssignment}', [AssignmentController::class, 'destroy']);
     Route::get('groups/{group}/audit', AuditController::class);
 });

@@ -13,7 +13,7 @@ test('the application registers only home, the login routes and the API routes b
     // /up is registered by the framework, so --except-vendor hides it; HealthTest covers it.
     expect(collect($routes)->map(fn (array $route) => $route['method'].' '.$route['uri'])->sort()->values()->all())
         ->toBe([
-            'DELETE api/v1/assignments/{assignment}',
+            'DELETE api/v1/assignments/{removableAssignment}',
             'DELETE api/v1/groups/{group}/learners/{user}',
             'GET|HEAD /',
             'GET|HEAD api/v1/content',
