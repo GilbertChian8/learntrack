@@ -39,15 +39,21 @@ class AssignContent
         $this->ensureEveryIdIsAMember($learnerIds, $members);
 
         $named = $learnerIds === [] ? $members : $members->whereIn('id', $learnerIds)->values();
-        $assign = fn (): AssignResult => DB::transaction(
-            fn (): AssignResult => $this->applyRules($educator, $group, $item, $dueAt, $named, $learnerIds !== [], $channel),
+        $assign = fn (): AssignResult|Assignment => DB::transaction(
+            fn (): AssignResult|Assignment => $this->applyRules($educator, $group, $item, $dueAt, $named, $learnerIds !== [], $channel),
         );
 
         try {
-            return $assign();
+            $decision = $assign();
         } catch (UniqueConstraintViolationException) {
-            return $assign();
+            $decision = $assign();
         }
+
+        if ($decision instanceof Assignment) {
+            throw new AlreadyAssignedException($this->show($group, $decision));
+        }
+
+        return new AssignResult($decision->result, $this->show($group, $decision->assignment), $decision->added, $decision->alreadyHadIt);
     }
 
     /**
@@ -70,11 +76,13 @@ class AssignContent
     }
 
     /**
-     * @param  Collection<int, User>  $named  the named learners, or every member when none are named
+     * Decides and writes inside the transaction. The caller reads the answer after
+     * the commit, so it shows what other requests committed while this one waited.
      *
-     * @throws AlreadyAssignedException
+     * @param  Collection<int, User>  $named  the named learners, or every member when none are named
+     * @return AssignResult|Assignment the existing assignment when its due date differs; an AssignResult's assignment is not loaded yet
      */
-    private function applyRules(User $educator, Group $group, ContentItem $item, CarbonImmutable $dueAt, Collection $named, bool $namesLearners, AuditChannel $channel): AssignResult
+    private function applyRules(User $educator, Group $group, ContentItem $item, CarbonImmutable $dueAt, Collection $named, bool $namesLearners, AuditChannel $channel): AssignResult|Assignment
     {
         $existing = $this->lockActiveAssignment($group, $item);
 
@@ -83,18 +91,18 @@ class AssignContent
         }
 
         if (! $existing->due_at->equalTo($dueAt)) {
-            throw new AlreadyAssignedException($this->show($group, $existing));
+            return $existing;
         }
 
         if ($existing->scope === AssignmentScope::Group) {
-            return $this->result(AssignOutcome::Unchanged, $group, $existing, new Collection, $named);
+            return $this->result(AssignOutcome::Unchanged, $existing, new Collection, $named);
         }
 
         $targetedIds = $existing->learners()->sharedLock()->pluck('users.id');
         [$alreadyHadIt, $added] = $named->partition(fn (User $learner) => $targetedIds->contains($learner->id));
 
         if ($namesLearners && $added->isEmpty()) {
-            return $this->result(AssignOutcome::Unchanged, $group, $existing, $added, $alreadyHadIt);
+            return $this->result(AssignOutcome::Unchanged, $existing, $added, $alreadyHadIt);
         }
 
         $changes = ['learner_ids' => self::sortedIds($added)];
@@ -108,7 +116,7 @@ class AssignContent
 
         AuditWriter::record($educator, $channel, AuditAction::AssignmentLearnersAdded, $existing, $changes);
 
-        return $this->result(AssignOutcome::LearnersAdded, $group, $existing, $added, $alreadyHadIt);
+        return $this->result(AssignOutcome::LearnersAdded, $existing, $added, $alreadyHadIt);
     }
 
     /**
@@ -151,16 +159,16 @@ class AssignContent
             'learner_ids' => $namesLearners ? self::sortedIds($named) : [],
         ]);
 
-        return $this->result(AssignOutcome::Created, $group, $assignment, $named, new Collection);
+        return $this->result(AssignOutcome::Created, $assignment, $named, new Collection);
     }
 
     /**
      * @param  Collection<int, User>  $added
      * @param  Collection<int, User>  $alreadyHadIt
      */
-    private function result(AssignOutcome $outcome, Group $group, Assignment $assignment, Collection $added, Collection $alreadyHadIt): AssignResult
+    private function result(AssignOutcome $outcome, Assignment $assignment, Collection $added, Collection $alreadyHadIt): AssignResult
     {
-        return new AssignResult($outcome, $this->show($group, $assignment), $added->values(), $alreadyHadIt->values());
+        return new AssignResult($outcome, $assignment, $added->values(), $alreadyHadIt->values());
     }
 
     private function show(Group $group, Assignment $assignment): Assignment
