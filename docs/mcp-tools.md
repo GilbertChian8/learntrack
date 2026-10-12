@@ -86,6 +86,8 @@ Shared objects used below:
 
 ## 3. Read tools
 
+In the texts below, a count of 1 takes the singular: `You teach 1 group: Cardiology Group A (1 learner, 1 assignment).`, `1 of 42 learners in Cardiology Group A is behind.`, `1 of 1 learner completed it (100%)`.
+
 ### list_my_groups
 
 | | |
@@ -338,9 +340,9 @@ Example (several matches):
 }
 ```
 
-Text, one match: `Sara Lindqvist is in 1 of your groups. Cardiology Group A: behind (Average question set score 42.5 is below 50 (scores: 40, 45)); 6 completed, 1 in progress, 2 not started, 0 overdue.` One sentence per group; `on track` replaces `behind (...)` when not behind.
+Text, one match: `Sara Lindqvist is in 1 of your groups. Cardiology Group A: behind (Average question set score 42.5 is below 50 (scores: 40, 45)); 6 completed, 1 in progress, 2 not started, 0 overdue.` One sentence per group; `on track` replaces `behind (...)` when not behind. Several reasons are joined with `; `, as in find_learners_behind.
 
-Text, several matches: `2 learners match "Sara": Sara Lindqvist (Cardiology Group A), Sara Okafor (Cardiology Group B). Ask which one is meant, then call again with the learner_id.`
+Text, several matches: `2 learners match "Sara": Sara Lindqvist (Cardiology Group A), Sara Okafor (Cardiology Group B). Ask which one is meant, then call again with the learner_id.` A learner in several of your groups lists them all: `Sara Lindqvist (Cardiology Group A, Cardiology Group B)`.
 
 Errors: `Learner not found.` (no match by name, or an id that is not in any of the educator's groups). `Give a learner_id or a name.` (neither given).
 
