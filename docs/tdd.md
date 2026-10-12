@@ -592,7 +592,7 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 - Logs carry user ids, never names, emails, passwords or tokens. A log processor drops those keys from every log context, request bodies are not logged, and the Authorization header never is. The audit log stores ids and resolves names at read time. [requirement: no learner personal data in logs]
 - Secrets (database password, APP_KEY, Passport keys) live in Secrets Manager, are injected into the tasks at start, and never appear in the repository or in the Terraform state. [ADR-013]
 - Transport: HTTPS at the ALB with an ACM certificate, HTTP redirected with 301, HSTS from the app, TLS required on the MySQL connection. [ADR-011]
-- Network: the database accepts the app only, the app accepts the ALB only, only the ALB has a public address. Outbound goes through the NAT gateways. [ADR-012]
+- Network: the database accepts the app only, the app accepts the ALB only, only the ALB accepts traffic from the internet. Outbound goes through the NAT gateways. [ADR-012]
 - Input: Form Requests validate shape and ranges; ids are always resolved through the Policy, never trusted from the client. An educator creates groups in their own institution only and adds learners of that institution only.
 - Rate limits as in the table above, counted in the shared database store.
 
