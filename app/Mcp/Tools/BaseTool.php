@@ -27,6 +27,17 @@ abstract class BaseTool extends Tool
     }
 
     /**
+     * Every input schema in mcp-tools.md allows no other argument.
+     */
+    public function toArray(): array
+    {
+        $tool = parent::toArray();
+        $tool['inputSchema']['additionalProperties'] = false;
+
+        return $tool;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     abstract protected function answer(Request $request): array;
