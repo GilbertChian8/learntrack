@@ -10,10 +10,11 @@ beforeEach(function () {
 });
 
 /**
- * Cardiology Group B, taught by another educator, with Sara and one assignment she has not started.
+ * Anatomy Group A, taught by another educator, with Sara and one assignment she has not started.
+ * Its id is higher than Cardiology Group A's, but its name comes first.
  */
 $groupB = function (Group $groupA, User $sara): Group {
-    $groupB = Group::factory()->create(['institution_id' => $groupA->institution_id, 'name' => 'Cardiology Group B']);
+    $groupB = Group::factory()->create(['institution_id' => $groupA->institution_id, 'name' => 'Anatomy Group A']);
     educatorOf($groupB);
     $groupB->learners()->attach($sara);
     Assignment::factory()->for($groupB)->create(['due_at' => '2026-10-20 21:59:59']);
@@ -65,7 +66,7 @@ test('by id: only the groups the caller teaches, with the contract text', functi
         ]]);
 });
 
-test('by id: a shared group shows once the caller teaches it too, ordered by name', function () use ($groupB) {
+test('by id: a shared group shows once the caller teaches it too, ordered by name, not id', function () use ($groupB) {
     $fixture = cardiologyProgress();
     $groupB = $groupB($fixture['group'], $fixture['sara']);
     $groupB->educators()->attach($fixture['educator']);
@@ -74,16 +75,16 @@ test('by id: a shared group shows once the caller teaches it too, ordered by nam
     $result = callTool('get_learner_summary', ['learner_id' => $fixture['sara']->id])->json('result');
     $groups = $result['structuredContent']['groups'];
 
-    expect(array_column($groups, 'id'))->toBe([$fixture['group']->id, $groupB->id])
-        ->and($groups[1])->toMatchArray([
+    expect(array_column($groups, 'id'))->toBe([$groupB->id, $fixture['group']->id])
+        ->and($groups[0])->toMatchArray([
             'behind' => false,
             'reasons' => [],
             'average_score' => null,
             'counts' => ['not_started' => 1, 'in_progress' => 0, 'completed' => 0, 'overdue' => 0],
         ])
         ->and($result['content'][0]['text'])->toBe('Sara Lindqvist is in 2 of your groups. '
-            .'Cardiology Group A: behind (Average question set score 42.5 is below 50 (scores: 45, 40)); 3 completed, 0 in progress, 1 not started, 0 overdue. '
-            .'Cardiology Group B: on track; 0 completed, 0 in progress, 1 not started, 0 overdue.');
+            .'Anatomy Group A: on track; 0 completed, 0 in progress, 1 not started, 0 overdue. '
+            .'Cardiology Group A: behind (Average question set score 42.5 is below 50 (scores: 45, 40)); 3 completed, 0 in progress, 1 not started, 0 overdue.');
 });
 
 test('by a unique name, in any case: the same answer as by id', function () {
@@ -98,12 +99,12 @@ test('by a unique name, in any case: the same answer as by id', function () {
         ->and($byName['content'])->toBe($byId['content']);
 });
 
-test('by an ambiguous name: the candidates with their group names, no learner, and the contract text', function () use ($groupB) {
+test('by an ambiguous name: the candidates by name, not id, with their group names, no learner, and the contract text', function () use ($groupB) {
     $fixture = cardiologyProgress();
     $groupB = $groupB($fixture['group'], $fixture['sara']);
     $groupB->educators()->attach($fixture['educator']);
-    $okafor = learnerIn($groupB);
-    $okafor->update(['name' => 'Sara Okafor']);
+    $abbott = learnerIn($groupB);
+    $abbott->update(['name' => 'Sara Abbott']);
     $foreign = Group::factory()->create(['institution_id' => $groupB->institution_id]);
     educatorOf($foreign);
     learnerIn($foreign)->update(['name' => 'Sara Outsider']);
@@ -116,13 +117,13 @@ test('by an ambiguous name: the candidates with their group names, no learner, a
             'learner' => null,
             'groups' => [],
             'candidates' => [
-                ['id' => $fixture['sara']->id, 'name' => 'Sara Lindqvist', 'groups' => ['Cardiology Group A', 'Cardiology Group B']],
-                ['id' => $okafor->id, 'name' => 'Sara Okafor', 'groups' => ['Cardiology Group B']],
+                ['id' => $abbott->id, 'name' => 'Sara Abbott', 'groups' => ['Anatomy Group A']],
+                ['id' => $fixture['sara']->id, 'name' => 'Sara Lindqvist', 'groups' => ['Anatomy Group A', 'Cardiology Group A']],
             ],
         ])
         ->and($result['content'])->toBe([[
             'type' => 'text',
-            'text' => '2 learners match "sara": Sara Lindqvist (Cardiology Group A, Cardiology Group B), Sara Okafor (Cardiology Group B). '
+            'text' => '2 learners match "sara": Sara Abbott (Anatomy Group A), Sara Lindqvist (Anatomy Group A, Cardiology Group A). '
                 .'Ask which one is meant, then call again with the learner_id.',
         ]]);
 });
