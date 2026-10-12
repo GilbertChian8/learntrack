@@ -384,7 +384,8 @@ test('input that breaks the schema is a tool error with the validation message, 
     'more than 60 learner ids' => [
         fn (Group $group, ContentItem $content) => ['group_id' => $group->id, 'content_item_id' => $content->id, 'due_date' => '2026-10-16', 'learner_ids' => range(1, 61)],
         'The learner ids field must not have more than 60 items.',
-    ],    'an argument the schema does not name' => [
+    ],
+    'an argument the schema does not name' => [
         fn (Group $group, ContentItem $content) => ['group_id' => $group->id, 'content_item_id' => $content->id, 'due_date' => '2026-10-16', 'learnerIds' => [1]],
         'The argument "learnerIds" is not in the input schema.',
     ],
