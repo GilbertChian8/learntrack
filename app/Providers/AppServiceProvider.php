@@ -17,8 +17,10 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Inertia\Inertia;
 use Laravel\Passport\Passport;
 use Nuwave\Lighthouse\Schema\TypeRegistry;
+use Symfony\Component\HttpFoundation\Response;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -56,13 +58,22 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * Token lifetimes. Authorization codes keep Passport's fixed 10 minutes.
+     * Token lifetimes, and the consent page. Authorization codes keep Passport's fixed 10 minutes.
      */
     protected function configurePassport(): void
     {
         Passport::tokensExpireIn(CarbonInterval::hour());
         Passport::refreshTokensExpireIn(CarbonInterval::days(30));
         Passport::personalAccessTokensExpireIn(CarbonInterval::hours(8));
+
+        Passport::authorizationView(fn (array $parameters): Response => Inertia::render('mcp/consent', [
+            'clientName' => $parameters['client']->name,
+            'userName' => $parameters['user']->name,
+            'capabilities' => ['Read the progress of your groups', 'Assign content', 'Change due dates'],
+            'authToken' => $parameters['authToken'],
+            'state' => $parameters['request']->query('state'),
+            'csrfToken' => csrf_token(),
+        ])->toResponse($parameters['request']));
     }
 
     /**

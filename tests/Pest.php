@@ -5,11 +5,16 @@ use App\Models\ContentItem;
 use App\Models\Group;
 use App\Models\Institution;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Testing\TestResponse;
 use Laravel\Passport\Passport;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
+
+use function Pest\Laravel\postJson;
 
 /*
 |--------------------------------------------------------------------------
@@ -234,4 +239,131 @@ function learnerStanding(): array
           group by gl.group_id, gl.user_id",
         [now()->toDateTimeString()],
     );
+}
+
+/**
+ * A JSON-RPC request body for POST /mcp.
+ *
+ * @param  array<string, mixed>  $params
+ * @return array{jsonrpc: string, id: int, method: string, params: array<string, mixed>}
+ */
+function mcpRequest(string $method, array $params = []): array
+{
+    return ['jsonrpc' => '2.0', 'id' => 1, 'method' => $method, 'params' => $params];
+}
+
+/**
+ * Registers a public client the way Claude does, and returns its id.
+ */
+function registerOAuthClient(string $redirectUri = 'http://localhost:9999/callback'): string
+{
+    $response = postJson('/oauth/register', ['client_name' => 'Claude Code', 'redirect_uris' => [$redirectUri]])->assertCreated();
+
+    return $response->json('client_id');
+}
+
+/**
+ * An authorization request with an S256 challenge for the given verifier.
+ *
+ * @return array<string, string>
+ */
+function authorizationQuery(string $clientId, string $verifier, string $redirectUri = 'http://localhost:9999/callback'): array
+{
+    return [
+        'client_id' => $clientId,
+        'redirect_uri' => $redirectUri,
+        'response_type' => 'code',
+        'scope' => 'mcp:use',
+        'state' => 'state-123',
+        'code_challenge' => rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '='),
+        'code_challenge_method' => 'S256',
+    ];
+}
+
+/**
+ * The query string of a redirect back to the client.
+ *
+ * @param  TestResponse<Response>  $response
+ * @return array<string, string>
+ */
+function callbackQuery(TestResponse $response, string $redirectUri): array
+{
+    $location = (string) $response->assertRedirect()->headers->get('Location');
+
+    expect($location)->toStartWith($redirectUri.'?');
+
+    parse_str((string) parse_url($location, PHP_URL_QUERY), $query);
+
+    return $query;
+}
+
+function secondsFromNow(string $dateTime): int
+{
+    return (int) now()->diffInSeconds(CarbonImmutable::parse($dateTime), absolute: true);
+}
+
+/**
+ * The errors of a value against the JSON Schema subset the MCP tools publish:
+ * type, enum, properties, required, additionalProperties, items and anyOf.
+ *
+ * @param  array<string, mixed>  $schema
+ * @return list<string>
+ */
+function schemaErrors(array $schema, mixed $value, string $path = '$'): array
+{
+    if (isset($schema['anyOf'])) {
+        foreach ($schema['anyOf'] as $option) {
+            if (schemaErrors($option, $value, $path) === []) {
+                return [];
+            }
+        }
+
+        return ["{$path} matches no anyOf option"];
+    }
+
+    $types = (array) $schema['type'];
+    $type = match (true) {
+        is_null($value) => 'null',
+        is_bool($value) => 'boolean',
+        is_int($value) => 'integer',
+        is_float($value) => 'number',
+        is_string($value) => 'string',
+        is_array($value) && array_is_list($value) && $value !== [] => 'array',
+        is_array($value) => in_array('object', $types, true) ? 'object' : 'array',
+        default => get_debug_type($value),
+    };
+
+    if (! in_array($type, $types, true) && ! ($type === 'integer' && in_array('number', $types, true))) {
+        return ["{$path} is {$type}, not ".implode('|', $types)];
+    }
+
+    if (isset($schema['enum']) && ! in_array($value, $schema['enum'], true)) {
+        return ["{$path} is not in the enum"];
+    }
+
+    $errors = [];
+
+    if ($type === 'object') {
+        foreach ($schema['required'] ?? [] as $key) {
+            if (! array_key_exists($key, $value)) {
+                $errors[] = "{$path}.{$key} is missing";
+            }
+        }
+
+        foreach ($value as $key => $item) {
+            if (isset($schema['properties'][$key])) {
+                $errors = [...$errors, ...schemaErrors($schema['properties'][$key], $item, "{$path}.{$key}")];
+            } elseif (($schema['additionalProperties'] ?? true) === false) {
+                $errors[] = "{$path}.{$key} is not allowed";
+            }
+        }
+    }
+
+    if ($type === 'array' && isset($schema['items'])) {
+        foreach ($value as $index => $item) {
+            $errors = [...$errors, ...schemaErrors($schema['items'], $item, "{$path}[{$index}]")];
+        }
+    }
+
+    return $errors;
 }
