@@ -101,6 +101,8 @@ terraform apply -var-file=prod.tfvars
 
 The first apply takes about 20 minutes, most of it RDS Multi-AZ. The environment runs in the bootstrap's region: its alarms send to the bootstrap's topic, and an alarm or an EventBridge rule can only send to a topic in its own region. The backend block expects the state bucket in `eu-central-1`. If the bootstrap runs in another region, set the same `region` in both folders and add `-backend-config="region=<region>"`.
 
+After `terraform destroy`, `aws resourcegroupstaggingapi get-resources --tag-filters Key=Project,Values=learntrack` lists only the bootstrap resources. The tagging index lags after a destroy: a deleted NAT gateway stays listed for up to an hour, and RDS removes the automated snapshot some minutes after the instance. Check again later, or describe each listed resource directly.
+
 A second environment needs its own variables, its own state key (`-backend-config="key=env/<environment>/terraform.tfstate"`) and its own deploy and plan roles.
 
 ## Secrets
