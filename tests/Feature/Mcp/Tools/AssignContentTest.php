@@ -310,6 +310,10 @@ test('a bad call is a tool error with the exact message, and nothing is written'
         ['group_id' => Group::factory()->create()->id, 'content_item_id' => $content->id, 'due_date' => '2026-10-16'],
         'Group not found.',
     ],
+    'a group of the same institution taught by another educator' => fn (Group $group, ContentItem $content) => [
+        ['group_id' => tap(Group::factory()->for($group->institution)->create(), educatorOf(...))->id, 'content_item_id' => $content->id, 'due_date' => '2026-10-16'],
+        'Group not found.',
+    ],
     'a group that does not exist' => fn (Group $group, ContentItem $content) => [
         ['group_id' => 999999, 'content_item_id' => $content->id, 'due_date' => '2026-10-16'],
         'Group not found.',
@@ -380,6 +384,9 @@ test('input that breaks the schema is a tool error with the validation message, 
     'more than 60 learner ids' => [
         fn (Group $group, ContentItem $content) => ['group_id' => $group->id, 'content_item_id' => $content->id, 'due_date' => '2026-10-16', 'learner_ids' => range(1, 61)],
         'The learner ids field must not have more than 60 items.',
+    ],    'an argument the schema does not name' => [
+        fn (Group $group, ContentItem $content) => ['group_id' => $group->id, 'content_item_id' => $content->id, 'due_date' => '2026-10-16', 'learnerIds' => [1]],
+        'The argument "learnerIds" is not in the input schema.',
     ],
 ]);
 

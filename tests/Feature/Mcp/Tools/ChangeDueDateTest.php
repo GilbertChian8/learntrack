@@ -4,6 +4,7 @@ use App\Enums\AuditAction;
 use App\Enums\AuditChannel;
 use App\Models\Assignment;
 use App\Models\AuditEntry;
+use App\Models\Group;
 use Carbon\CarbonImmutable;
 
 beforeEach(function () {
@@ -143,6 +144,10 @@ test('a bad call is a tool error with the exact message, and nothing is written'
         ['assignment_id' => Assignment::factory()->create()->id, 'due_date' => '2026-10-23'],
         'Assignment not found.',
     ],
+    'an assignment in a group of the same institution taught by another educator' => fn (Assignment $assignment) => [
+        ['assignment_id' => Assignment::factory()->for(tap(Group::factory()->for($assignment->group->institution)->create(), educatorOf(...)))->create()->id, 'due_date' => '2026-10-23'],
+        'Assignment not found.',
+    ],
     'an assignment that does not exist' => fn () => [
         ['assignment_id' => 999999, 'due_date' => '2026-10-23'],
         'Assignment not found.',
@@ -154,6 +159,10 @@ test('a bad call is a tool error with the exact message, and nothing is written'
     'an assignment_id that is a string' => fn (Assignment $assignment) => [
         ['assignment_id' => (string) $assignment->id, 'due_date' => '2026-10-23'],
         'The assignment id field must be an integer.',
+    ],
+    'an argument the schema does not name' => fn (Assignment $assignment) => [
+        ['assignment_id' => $assignment->id, 'due_date' => '2026-10-23', 'dueDate' => '2026-10-30'],
+        'The argument "dueDate" is not in the input schema.',
     ],
 ]);
 
