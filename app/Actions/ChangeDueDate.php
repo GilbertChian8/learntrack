@@ -22,12 +22,13 @@ class ChangeDueDate
      */
     public function handle(User $educator, Assignment $assignment, CarbonImmutable $dueAt, AuditChannel $channel): ChangeDueDateResult
     {
-        $previousDueAt = DB::transaction(function () use ($educator, $assignment, $dueAt, $channel): CarbonImmutable {
+        return DB::transaction(function () use ($educator, $assignment, $dueAt, $channel): ChangeDueDateResult {
             $locked = Assignment::query()->active()->whereKey($assignment->id)->lockForUpdate()->first()
                 ?? throw NotFoundException::assignment();
             $previousDueAt = $locked->due_at;
+            $changed = ! $previousDueAt->equalTo($dueAt);
 
-            if (! $previousDueAt->equalTo($dueAt)) {
+            if ($changed) {
                 $locked->update(['due_at' => $dueAt->utc()]);
 
                 AuditWriter::record($educator, $channel, AuditAction::AssignmentDueChanged, $locked, ['due_at' => [
@@ -36,13 +37,11 @@ class ChangeDueDate
                 ]]);
             }
 
-            return $previousDueAt;
+            return new ChangeDueDateResult(
+                changed: $changed,
+                previousDueAt: $previousDueAt,
+                assignment: GroupAssignments::for($assignment->group)->whereKey($assignment->id)->sole(),
+            );
         });
-
-        return new ChangeDueDateResult(
-            changed: ! $previousDueAt->equalTo($dueAt),
-            previousDueAt: $previousDueAt,
-            assignment: GroupAssignments::for($assignment->group)->whereKey($assignment->id)->sole(),
-        );
     }
 }

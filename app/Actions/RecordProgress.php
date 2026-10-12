@@ -24,8 +24,7 @@ use Illuminate\Validation\ValidationException;
 class RecordProgress
 {
     /**
-     * The caller found the assignment through Scope::learnerAssignment. The answer is read
-     * after the commit, so it shows writes that other requests committed while this one waited.
+     * The caller found the assignment through Scope::learnerAssignment.
      *
      * @throws NotFoundException when it stopped targeting the learner in the meantime
      * @throws ValidationException
@@ -33,14 +32,23 @@ class RecordProgress
      */
     public function handle(User $learner, Assignment $assignment, ProgressStatus $status, ?int $score): RecordProgressResult
     {
-        $record = fn (): ?bool => DB::transaction(fn (): ?bool => $this->apply($learner, $assignment, $status, $score));
+        $record = fn (): RecordProgressResult => DB::transaction(fn (): RecordProgressResult => $this->apply($learner, $assignment, $status, $score));
 
         try {
-            $changed = $record();
+            return $record();
         } catch (UniqueConstraintViolationException) {
-            $changed = $record();
+            return $record();
         }
+    }
 
+    /**
+     * @throws NotFoundException
+     * @throws ValidationException
+     * @throws AlreadyCompletedException
+     */
+    private function apply(User $learner, Assignment $assignment, ProgressStatus $status, ?int $score): RecordProgressResult
+    {
+        $changed = $this->write($learner, $assignment, $status, $score);
         $row = LearnerAssignments::for($learner)->where('assignment_id', $assignment->id)->first()
             ?? throw NotFoundException::assignment();
 
@@ -57,7 +65,7 @@ class RecordProgress
      * @throws NotFoundException
      * @throws ValidationException
      */
-    private function apply(User $learner, Assignment $assignment, ProgressStatus $status, ?int $score): ?bool
+    private function write(User $learner, Assignment $assignment, ProgressStatus $status, ?int $score): ?bool
     {
         $targeting = AssignmentPolicy::targeting($learner)->whereKey($assignment->id)->with('contentItem')->sharedLock()->first()
             ?? throw NotFoundException::assignment();
@@ -112,17 +120,12 @@ class RecordProgress
         }
     }
 
-    /**
-     * A plain read first: a locking read of a missing row takes a gap lock, and two
-     * first writes would then deadlock instead of hitting the unique key.
-     */
     private function lockProgress(User $learner, Assignment $assignment): ?Progress
     {
-        $id = Progress::query()
+        return Progress::query()
             ->where('assignment_id', $assignment->id)
             ->where('user_id', $learner->id)
-            ->value('id');
-
-        return $id === null ? null : Progress::query()->whereKey($id)->lockForUpdate()->first();
+            ->lockForUpdate()
+            ->first();
     }
 }

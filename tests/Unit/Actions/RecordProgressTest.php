@@ -10,6 +10,7 @@ use App\Models\AuditEntry;
 use App\Models\ContentItem;
 use App\Models\Progress;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 beforeEach(function () {
@@ -108,5 +109,26 @@ test('a learner removed from the group after the lookup throws not found and wri
 
     expect(fn () => app(RecordProgress::class)->handle($priya, $assignment, ProgressStatus::InProgress, null))
         ->toThrow(NotFoundException::class, 'Assignment not found.')
+        ->and(Progress::query()->count())->toBe(0);
+});
+
+test('a learner removed from the group after the write throws not found and keeps nothing', function () {
+    [$group, , $content, $priya] = cardiologyGroup();
+    $assignment = Assignment::factory()->for($group)->for($content, 'contentItem')->create();
+    $step = 'before read';
+    $savedBeforeRead = null;
+
+    DB::beforeExecuting(function (string $query) use (&$step, &$savedBeforeRead, $group, $priya) {
+        if ($step === 'before read' && str_contains($query, 'as `pair_rows`')) {
+            $step = 'done';
+            $savedBeforeRead = Progress::query()->count();
+            $group->learners()->detach($priya);
+        }
+    });
+
+    expect(fn () => app(RecordProgress::class)->handle($priya, $assignment, ProgressStatus::InProgress, null))
+        ->toThrow(NotFoundException::class, 'Assignment not found.')
+        ->and($step)->toBe('done')
+        ->and($savedBeforeRead)->toBe(1)
         ->and(Progress::query()->count())->toBe(0);
 });
