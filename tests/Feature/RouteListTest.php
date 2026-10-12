@@ -26,6 +26,7 @@ test('the application serves only its own routes: no Passport management, no sta
             'GET|HEAD api/v1/groups/{group}/audit',
             'GET|HEAD api/v1/learners',
             'GET|HEAD api/v1/me',
+            'GET|HEAD api/v1/me/assignments',
             'GET|HEAD login',
             'GET|HEAD mcp',
             'GET|HEAD oauth/authorize',
@@ -43,5 +44,6 @@ test('the application serves only its own routes: no Passport management, no sta
             'POST oauth/authorize',
             'POST oauth/register',
             'POST oauth/token',
+            'PUT api/v1/me/assignments/{learnerAssignment}/progress',
         ]);
 });

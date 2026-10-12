@@ -8,7 +8,7 @@ A learner sees their own assignments with the derived status, and records progre
 
 ## Read first
 
-- TDD: Learner endpoints (the table and the RecordProgress rules), Status and the behind rule (the status table), Query counts (`GET /api/v1/me/assignments`), Concurrency (the second and fifth bullets).
+- TDD: Learner endpoints (the table and the RecordProgress rules), Status and the behind rule (the status table), Query counts (`GET /api/v1/me/assignments`), Concurrency (the bullets about a double-tapped progress update and an assignment removed while a learner submits progress).
 - api-contract.md: section 4, the `already_completed` error.
 - ADR-005, ADR-008.
 

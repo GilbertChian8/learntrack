@@ -8,7 +8,7 @@ The three assignment actions (AssignContent with its five rules, ChangeDueDate, 
 
 ## Read first
 
-- TDD: Educator endpoints (the last five rows and the AssignContent rules), Database Design notes (Soft delete, Subset assignments, Time zones, Audit log actions), Concurrency (the first and the sixth bullet).
+- TDD: Educator endpoints (the last five rows and the AssignContent rules), Database Design notes (Soft delete, Subset assignments, Time zones, Audit log actions), Concurrency (the bullets about two educators assigning the same content and Claude retrying assign_content).
 - api-contract.md: Dates and times, Shared objects (`assignment`, `audit_entry`, the `changes` table), section 3 from `GET /api/v1/groups/{group}/assignments` to the end.
 - ADR-004, ADR-005.
 
