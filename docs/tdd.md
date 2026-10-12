@@ -392,7 +392,7 @@ The resolver calls GroupProgress, which looks the group up through the educator'
 | POST /oauth/authorize, DELETE /oauth/authorize | Approve or deny |
 | POST /oauth/token | Authorization code with PKCE, and refresh |
 | POST /oauth/register | Dynamic client registration. Claude registers itself here before the first login |
-| GET /.well-known/oauth-protected-resource, GET /.well-known/oauth-authorization-server | The discovery documents Claude reads after the first 401 |
+| GET /.well-known/oauth-protected-resource/mcp, GET /.well-known/oauth-authorization-server | The discovery documents Claude reads after the first 401, which names the first one. laravel/mcp also serves both at the root and with other path suffixes |
 | POST /mcp | The MCP endpoint. auth:api plus the educator role. Stateless: every call carries the token |
 
 Token lifetimes: MCP access tokens 1 hour, refresh tokens 30 days (Claude refreshes without asking the educator), authorization codes 10 minutes, API personal access tokens 8 hours. PKCE is required. The Passport signing keys and APP_KEY come from Secrets Manager (ADR-013). The housekeeping task runs passport:purge daily (ADR-014).

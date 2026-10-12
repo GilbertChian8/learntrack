@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\DB;
 
-use function Pest\Laravel\getJson;
+use function Pest\Laravel\json;
 use function Pest\Laravel\postJson;
 
 test('a call without a token answers 401 and points at the resource metadata', function () {
@@ -62,6 +62,8 @@ test('the endpoint keeps no session: no cookie and no session row', function () 
     expect(DB::table('sessions')->count())->toBe(0);
 });
 
-test('GET /mcp answers 405, since the server opens no event stream', function () {
-    getJson('/mcp')->assertMethodNotAllowed()->assertHeader('Allow', 'POST');
-});
+test('GET and DELETE /mcp answer 405 with an empty body, since the server opens no event stream', function (string $method) {
+    $response = json($method, '/mcp')->assertMethodNotAllowed()->assertHeader('Allow', 'POST');
+
+    expect($response->getContent())->toBe('');
+})->with(['GET', 'DELETE']);
