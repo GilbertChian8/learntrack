@@ -229,6 +229,19 @@ test('a removed, foreign, non-targeting or missing assignment answers the same 4
     'missing' => [fn () => 999999],
 ]);
 
+test('an educator answers 403 and writes nothing', function () {
+    [$group, $educator, $content] = cardiologyGroup();
+    $assignment = Assignment::factory()->for($group)->for($content, 'contentItem')->create();
+
+    actingAsEducator($educator);
+
+    putJson("/api/v1/me/assignments/{$assignment->id}/progress", ['status' => 'in_progress'])
+        ->assertForbidden()
+        ->assertExactJson(['error' => ['code' => 'forbidden', 'message' => 'Forbidden.']]);
+
+    expect(Progress::query()->count())->toBe(0);
+});
+
 test('a first write racing another one for the same pair leaves exactly one row', function (array $body, bool $changed, ProgressStatus $stored) {
     [$group, , $content, $priya] = cardiologyGroup();
     $assignment = Assignment::factory()->for($group)->for($content, 'contentItem')->create();

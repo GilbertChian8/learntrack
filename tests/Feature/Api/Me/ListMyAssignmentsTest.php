@@ -9,7 +9,6 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 use function Pest\Laravel\getJson;
-use function Pest\Laravel\json;
 
 beforeEach(function () {
     CarbonImmutable::setTestNow('2026-10-09 12:00:00');
@@ -163,18 +162,12 @@ test('the list runs one query for 5 and for 100 assignments', function () {
         ->and($queryCount(100))->toBe(1);
 });
 
-test('an educator answers 403 on the learner routes', function (string $method, string $uri) {
-    [$group, $educator] = cardiologyGroup();
-    $assignment = Assignment::factory()->for($group)->create();
+test('an educator answers 403', function () {
+    [, $educator] = cardiologyGroup();
 
     actingAsEducator($educator);
 
-    json($method, str_replace('{assignment}', (string) $assignment->id, $uri), ['status' => 'in_progress'])
+    getJson('/api/v1/me/assignments')
         ->assertForbidden()
         ->assertExactJson(['error' => ['code' => 'forbidden', 'message' => 'Forbidden.']]);
-
-    expect(Progress::query()->count())->toBe(0);
-})->with([
-    'GET /me/assignments' => ['GET', '/api/v1/me/assignments'],
-    'PUT /me/assignments/{assignment}/progress' => ['PUT', '/api/v1/me/assignments/{assignment}/progress'],
-]);
+});

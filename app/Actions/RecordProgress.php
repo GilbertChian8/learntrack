@@ -24,7 +24,8 @@ use Illuminate\Validation\ValidationException;
 class RecordProgress
 {
     /**
-     * The caller found the assignment through Scope::learnerAssignment.
+     * The caller found the assignment through Scope::learnerAssignment. The answer is read
+     * after the commit, so it shows writes that other requests committed while this one waited.
      *
      * @throws NotFoundException when it stopped targeting the learner in the meantime
      * @throws ValidationException
