@@ -31,7 +31,7 @@ The five read tools of mcp-tools.md, each with its input schema, output schema, 
 
 ## Acceptance tests
 
-Through the laravel/mcp test helpers, acting as a seeded educator with a fixed clock:
+Through `POST /mcp` (`callTool` in tests/Pest.php), acting as a seeded educator with a fixed clock:
 
 - `tools/list` returns the five names (plus the two write tools once ticket 13 merges), each with `readOnlyHint: true`, `idempotentHint: true` and an `outputSchema`.
 - `list_my_groups`: only the caller's groups, ordered by name, counts correct, text matches the contract; an educator with no groups gets the empty text.
