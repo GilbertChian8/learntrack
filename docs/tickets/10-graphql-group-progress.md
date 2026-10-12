@@ -14,7 +14,7 @@
 
 ## Allowed paths
 
-`graphql/schema.graphql`, `app/GraphQL/**`, `config/lighthouse.php`, `app/Providers/**` (registration only), `routes/graphql.php` if used, `tests/Feature/GraphQL/**`, `composer.json` and `composer.lock` (Lighthouse only). For step 1 only: `app/Queries/GroupProgress.php`, `app/Queries/PairRows.php`, `app/Queries/LearnerAggregation.php`, `tests/Unit/Queries/**`, `tests/Feature/Queries/**`, and the pair SQL in `docs/tdd.md` if its order changes.
+`graphql/schema.graphql`, `app/GraphQL/**`, `config/lighthouse.php`, `app/Providers/**` (registration only), `routes/graphql.php` if used, `tests/Feature/GraphQL/**`, `composer.json` and `composer.lock` (Lighthouse only), `bootstrap/providers.php` and `bootstrap/app.php` (Lighthouse's provider and the route file), `phpunit.xml` (the test memory limit), `Dockerfile` (`lighthouse:cache`). For step 1 only: `app/Queries/GroupProgress.php`, `app/Queries/PairRows.php`, `app/Queries/LearnerAggregation.php`, `tests/Unit/Queries/**`, `tests/Feature/Queries/**`, and the pair SQL in `docs/tdd.md` if its order changes.
 
 ## Steps
 
