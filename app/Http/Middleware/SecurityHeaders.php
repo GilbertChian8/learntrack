@@ -3,13 +3,15 @@
 namespace App\Http\Middleware;
 
 use Closure;
+use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Vite;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as ViewResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * The security headers of every response. The page's inline script and styles carry the nonce of the policy.
- * In local, the policy also allows the Vite dev server while it runs.
+ * The security headers of every response, and the policy of the three pages (app.blade.php).
+ * The page's inline script and styles carry the policy's nonce. In local, the policy also allows the running Vite dev server.
  */
 class SecurityHeaders
 {
@@ -28,14 +30,24 @@ class SecurityHeaders
             'X-Content-Type-Options' => 'nosniff',
             'X-Frame-Options' => 'DENY',
             'Referrer-Policy' => 'strict-origin-when-cross-origin',
-            'Content-Security-Policy' => $this->contentSecurityPolicy($nonce),
         ]);
 
         if ($request->isSecure()) {
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         }
 
+        if ($this->rendersAppView($response)) {
+            $response->headers->set('Content-Security-Policy', $this->contentSecurityPolicy($nonce));
+        }
+
         return $response;
+    }
+
+    private function rendersAppView(Response $response): bool
+    {
+        $content = $response instanceof ViewResponse ? $response->getOriginalContent() : null;
+
+        return $content instanceof View && $content->name() === 'app';
     }
 
     private function contentSecurityPolicy(string $nonce): string
