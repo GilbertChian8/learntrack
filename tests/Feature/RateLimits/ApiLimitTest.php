@@ -25,6 +25,24 @@ test('three hundred requests a minute pass, the next answers 429 in the contract
     assertTooManyRequests($me(), 60);
 });
 
+test('each response carries the limit and what is left of it, and the 429 also when it resets', function () use ($me) {
+    actingAsEducator();
+
+    $me()->assertHeader('X-RateLimit-Limit', '300')->assertHeader('X-RateLimit-Remaining', '299')->assertHeaderMissing('X-RateLimit-Reset');
+
+    foreach (range(2, 300) as $request) {
+        $last = $me();
+    }
+
+    $last->assertHeader('X-RateLimit-Remaining', '0');
+
+    $me()->assertTooManyRequests()
+        ->assertHeader('X-RateLimit-Limit', '300')
+        ->assertHeader('X-RateLimit-Remaining', '0')
+        ->assertHeader('Retry-After', '60')
+        ->assertHeader('X-RateLimit-Reset', (string) now()->addMinute()->getTimestamp());
+});
+
 test('REST and GraphQL share one budget', function () use ($me, $graphql) {
     actingAsEducator();
 
