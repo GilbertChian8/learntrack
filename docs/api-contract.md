@@ -25,7 +25,7 @@ The MCP tools have their own contract in [mcp-tools.md](mcp-tools.md). The reaso
 - Every date-time in a response is ISO 8601 with the UTC offset of the institution the data belongs to, for example `2026-10-16T23:59:59+02:00`. The database stores UTC; the offset is applied when the response is built.
 - A due date in a request (`due_at`) accepts two formats:
   - `YYYY-MM-DD`, read as 23:59:59 on that day in the institution's time zone.
-  - A full ISO 8601 date-time with an offset, for example `2026-10-16T18:00:00+02:00`.
+  - An RFC 3339 date-time with an offset, for example `2026-10-16T18:00:00+02:00`; a fraction of a second is dropped.
 - A due date must be in the future at the moment of the request, else 422.
 - Date-time values stored inside audit `changes` are UTC with a `Z` suffix and are returned as stored.
 
@@ -153,7 +153,7 @@ Any other HTTP error keeps its status with a snake_case code of its reason phras
 ```
 
 - `targeted_count`: the number of current group members the assignment targets. For scope `group` that is the group's learner count.
-- `learners`: the targeted learners who are current members of the group when scope is `learners` (so its length equals `targeted_count`); `null` when scope is `group`.
+- `learners`: the targeted learners who are current members of the group when scope is `learners` (so its length equals `targeted_count`), ordered by name, then id; `null` when scope is `group`.
 
 `audit_entry`:
 
@@ -421,6 +421,7 @@ Outcomes:
 
 - `added`: learners targeted for the first time by this call. For a created scope `group` assignment that is every current member.
 - `already_had_it`: learners named in `learner_ids` (or every member, when no ids were given) who were already targeted.
+- `added` and `already_had_it` are ordered by name, then id.
 
 409:
 
