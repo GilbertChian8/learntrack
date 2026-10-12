@@ -49,12 +49,12 @@ test('an educator initializes and gets the server name, version and instructions
     ]);
 });
 
-test('tools/list returns an empty list', function () {
+test('tools/list returns the read tools in the contract order', function () {
     actingAsEducator();
 
     postJson('/mcp', mcpRequest('tools/list'))
         ->assertOk()
-        ->assertJsonPath('result.tools', []);
+        ->assertJsonPath('result.tools.*.name', ['list_my_groups', 'get_group_progress', 'find_learners_behind', 'get_learner_summary', 'find_hardest_assignments']);
 });
 
 test('the endpoint keeps no session: no cookie and no session row', function () {

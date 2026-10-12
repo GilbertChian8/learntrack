@@ -2,6 +2,11 @@
 
 namespace App\Mcp\Servers;
 
+use App\Mcp\Tools\FindHardestAssignments;
+use App\Mcp\Tools\FindLearnersBehind;
+use App\Mcp\Tools\GetGroupProgress;
+use App\Mcp\Tools\GetLearnerSummary;
+use App\Mcp\Tools\ListMyGroups;
 use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Instructions;
 use Laravel\Mcp\Server\Attributes\Name;
@@ -18,5 +23,11 @@ class EducatorServer extends Server
         ],
     ];
 
-    protected array $tools = [];
+    protected array $tools = [
+        ListMyGroups::class,
+        GetGroupProgress::class,
+        FindLearnersBehind::class,
+        GetLearnerSummary::class,
+        FindHardestAssignments::class,
+    ];
 }
