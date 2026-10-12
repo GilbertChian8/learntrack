@@ -28,6 +28,7 @@ test('Claude and local redirect URIs are accepted', function (string $redirectUr
     'Claude on claude.com' => 'https://claude.com/api/mcp/auth_callback',
     'localhost, any port' => 'http://localhost:53682/callback',
     '127.0.0.1, any port' => 'http://127.0.0.1:6274/oauth/callback',
+    '[::1], any port' => 'http://[::1]:6274/callback',
 ]);
 
 test('any other redirect URI is refused and no client is created', function (string $redirectUri) {
