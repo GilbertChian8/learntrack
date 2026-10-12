@@ -86,6 +86,13 @@ jobs:
           SECURITY_GROUP: ${{ steps.env.outputs.task_security_group_id }}
         run: scripts/deploy/run-migration.sh "$CLUSTER" "$TASK_DEFINITION" "$SUBNETS" "$SECURITY_GROUP"
 
+      - name: Update the service
+        env:
+          CLUSTER: ${{ steps.env.outputs.cluster }}
+          SERVICE: ${{ steps.env.outputs.app_service }}
+          TASK_DEFINITION: ${{ steps.app.outputs.arn }}
+        run: scripts/deploy/update-service.sh "$CLUSTER" "$SERVICE" "$TASK_DEFINITION"
+
       - name: Register the housekeeping revision and move the schedule to it
         id: housekeeping
         env:
@@ -96,13 +103,6 @@ jobs:
           arn="$(scripts/deploy/register-task-definition.sh "$FAMILY" "$IMAGE")"
           scripts/deploy/update-schedule.sh "$SCHEDULE" "$arn"
           echo "arn=$arn" >> "$GITHUB_OUTPUT"
-
-      - name: Update the service
-        env:
-          CLUSTER: ${{ steps.env.outputs.cluster }}
-          SERVICE: ${{ steps.env.outputs.app_service }}
-          TASK_DEFINITION: ${{ steps.app.outputs.arn }}
-        run: scripts/deploy/update-service.sh "$CLUSTER" "$SERVICE" "$TASK_DEFINITION"
 
       - name: Print the URL and the revisions
         env:
