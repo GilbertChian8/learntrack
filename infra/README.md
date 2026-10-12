@@ -118,7 +118,7 @@ Do not replace one secret version on its own (`-replace`): its value would no lo
 Check that no secret is in the state:
 
 ```
-export AWS_REGION=eu-central-1
+export AWS_REGION=<region>                                 # the region of both folders
 terraform state pull | grep -c "BEGIN RSA PRIVATE KEY"     # 0
 terraform state pull | grep -c "base64:"                   # 0
 terraform state pull | grep -cF "$(aws secretsmanager get-secret-value --secret-id learntrack/prod/db-password --query SecretString --output text)"   # 0
