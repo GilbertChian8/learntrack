@@ -46,7 +46,7 @@ One host, one certificate, one ALB, one target group. Every path below is served
 
 Proxies: the ALB ends TLS, so the app sees plain HTTP. Generated URLs (the discovery documents, redirects) start from APP_URL, so a forged Host header cannot change them. TrustProxies trusts the VPC range and reads X-Forwarded-For, -Proto and -Port, so rate limits count the real client address and the app knows the request came over https. The ALB redirects port 80 to 443 (301). The app sends Strict-Transport-Security.
 
-Region: a Terraform variable. Default eu-central-1 (Frankfurt), so learner data stays inside the EU by default. A different region is one variable change.
+Region: a Terraform variable. Default eu-central-1 (Frankfurt), so learner data stays inside the EU by default. A different region is one variable change, made in the bootstrap and the environment together: the environment runs in the bootstrap's region, because the alarm topic lives there.
 
 ## Architecture diagram wires
 

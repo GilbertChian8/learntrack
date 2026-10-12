@@ -15,7 +15,7 @@ The remaining rate limits, log redaction, security headers and the alarm wiring 
 
 ## Allowed paths
 
-`app/Providers/AppServiceProvider.php` (rate limiters), `app/Http/Middleware/SecurityHeaders.php`, `app/Logging/**`, `bootstrap/app.php`, `config/logging.php`, `routes/*.php` (throttle middleware only), `README.md`, `docs/architecture.png` (adding the exported diagram if missing), `infra/env/*.tf` (alarm email wiring only, if ticket 05 left a gap), `tests/Feature/RateLimits/**`, `tests/Feature/Security/**`, `tests/Unit/Logging/**`.
+`app/Providers/AppServiceProvider.php` (rate limiters), `app/Http/Middleware/SecurityHeaders.php`, `app/Logging/**`, `bootstrap/app.php`, `config/logging.php`, `routes/*.php` (throttle middleware only), `README.md`, `docs/architecture.png` (adding the exported diagram if missing), `infra/env/*.tf` (alarm wiring to the bootstrap topic only, if ticket 05 left a gap), `tests/Feature/RateLimits/**`, `tests/Feature/Security/**`, `tests/Unit/Logging/**`.
 
 ## Steps
 

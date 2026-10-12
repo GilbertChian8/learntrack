@@ -22,13 +22,13 @@ Two roles, assumed with GitHub OIDC. No AWS key is stored anywhere.
 
 ## Variables
 
-Variable values are not committed. Copy an example file, fill it in, and keep it local (`*.tfvars` is gitignored). The pipeline (ticket 05) passes the same values as `TF_VAR_*` from GitHub repository variables.
+Variable values are not committed. Copy an example file, fill it in, and keep it local (`*.tfvars` is gitignored). The pipeline (ticket 05) passes the environment's values as `TF_VAR_*` from GitHub repository variables. The bootstrap's values, the alarm email among them, stay local.
 
 Bootstrap (`bootstrap/terraform.tfvars.example`):
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `region` | `eu-central-1` | Region of the bucket, the role and the repository |
+| `region` | `eu-central-1` | Region of the bucket, the repository and the alarm topic. The environment uses the same region |
 | `domain_name` | none | The domain the app runs on. The hosted zone is for this name |
 | `github_repository` | none | `owner/name` of the repository the GitHub roles trust |
 | `alarm_email` | none | Gets the alarms of every environment. Confirm it once from the AWS email |
@@ -38,7 +38,7 @@ Environment (`env/prod.tfvars.example`):
 | Variable | Default | Meaning |
 |---|---|---|
 | `environment` | `prod` | Used in every name |
-| `region` | `eu-central-1` | Region of the environment |
+| `region` | `eu-central-1` | Region of the environment. Same as the bootstrap, because the alarm topic is there |
 | `domain_name` | none | Same as the bootstrap |
 | `hosted_zone_id` | none | The bootstrap output `hosted_zone_id` |
 | `db_instance_class` | `db.t4g.micro` | RDS instance class |
@@ -60,13 +60,13 @@ terraform output
 
 Then:
 
-1. Delegate `domain_name` to the 4 `name_servers`. For a subdomain, add 4 NS records with that name at the parent domain's DNS provider. For a whole domain, set them at the registrar.
-2. Before the first apply in `env/`, check the delegation and the CAA records. The certificate cannot be validated without them.
+1. Delegate `domain_name` to the 4 `name_servers`. For a subdomain, add 4 NS records with that name at the parent domain's DNS provider. For a whole domain, set them at the registrar. The parent domain's DNS provider must allow NS records on a subdomain. If it does not, move the parent domain's DNS to a provider that does, or give the app a domain of its own.
+2. Before the first apply in `env/`, check the delegation and the CAA records. The certificate cannot be validated without them. The first name above `domain_name` that has CAA records decides: it must allow `amazon.com`. No CAA record at any level is fine.
    ```
    dig NS <domain_name> +short        # the 4 name_servers
-   dig CAA <parent domain> +short     # nothing, or a record that allows amazon.com
+   dig CAA <name> +short              # each name above domain_name, up to the registered domain
    ```
-3. Confirm the alarm email from the AWS message. Once: the subscription stays when the environment is destroyed.
+3. Confirm the alarm email from the AWS message within 48 hours. AWS deletes an unconfirmed subscription after that, and the next bootstrap apply creates it again and sends a new message. Once confirmed, it stays when the environment is destroyed.
 
 The bootstrap state is local (`infra/bootstrap/terraform.tfstate`, gitignored). Keep a copy outside the repository. If it is lost, write the same `terraform.tfvars` and import the resources:
 
@@ -99,7 +99,7 @@ terraform plan -var-file=prod.tfvars
 terraform apply -var-file=prod.tfvars
 ```
 
-The first apply takes about 20 minutes, most of it RDS Multi-AZ. The backend block expects the state bucket in `eu-central-1`. If the bootstrap runs in another region, add `-backend-config="region=<region>"`.
+The first apply takes about 20 minutes, most of it RDS Multi-AZ. The environment runs in the bootstrap's region: its alarms send to the bootstrap's topic, and an alarm or an EventBridge rule can only send to a topic in its own region. The backend block expects the state bucket in `eu-central-1`. If the bootstrap runs in another region, set the same `region` in both folders and add `-backend-config="region=<region>"`.
 
 A second environment needs its own variables, its own state key (`-backend-config="key=env/<environment>/terraform.tfstate"`) and its own deploy and plan roles.
 
