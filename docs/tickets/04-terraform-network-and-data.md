@@ -36,7 +36,7 @@ The AWS foundation as Terraform: the one-time bootstrap (state, OIDC, deploy rol
 - `terraform state pull | grep -c "BEGIN RSA PRIVATE KEY"` prints `0`, and the same for the database password and `APP_KEY` values (`grep -c "base64:"` prints `0`).
 - The database is not publicly accessible and its security group has one ingress rule, from the app group, on 3306 (`aws ec2 describe-security-groups` output in the PR).
 - The app security group's only ingress is 8080 from the ALB group.
-- `terraform destroy` leaves nothing behind except the bootstrap resources (`aws resourcegroupstaggingapi get-resources` filtered on the `Project=learntrack` tag returns only bootstrap resources once its index catches up, which can take up to an hour), and the hosted zone's nameservers are the same before and after.
+- `terraform destroy` leaves nothing behind except the bootstrap resources (`aws resourcegroupstaggingapi get-resources` filtered on the `Project=learntrack` tag returns only bootstrap resources, apart from resources the eventually consistent index still lists that are confirmed gone by their own describe call), and the hosted zone's nameservers are the same before and after.
 
 ## Out of scope
 
