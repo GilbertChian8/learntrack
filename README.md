@@ -134,7 +134,7 @@ LearnTrack runs on AWS: two ECS Fargate tasks behind a load balancer, RDS MySQL 
 4. moves the service to the new image and waits until it is stable;
 5. moves the daily housekeeping task to the new image.
 
-The app then answers on `https://<domain>`, so `<host>` above is `<domain>`. A new environment starts with an empty database: the pipeline runs the migrations only.
+The app then answers on `https://<domain>`, so `<host>` above is `<domain>`. A new environment starts with an empty database: the pipeline runs the migrations only. Seeding it for the first login is part of the launch check, [ticket 15](docs/tickets/15-launch-check.md).
 
 **Roll back.** A new image that fails the `/up` health check is rolled back by ECS by itself. To go back to an earlier deploy, move the service to that run's app revision with one command, as in [infra/README.md](infra/README.md) (Roll back). Migrations only add, so an older image runs on the newer schema.
 
