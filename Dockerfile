@@ -22,8 +22,7 @@ ENV HEALTHCHECK_PATH=/up \
     PHP_OPCACHE_ENABLE=1 \
     PHP_OPCACHE_VALIDATE_TIMESTAMPS=0
 # The RDS certificate authorities, for MYSQL_ATTR_SSL_CA in AWS.
-ADD --checksum=sha256:fe45bbebf92ad3e27a583bbb2ddd1553c521ed4d49af5514dc0a40372ea5395c --chmod=644 \
-    https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem /etc/ssl/certs/rds-global-bundle.pem
+COPY docker/rds-global-bundle.pem /etc/ssl/certs/rds-global-bundle.pem
 COPY --chown=www-data:www-data . /var/www/html
 COPY --chown=www-data:www-data --from=vendor /app/vendor /var/www/html/vendor
 COPY --chown=www-data:www-data --from=assets /app/public/build /var/www/html/public/build
