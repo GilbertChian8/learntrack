@@ -29,11 +29,6 @@ use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 #[IsIdempotent]
 class GetLearnerSummary extends BaseTool
 {
-    /**
-     * The name searched for, which the candidates text quotes.
-     */
-    private string $searchedName = '';
-
     public function schema(JsonSchema $schema): array
     {
         return [
@@ -76,20 +71,19 @@ class GetLearnerSummary extends BaseTool
      */
     protected function answer(Request $request): array
     {
-        $validated = $request->validate([
-            'learner_id' => ['required_without:name', 'integer'],
+        $request->validate([
+            'learner_id' => ['required_without:name', 'integer:strict'],
             'name' => ['string', 'min:2'],
         ], [
             'learner_id.required_without' => 'Give a learner_id or a name.',
         ]);
         $educator = $this->educator($request);
 
-        if (isset($validated['learner_id'])) {
-            return $this->summaryOf(LearnerSummary::for($educator, (int) $validated['learner_id']));
+        if ($request->has('learner_id')) {
+            return $this->summaryOf(LearnerSummary::for($educator, $request->integer('learner_id')));
         }
 
-        $this->searchedName = $validated['name'];
-        $candidates = LearnerSummary::candidates($educator, $validated['name']);
+        $candidates = LearnerSummary::candidates($educator, $request->string('name')->value());
 
         return match (count($candidates)) {
             0 => throw NotFoundException::learner(),
@@ -106,12 +100,12 @@ class GetLearnerSummary extends BaseTool
         };
     }
 
-    protected function summary(array $answer): string
+    protected function summary(array $answer, Request $request): string
     {
         if ($answer['learner'] === null) {
             $candidates = array_map(fn (array $candidate) => $candidate['name'].' ('.implode(', ', $candidate['groups']).')', $answer['candidates']);
 
-            return count($candidates)." learners match \"{$this->searchedName}\": ".implode(', ', $candidates).'. '
+            return count($candidates)." learners match \"{$request->string('name')->value()}\": ".implode(', ', $candidates).'. '
                 .'Ask which one is meant, then call again with the learner_id.';
         }
 

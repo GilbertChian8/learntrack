@@ -57,8 +57,8 @@ class GetGroupProgress extends BaseTool
 
     protected function answer(Request $request): array
     {
-        $validated = $request->validate(['group_id' => ['required', 'integer']]);
-        $progress = GroupProgress::for($this->educator($request), (int) $validated['group_id']);
+        $request->validate(['group_id' => ['required', 'integer:strict']]);
+        $progress = GroupProgress::for($this->educator($request), $request->integer('group_id'));
 
         return [
             'group' => ['id' => $progress->groupId, 'name' => $progress->groupName, 'institution' => $progress->institutionName],
@@ -80,7 +80,7 @@ class GetGroupProgress extends BaseTool
     /**
      * The completion is total completed over total targeted, as a whole percentage.
      */
-    protected function summary(array $answer): string
+    protected function summary(array $answer, Request $request): string
     {
         $assignments = $answer['assignments'];
         $targeted = array_sum(array_column($assignments, 'targeted_count'));

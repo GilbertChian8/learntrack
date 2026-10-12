@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\AssignmentScope;
+use App\Models\Assignment;
 use App\Models\Group;
 use Carbon\CarbonImmutable;
 
@@ -58,17 +60,21 @@ test('limit 0 and 21 answer a tool error', function (int $limit, string $message
     [21, 'The limit field must not be greater than 20.'],
 ]);
 
-test('a group with no active assignments gives an empty list and the empty text', function () {
+test('a group with no assignment that targets a learner gives an empty list and the empty text', function (Closure $assign) {
     $group = Group::factory()->create(['name' => 'Cardiology Group B']);
     $educator = educatorOf($group);
     learnerIn($group);
+    $assign($group);
 
     actingAsEducator($educator);
     $result = callTool('find_hardest_assignments', ['group_id' => $group->id])->json('result');
 
     expect($result['structuredContent'])->toBe(['group' => ['id' => $group->id, 'name' => 'Cardiology Group B'], 'assignments' => []])
-        ->and($result['content'])->toBe([['type' => 'text', 'text' => 'Cardiology Group B has no active assignments.']]);
-});
+        ->and($result['content'])->toBe([['type' => 'text', 'text' => 'Cardiology Group B has no active assignments that target a learner.']]);
+})->with([
+    'no active assignment' => fn (Group $group) => Assignment::factory()->for($group)->removed()->create(),
+    'one that targets nobody' => fn (Group $group) => Assignment::factory()->for($group)->create(['scope' => AssignmentScope::Learners]),
+]);
 
 test('another educator\'s group answers the not found error', function () {
     ['educator' => $educator] = cardiologyProgress();

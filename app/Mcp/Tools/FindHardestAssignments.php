@@ -43,11 +43,11 @@ class FindHardestAssignments extends BaseTool
 
     protected function answer(Request $request): array
     {
-        $validated = $request->validate([
-            'group_id' => ['required', 'integer'],
-            'limit' => ['integer', 'min:1', 'max:20'],
+        $request->validate([
+            'group_id' => ['required', 'integer:strict'],
+            'limit' => ['integer:strict', 'min:1', 'max:20'],
         ]);
-        $hardest = HardestAssignments::for($this->educator($request), (int) $validated['group_id'], (int) ($validated['limit'] ?? 5));
+        $hardest = HardestAssignments::for($this->educator($request), $request->integer('group_id'), $request->integer('limit', 5));
 
         return [
             'group' => ['id' => $hardest->groupId, 'name' => $hardest->groupName],
@@ -58,10 +58,10 @@ class FindHardestAssignments extends BaseTool
         ];
     }
 
-    protected function summary(array $answer): string
+    protected function summary(array $answer, Request $request): string
     {
         if ($answer['assignments'] === []) {
-            return "{$answer['group']['name']} has no active assignments.";
+            return "{$answer['group']['name']} has no active assignments that target a learner.";
         }
 
         $ranked = array_map(

@@ -83,7 +83,7 @@ class ChangeDueDate extends BaseTool
         ];
     }
 
-    protected function summary(array $answer): string
+    protected function summary(array $answer, Request $request): string
     {
         return $answer['message'];
     }

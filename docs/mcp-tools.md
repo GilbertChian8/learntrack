@@ -304,7 +304,7 @@ Output:
 | `groups[].counts` | counts | |
 | `groups[].assignments` | array | The assignments that target the learner, ordered by due date, then id |
 | `groups[].assignments[]` | object | `assignment_id`, `title`, `type`, `due_at`, `status`, `score`, `completed_at` |
-| `candidates` | array of object | Empty unless the name matched several learners. Each: `id`, `name`, `groups` (array of group names) |
+| `candidates` | array of object | Empty unless the name matched several learners. Ordered by name, then id. Each: `id`, `name`, `groups` (the names of your groups they are in, ordered by name, then id) |
 
 Example (one match):
 
@@ -393,7 +393,7 @@ Example:
 }
 ```
 
-Text: `Hardest assignments in Cardiology Group A: 1. Arrhythmia Question Set: 12 of 42 learners completed it (29%), average score 48. 2. ECG Basics: 39 of 42 learners completed it (93%).` With no assignments: `Cardiology Group A has no active assignments.`
+Text: `Hardest assignments in Cardiology Group A: 1. Arrhythmia Question Set: 12 of 42 learners completed it (29%), average score 48. 2. ECG Basics: 39 of 42 learners completed it (93%).` With no active assignment that targets a learner (none at all, or all of them target nobody): `Cardiology Group A has no active assignments that target a learner.`
 
 Errors: `Group not found.`
 

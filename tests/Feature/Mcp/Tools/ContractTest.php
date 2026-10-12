@@ -5,7 +5,7 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Database\Seeders\ContentSeeder;
 use Database\Seeders\DemoSeeder;
-use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 use function Pest\Laravel\seed;
@@ -40,11 +40,29 @@ test('tools/list publishes the five read tools with the contract title, descript
 
         expect($tool['title'])->toBe($title[1])
             ->and($tool['description'])->toBe($description[1])
-            ->and(Arr::except($tool['inputSchema'], 'additionalProperties'))->toEqual(Arr::except(json_decode($inputSchema[1], true), 'additionalProperties'))
+            ->and($tool['inputSchema'])->toEqual(json_decode($inputSchema[1], true))
             ->and($tool['annotations'])->toBe(['readOnlyHint' => true, 'idempotentHint' => true])
             ->and($tool['outputSchema']['type'])->toBe('object');
     }
 });
+
+test('a numeric string for an integer argument answers a tool error and reads nothing', function (string $tool, array $arguments, string $message) {
+    actingAsEducator();
+
+    DB::enableQueryLog();
+    $result = callTool($tool, $arguments)->json('result');
+    DB::disableQueryLog();
+
+    expect($result['isError'])->toBeTrue()
+        ->and($result['content'])->toBe([['type' => 'text', 'text' => $message]])
+        ->and(DB::getQueryLog())->toBe([]);
+})->with([
+    'get_group_progress' => ['get_group_progress', ['group_id' => '12'], 'The group id field must be an integer.'],
+    'find_learners_behind' => ['find_learners_behind', ['group_id' => '12'], 'The group id field must be an integer.'],
+    'find_hardest_assignments' => ['find_hardest_assignments', ['group_id' => '12'], 'The group id field must be an integer.'],
+    'find_hardest_assignments limit' => ['find_hardest_assignments', ['group_id' => 12, 'limit' => '5'], 'The limit field must be an integer.'],
+    'get_learner_summary' => ['get_learner_summary', ['learner_id' => '101'], 'The learner id field must be an integer.'],
+]);
 
 test('every example in mcp-tools.md section 3 matches its tool\'s published output schema', function () use ($readToolSections) {
     actingAsEducator();

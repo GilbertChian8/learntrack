@@ -46,7 +46,7 @@ class ListMyGroups extends BaseTool
         ];
     }
 
-    protected function summary(array $answer): string
+    protected function summary(array $answer, Request $request): string
     {
         $groups = $answer['groups'];
 

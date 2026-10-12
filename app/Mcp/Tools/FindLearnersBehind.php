@@ -51,8 +51,8 @@ class FindLearnersBehind extends BaseTool
 
     protected function answer(Request $request): array
     {
-        $validated = $request->validate(['group_id' => ['required', 'integer']]);
-        $progress = GroupProgress::for($this->educator($request), (int) $validated['group_id']);
+        $request->validate(['group_id' => ['required', 'integer:strict']]);
+        $progress = GroupProgress::for($this->educator($request), $request->integer('group_id'));
         $behind = array_values(array_filter($progress->learners, fn (LearnerProgress $learner) => $learner->behind));
 
         return [
@@ -72,7 +72,7 @@ class FindLearnersBehind extends BaseTool
     /**
      * One sentence per learner, reasons joined with "; ".
      */
-    protected function summary(array $answer): string
+    protected function summary(array $answer, Request $request): string
     {
         $group = $answer['group']['name'];
         $learnerCount = $answer['learner_count'];
