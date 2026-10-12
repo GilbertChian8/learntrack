@@ -66,7 +66,7 @@ The diagram ([architecture.png](architecture.png)) carries these arrows, numbere
 12. GitHub Actions -> IAM = assume a role with OIDC, no stored keys: pull requests the read-only plan role, main the deploy role (dashed)
 13. GitHub Actions -> ECR = push the image tagged with the git SHA
 14. GitHub Actions -> Terraform state (S3) and AWS = terraform plan and apply
-15. GitHub Actions -> ECS = run the migration task, register the task definition revision, update the service
+15. GitHub Actions -> ECS = register the app task definition revision, run the migration task with it, register the housekeeping revision and move the schedule to it, update the service
 
 # Database Design
 
@@ -475,7 +475,7 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 - ALB: HTTPS listener with the ACM certificate, HTTP listener that redirects to HTTPS, target group with health check GET /up and a 30 second deregistration delay.
 - CloudWatch: one log group (JSON logs, 30 day retention) and the alarms listed in the launch plan.
 - EventBridge Scheduler rule that runs the housekeeping command as a one-off task once a day.
-- GitHub Actions: ci (Pint, Larastan, Pest against a MySQL service container, eslint, tsc) on every pull request, plus terraform plan posted on the pull request; deploy on main: build the image tagged with the git SHA, push to ECR, terraform apply, register the app task definition revision, run the migration task with it and stop on failure, register the housekeeping revision, update the service, wait until stable and fail if the circuit breaker rolled it back; a manual destroy workflow as the off switch for cost.
+- GitHub Actions: ci (Pint, Larastan, Pest against a MySQL service container, eslint, tsc) on every pull request, plus terraform plan posted on the pull request; deploy on main: build the image tagged with the git SHA, push to ECR, terraform apply, register the app task definition revision, run the migration task with it and stop on failure, register the housekeeping revision and move the schedule to it, update the service, wait until stable and fail if the circuit breaker rolled it back; a manual destroy workflow as the off switch for cost.
 - The environment name and the region are variables; a second environment is one set of variables, one state key and its own deploy and plan roles.
 
 ## Flows 2 and 3: groups, assignments and progress (REST)

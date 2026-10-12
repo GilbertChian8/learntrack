@@ -16,7 +16,7 @@ Needs Terraform 1.12 or later and AWS credentials with admin rights for the firs
 
 Two roles, assumed with GitHub OIDC. No AWS key is stored anywhere.
 
-- `learntrack-deploy`: only for workflows on `main` (deploy, destroy). It pushes images, writes the state and applies. It changes IAM roles, logs, RDS, ECS, load balancers, alarms, schedules, rules and secrets only when their names start with `learntrack-` (or `learntrack/`, `/learntrack/`). EC2 network resources and ACM certificates have generated ids, and ECS task definitions are registered without a resource name, so it can change any of these. It cannot change itself or the plan role, and it cannot read secret values.
+- `learntrack-deploy`: only for workflows on `main` (deploy, destroy). Its sessions last up to 2 hours, because a first deploy or a rollback can take more than an hour. It pushes images, writes the state and applies. It changes IAM roles, logs, RDS, ECS, load balancers, alarms, schedules, rules and secrets only when their names start with `learntrack-` (or `learntrack/`, `/learntrack/`). EC2 network resources and ACM certificates have generated ids, and ECS task definitions are registered without a resource name, so it can change any of these. It cannot change itself or the plan role, and it cannot read secret values.
 - The deploy role cannot grant more than the boundary. It creates, changes and deletes `learntrack-*` roles only when they carry the permissions boundary `learntrack-boundary`, and it cannot remove a boundary or change the boundary policy. Roles get inline policies only; the deploy role cannot attach managed policies. The boundary allows ECR pull, logs on `/learntrack/*`, reading `learntrack/*` secrets, running `learntrack-*` tasks and passing `learntrack-*` roles to ECS tasks. Nothing else, so no role the pipeline makes can manage IAM.
 - `learntrack-plan`: only for pull requests (plan). Read-only: it reads the state and refreshes every resource, and it can write only the state lock file (`*.tflock`). A pull request branch never holds write access to the environment.
 
@@ -141,22 +141,30 @@ TF_VAR_hosted_zone_id: ${{ vars.HOSTED_ZONE_ID }}
   3. `terraform apply` in `infra/env`.
   4. Register a new revision of `learntrack-<env>-app` with the new image (`scripts/deploy/register-task-definition.sh`).
   5. Run `php artisan migrate --force` as a one-off task with that revision (`scripts/deploy/run-migration.sh`). It prints the task's logs. A failed migration stops the run, and the service keeps its revision.
-  6. Register a new revision of `learntrack-<env>-housekeeping` with the new image.
+  6. Register a new revision of `learntrack-<env>-housekeeping` with the new image and move the daily schedule to it (`scripts/deploy/update-schedule.sh`).
   7. Move the service to the new app revision and wait until it is stable (`scripts/deploy/update-service.sh`). The run fails when the deployment circuit breaker rolled the revision back.
-  8. Print the URL and the revision.
+  8. Print the URL and both new revisions in the run summary.
 - `destroy.yml`, by hand from `main`: see Destroy and rebuild.
 
-Terraform owns the shape of the task definitions: size, environment, secrets and logs. The pipeline copies the latest revision and changes only the image, so ECS shows which commit runs. The service ignores `task_definition` changes, and the schedule runs the latest housekeeping revision. The housekeeping task runs every day at 03:00 UTC; a run that exits non-zero or fails to start sends an email to the alarm topic.
+Terraform owns the shape of the task definitions: size, environment, secrets and logs. The pipeline copies the latest revision and changes only the image, so ECS shows which commit runs. The pipeline also chooses the revision that runs: the service and the schedule ignore Terraform's revision, so Terraform's `placeholder` image never runs. The housekeeping task runs every day at 03:00 UTC. A run that exits non-zero or fails to start sends an email to the alarm topic, and so does a schedule that cannot start the task.
+
+The image trusts the RDS certificate authorities from `docker/rds-global-bundle.pem`, a copy of https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem from October 2026. Refresh it when AWS adds roots for a new region or announces new RDS certificate authorities.
 
 ## Roll back
 
-Move the service back to the previous app revision with one command:
+Roll back to the app revision of the last good deploy. Each `deploy.yml` run prints its two revisions in the run summary. Move the service with one command:
 
 ```
-aws ecs update-service --cluster learntrack-prod --service learntrack-prod-app --task-definition learntrack-prod-app:<previous revision>
+aws ecs update-service --cluster learntrack-prod --service learntrack-prod-app --task-definition <app revision ARN from the good run>
 ```
 
-`aws ecs list-task-definitions --family-prefix learntrack-prod-app --sort DESC --max-items 3` shows the newest revisions, and `aws ecs wait services-stable --cluster learntrack-prod --services learntrack-prod-app` waits for the rollback. Migrations are expand-only, so the previous revision runs on the new schema. The daily task runs the newest housekeeping revision; to roll it back too, deregister that revision with `aws ecs deregister-task-definition`. The next push to `main` deploys again.
+`aws ecs wait services-stable --cluster learntrack-prod --services learntrack-prod-app` waits for the rollback. To see which image a revision runs:
+
+```
+aws ecs describe-task-definition --task-definition learntrack-prod-app:<revision> --query 'taskDefinition.containerDefinitions[0].image' --output text
+```
+
+To roll back the daily task too: `scripts/deploy/update-schedule.sh learntrack-prod-housekeeping <housekeeping revision ARN from the good run>`. Migrations are expand-only, so the old revisions run on the new schema. The next push to `main` deploys again.
 
 The deployment circuit breaker rolls back by itself when a new revision fails the `/up` health check.
 
@@ -165,6 +173,8 @@ The deployment circuit breaker rolls back by itself when a new revision fails th
 To stop paying for the environment, run `destroy.yml` from `main` (Actions, destroy, Run workflow) and type `destroy`. It scales the service to 0, then runs `terraform destroy`. The bootstrap stays: the state bucket, the roles, the images, the hosted zone and the alarm topic with its confirmed email.
 
 To rebuild, run `deploy.yml` from `main` (Actions, deploy, Run workflow), or push to `main`. Nothing else is needed. This deploy takes longer than the others, because RDS Multi-AZ takes about 20 minutes to create.
+
+Deploy and destroy share one concurrency group, and GitHub keeps only one waiting run per group: a newer deploy replaces a destroy that waits behind a running deploy, and the reverse.
 
 ## Secrets
 
@@ -201,7 +211,7 @@ For `env/` only, in `eu-central-1`. On-demand prices from the AWS Price List fil
 | Application Load Balancer | $0.027 | plus $0.008 per LCU-hour used |
 | 2 public IPv4 addresses (load balancer) | $0.010 | $0.005 each |
 | 2 Fargate tasks, 0.5 vCPU and 1 GB each | $0.057 | $0.04656 per vCPU-hour, $0.00511 per GB-hour |
-| CloudWatch, 10 alarm metrics | $0.001 | $0.10 per alarm metric a month, plus $0.63 per GB of logs |
+| CloudWatch, 11 alarm metrics | $0.002 | $0.10 per alarm metric a month, plus $0.63 per GB of logs |
 | **Total** | **about $0.26** | about $187 a month if left running |
 
 The migration task on each deploy and the daily housekeeping task run for about a minute each, so they cost almost nothing. The bootstrap costs a few cents a day when the environment is down: the hosted zone, the state bucket and the stored images.
