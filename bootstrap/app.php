@@ -21,9 +21,12 @@ return Application::configure(basePath: dirname(__DIR__))
         apiPrefix: 'api/v1',
         then: function (): void {
             Route::group([], base_path('routes/graphql.php'));
+            Route::group([], base_path('routes/oauth.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_X_FORWARDED_PORT);
+
         $middleware->encryptCookies(except: ['appearance']);
 
         $middleware->web(append: [
