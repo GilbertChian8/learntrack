@@ -33,12 +33,11 @@ test('a bare date is 23:59:59 that day in the institution\'s time zone, in UTC',
         ->and(DueDate::parse('2026-12-16', $berlin())->toIso8601ZuluString())->toBe('2026-12-16T22:59:59Z');
 });
 
-test('an ISO 8601 date-time with an offset keeps its instant, in UTC', function (string $input, string $utc) use ($berlin) {
+test('an RFC 3339 date-time with an offset keeps its instant, in UTC', function (string $input, string $utc) use ($berlin) {
     expect(DueDate::parse($input, $berlin())->toIso8601ZuluString())->toBe($utc);
 })->with([
     'with an offset' => ['2026-10-16T18:00:00+02:00', '2026-10-16T16:00:00Z'],
     'in UTC' => ['2026-10-16T16:00:00Z', '2026-10-16T16:00:00Z'],
-    'without seconds' => ['2026-10-16T18:00-05:00', '2026-10-16T23:00:00Z'],
     'with a fraction, cut to the second' => ['2026-10-16T18:00:00.750+02:00', '2026-10-16T16:00:00Z'],
 ]);
 
@@ -53,6 +52,7 @@ test('anything else is not a date and carries the input', function (string $inpu
     'empty' => '',
     'a day that does not exist' => '2026-02-30',
     'a date-time without an offset' => '2026-10-16T18:00:00',
+    'a date-time without seconds' => '2026-10-16T18:00+02:00',
     'a time zone name instead of an offset' => '2026-10-16T18:00:00Europe/Berlin',
     'an hour out of range' => '2026-10-16T24:00:00Z',
     'a trailing newline' => "2026-10-16\n",
