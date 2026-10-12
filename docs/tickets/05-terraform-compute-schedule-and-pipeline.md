@@ -13,7 +13,7 @@ The application runs on ECS Fargate behind the ALB with HTTPS on the domain, the
 
 ## Allowed paths
 
-`infra/env/**`, `infra/README.md`, `.github/workflows/**`, `scripts/deploy/**`, `Dockerfile` (the RDS certificate bundle only).
+`infra/env/**`, `infra/README.md`, `.github/workflows/**`, `scripts/deploy/**`, `Dockerfile` (the RDS certificate bundle only), `infra/bootstrap/github.tf` and `variables.tf` (the OIDC trust only: the repository uses GitHub's immutable subjects).
 
 ## Steps
 

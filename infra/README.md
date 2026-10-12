@@ -30,7 +30,7 @@ Bootstrap (`bootstrap/terraform.tfvars.example`):
 |---|---|---|
 | `region` | `eu-central-1` | Region of the bucket, the repository and the alarm topic. The environment uses the same region |
 | `domain_name` | none | The domain the app runs on. The hosted zone is for this name |
-| `github_repository` | none | `owner/name` of the repository the GitHub roles trust |
+| `github_subject_prefix` | none | The OIDC subject prefix of the repository the GitHub roles trust, from `gh api repos/<owner>/<name>/actions/oidc/customization/sub --jq .sub_claim_prefix`. With GitHub's immutable subjects it holds the owner and repository ids, `repo:<owner>@<id>/<name>@<id>` |
 | `alarm_email` | none | Gets the alarms of every environment. Confirm it once from the AWS email |
 
 Environment (`env/prod.tfvars.example`):

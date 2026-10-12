@@ -7,8 +7,8 @@ locals {
   account_id = data.aws_caller_identity.current.account_id
 
   github_subjects = {
-    deploy = "repo:${var.github_repository}:ref:refs/heads/main"
-    plan   = "repo:${var.github_repository}:pull_request"
+    deploy = "${var.github_subject_prefix}:ref:refs/heads/main"
+    plan   = "${var.github_subject_prefix}:pull_request"
   }
 }
 
