@@ -97,9 +97,9 @@ One shape everywhere, including GraphQL requests rejected before the query runs:
 
 Every route finds its resources through a scoped lookup, and a miss names its subject in the message (`Group not found.`, `Content item not found.`). `Not found.` is the answer when there is nothing to name: an unknown path.
 
-The 401 response from `/api/v1/*`, `/graphql` and `/mcp` carries `WWW-Authenticate: Bearer`; on `/mcp` it also carries `resource_metadata` pointing at `/.well-known/oauth-protected-resource`, which laravel/mcp adds in ticket 11.
+The 401 response from `/api/v1/*` and `/graphql` carries `WWW-Authenticate: Bearer`. On `/mcp`, laravel/mcp sets it to `Bearer realm="mcp", resource_metadata="<APP_URL>/.well-known/oauth-protected-resource/mcp"`.
 
-An unknown path answers 404 `not_found`; a known path with the wrong method answers 405 `method_not_allowed`.
+An unknown path answers 404 `not_found`; a known path with the wrong method answers 405 `method_not_allowed`. One exception: `GET` and `DELETE /mcp` answer 405 with an empty body and `Allow: POST`, as the MCP transport asks of a server that opens no event stream (laravel/mcp).
 
 Any other HTTP error keeps its status with a snake_case code of its reason phrase; a failure that is not an HTTP error is 500 `server_error`.
 

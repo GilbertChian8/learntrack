@@ -37,9 +37,9 @@ One host, one certificate, one ALB, one target group. Every path below is served
 |---|---|---|
 | /api/v1/* | REST controllers | Bearer token (Passport), auth:api |
 | /graphql | Lighthouse | Bearer token, auth:api, educator role |
-| /mcp | laravel/mcp web server (Streamable HTTP) | Bearer token from the OAuth flow, auth:api, educator role |
+| /mcp | laravel/mcp web server (Streamable HTTP). POST only; GET and DELETE answer 405 | Bearer token from the OAuth flow, auth:api, educator role |
 | /oauth/authorize, /oauth/token, /oauth/register | Passport and Mcp::oauthRoutes() | Web session for authorize, public for token and register |
-| /.well-known/oauth-protected-resource, /.well-known/oauth-authorization-server | Mcp::oauthRoutes() | Public |
+| /.well-known/oauth-protected-resource, /.well-known/oauth-authorization-server, each also with a path suffix (/.well-known/oauth-protected-resource/mcp is the one the 401 names) | Mcp::oauthRoutes() | Public |
 | / | Web controller | Guest: redirect to /login. Signed in: the notice page (ticket 11) |
 | /login, /logout | Web controllers | Web session (database driver) |
 | /up | Laravel health route | Public, used by the ALB health check |
@@ -514,7 +514,7 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 11\. **MCP server and the OAuth flow (3 days)** [ADR-001, ADR-002, ADR-003, ADR-017]
 
 - laravel/mcp, EducatorServer at /mcp, Mcp::oauthRoutes(), the educator-only middleware.
-- The login, consent and error pages as Inertia pages (React, TypeScript, Tailwind), trimmed from the Laravel React starter kit. Passport::authorizationView returns Inertia::render with the client name, the scopes, the auth token and the state. The learner message on consent.
+- The login, consent and error pages as Inertia pages (React, TypeScript, Tailwind), trimmed from the Laravel React starter kit. Passport::authorizationView returns Inertia::render with the client name, what the client will be able to do, the auth token and the state. The learner message on consent.
 - TrustProxies, token lifetimes, the housekeeping command (passport:purge and expired cache rows).
 - Checked with the MCP Inspector locally and with Claude Code against http://localhost. Claude Desktop and the Claude app require HTTPS, so their check is against a tunnel (cloudflared) and then the deployed environment (item 15).
 
