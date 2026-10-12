@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Role;
 use App\Logging\RedactSensitiveData;
 use Monolog\Level;
 use Monolog\LogRecord;
@@ -62,7 +63,7 @@ test('an exception keeps its class, code and file, and loses the email in its me
     ])->and($logged['file'])->toStartWith(__FILE__.':');
 });
 
-test('an object that turns into JSON is checked like an array', function () use ($redact) {
+test('an object is checked like an array: JSON, plain and string objects', function () use ($redact) {
     $user = new class implements JsonSerializable
     {
         /**
@@ -73,6 +74,24 @@ test('an object that turns into JSON is checked like an array', function () use 
             return ['id' => 5, 'name' => 'Sara Lindqvist', 'email' => 'sara@example.edu', 'role' => 'learner'];
         }
     };
+    $row = (object) ['user_id' => 5, 'name' => 'Sara Lindqvist', 'contact' => 'sara@example.edu'];
+    $text = new class implements Stringable
+    {
+        public function __toString(): string
+        {
+            return 'Invite sent to sara@example.edu';
+        }
+    };
 
-    expect($redact(['user' => $user])->context)->toBe(['user' => ['id' => 5, 'role' => 'learner']]);
+    expect($redact(['user' => $user, 'row' => $row, 'text' => $text])->context)->toBe([
+        'user' => ['id' => 5, 'role' => 'learner'],
+        'row' => ['user_id' => 5, 'contact' => '[redacted]'],
+        'text' => 'Invite sent to [redacted]',
+    ]);
+});
+
+test('dates and enums stay as they are', function () use ($redact) {
+    $date = new DateTimeImmutable('2026-10-12 09:00:00');
+
+    expect($redact(['at' => $date, 'role' => Role::Learner])->context)->toBe(['at' => $date, 'role' => Role::Learner]);
 });

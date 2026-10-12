@@ -2,11 +2,14 @@
 
 namespace App\Logging;
 
+use DateTimeInterface;
 use JsonSerializable;
 use Monolog\Formatter\JsonFormatter;
 use Monolog\LogRecord;
 use Monolog\Processor\ProcessorInterface;
+use Stringable;
 use Throwable;
+use UnitEnum;
 
 /**
  * Removes names, emails, passwords and tokens from a log record, at any depth.
@@ -55,6 +58,9 @@ class RedactSensitiveData implements ProcessorInterface
             is_array($value) => $this->redactArray($value),
             $value instanceof Throwable => $this->redact((new JsonFormatter)->normalizeValue($value)),
             $value instanceof JsonSerializable => $this->redact($value->jsonSerialize()),
+            $value instanceof DateTimeInterface, $value instanceof UnitEnum => $value,
+            $value instanceof Stringable => $this->redactString((string) $value),
+            is_object($value) => $this->redactArray(get_object_vars($value)),
             default => $value,
         };
     }
