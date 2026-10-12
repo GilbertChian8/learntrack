@@ -26,7 +26,7 @@ Server instructions (the `instructions` text the client receives on initialize):
 
 - **Names** are snake_case, exactly as listed. Set them with the tool's `$name` property (or the Name attribute), never from the class name.
 - **Result shape.** Every successful call returns structured content (the object described under Output) and one text content item (the summary described under Text). The output schema published in `tools/list` describes the structured content. Both are built from the same PHP array, so they never disagree.
-- **Errors** are tool errors (`isError: true`) with one text item holding the exact message listed under Errors. They are not JSON-RPC protocol errors. Input that fails the schema is rejected by laravel/mcp validation with its own message; the schema's `description` fields are written so that message is useful.
+- **Errors** are tool errors (`isError: true`) with one text item holding the exact message listed under Errors. They are not JSON-RPC protocol errors. Input that fails the schema is a tool error too, and nothing is read or written. laravel/mcp does not check input against the schema, so each tool checks its arguments with Laravel validation rules that mirror the schema and answers with Laravel's message (for example `The group id field is required.`). An argument the schema does not name is refused with `The argument "learnerIds" is not in the input schema.`, so a misspelt name never widens a write.
 - **Not found.** A group, learner, assignment or content item that does not exist, or that the educator may not see, gets the same message (ADR-006): `Group not found.`, `Learner not found.`, `Assignment not found.`, `Content item not found.` (the shared exception's message, the same in every interface).
 - **Dates.** Every date-time in an answer is ISO 8601 with the institution's offset, for example `2026-10-16T23:59:59+02:00`. A `due_date` input accepts `YYYY-MM-DD` (23:59:59 on that day in the institution's time zone) or an RFC 3339 date-time with an offset, for example `2026-10-16T18:00:00+02:00`; a fraction of a second is dropped. It must be in the future.
 - **Learners** appear as `{ "id": 101, "name": "Sara Lindqvist" }` and nothing else. No tool has an email field, and no text summary contains an email address. A test asserts both over every tool.
@@ -447,18 +447,18 @@ Output:
 | `candidates` | array of object | Empty unless `result` is `candidates`. Each: `id`, `title`, `topic`, `type` |
 | `message` | string | What happened, in one or two sentences. Also the text summary |
 
-`added`, `already_had_it` and the assignment's `learners` are ordered by name, then id.
+`added`, `already_had_it` and the assignment's `learners` are ordered by name, then id. `candidates` are ordered by title, then id.
 
 The result rules are the AssignContent rules in the TDD, with REST's 409 case returned here as `result: already_assigned` and `changed: false`, because for an AI client that is an answer, not a failure.
 
 | Case | `changed` | `result` | `message` |
 |---|---|---|---|
 | Created | true | `created` | `Assigned Heart Failure Question Set to Cardiology Group A, due 2026-10-16T23:59:59+02:00, for 2 learners: Sara Lindqvist, Tom Becker.` For the whole group: `..., for all 42 learners.` |
-| Learners added to a subset assignment | true | `learners_added` | `Heart Failure Question Set was already assigned in Cardiology Group A, due 2026-10-16T23:59:59+02:00. Added 1 learner: Priya Nair. 2 learners already had it: Sara Lindqvist, Tom Becker.` |
+| Learners added to a subset assignment | true | `learners_added` | `Heart Failure Question Set was already assigned in Cardiology Group A, due 2026-10-16T23:59:59+02:00. Added 1 learner: Priya Nair. 2 learners already had it: Sara Lindqvist, Tom Becker.` (the last sentence is left out when none of the named learners had it) |
 | Subset widened to the whole group (no `learner_ids` given) | true | `learners_added` | `Heart Failure Question Set was already assigned in Cardiology Group A to 2 learners, due 2026-10-16T23:59:59+02:00. Now assigned to the whole group, including learners who join later. Added 40 learners.` (names are listed after the count when 10 or fewer were added; when nobody was added the last sentence is `Every current learner already had it.`) |
 | Nothing to do | false | `unchanged` | `Heart Failure Question Set is already assigned to Cardiology Group A, due 2026-10-16T23:59:59+02:00, and every learner you named already has it. Nothing changed.` With no `learner_ids`: `..., and the whole group already has it. Nothing changed.` |
 | Different due date | false | `already_assigned` | `Heart Failure Question Set is already assigned to Cardiology Group A, due 2026-10-16T23:59:59+02:00, not 2026-10-23. Nothing changed. To move it, call change_due_date with assignment_id 41.` |
-| Several titles match | false | `candidates` | `3 content items match "heart": Heart Failure Question Set (question_set, Cardiology), Heart Sounds (article, Cardiology), Congenital Heart Disease (article, Pediatrics). Ask which one is meant, then call again with content_item_id.` |
+| Several titles match | false | `candidates` | `3 content items match "heart": Congenital Heart Disease (article, Pediatrics), Heart Failure Question Set (question_set, Cardiology), Heart Sounds (article, Cardiology). Ask which one is meant, then call again with content_item_id.` |
 
 Example (created):
 

@@ -2,6 +2,8 @@
 
 namespace App\Mcp\Servers;
 
+use App\Mcp\Tools\AssignContent;
+use App\Mcp\Tools\ChangeDueDate;
 use App\Mcp\Tools\FindHardestAssignments;
 use App\Mcp\Tools\FindLearnersBehind;
 use App\Mcp\Tools\GetGroupProgress;
@@ -29,5 +31,7 @@ class EducatorServer extends Server
         FindLearnersBehind::class,
         GetLearnerSummary::class,
         FindHardestAssignments::class,
+        AssignContent::class,
+        ChangeDueDate::class,
     ];
 }

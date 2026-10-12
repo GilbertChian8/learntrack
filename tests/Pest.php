@@ -112,6 +112,49 @@ function cardiologyGroup(): array
 }
 
 /**
+ * A learner as the MCP tools show one.
+ *
+ * @return array{id: int, name: string}
+ */
+function learnerItem(User $learner): array
+{
+    return ['id' => $learner->id, 'name' => $learner->name];
+}
+
+/**
+ * The assignment object for the Heart Failure Question Set of cardiologyGroup(), created at the test clock's 12:00 UTC.
+ *
+ * @param  list<array{id: int, name: string}>|null  $learners  null for scope group
+ * @return array<string, mixed>
+ */
+function heartFailureAssignment(Assignment $assignment, ?array $learners = null, string $dueAt = '2026-10-16T23:59:59+02:00'): array
+{
+    return [
+        'id' => $assignment->id,
+        'group_id' => $assignment->group_id,
+        'content' => ['id' => $assignment->content_item_id, 'title' => 'Heart Failure Question Set', 'topic' => 'Cardiology', 'type' => 'question_set', 'estimated_minutes' => 30],
+        'due_at' => $dueAt,
+        'scope' => $learners === null ? 'group' : 'learners',
+        'targeted_count' => $learners === null ? 3 : count($learners),
+        'learners' => $learners,
+        'created_at' => '2026-10-09T14:00:00+02:00',
+    ];
+}
+
+/**
+ * The Heart Failure Question Set of cardiologyGroup() assigned in the group, due 2026-10-16 in Berlin, created at the test clock's 12:00 UTC.
+ *
+ * @param  list<User>  $learners  empty for scope group
+ */
+function assignHeartFailure(Group $group, User $educator, ContentItem $content, array $learners = []): Assignment
+{
+    $factory = Assignment::factory()->for($group)->for($content, 'contentItem');
+
+    return ($learners === [] ? $factory : $factory->forLearners($learners))
+        ->create(['due_at' => '2026-10-16 21:59:59', 'created_by' => $educator->id, 'created_at' => '2026-10-09 12:00:00']);
+}
+
+/**
  * One row as PairRows returns it.
  *
  * @param  array<string, mixed>  $columns

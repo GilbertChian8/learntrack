@@ -54,7 +54,7 @@ test('tools/list names the tools in contract order', function () {
 
     postJson('/mcp', mcpRequest('tools/list'))
         ->assertOk()
-        ->assertJsonPath('result.tools.*.name', ['list_my_groups', 'get_group_progress', 'find_learners_behind', 'get_learner_summary', 'find_hardest_assignments']);
+        ->assertJsonPath('result.tools.*.name', ['list_my_groups', 'get_group_progress', 'find_learners_behind', 'get_learner_summary', 'find_hardest_assignments', 'assign_content', 'change_due_date']);
 });
 
 test('the endpoint keeps no session: no cookie and no session row', function () {
