@@ -3,11 +3,9 @@
 namespace App\GraphQL\Queries;
 
 use App\Exceptions\NotFoundException;
-use App\Models\User;
 use App\Queries\GroupProgress as GroupProgressQuery;
 use App\Queries\Results\LearnerProgress;
 use App\Queries\Results\Reason;
-use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 /**
  * Query.groupProgress. Maps the GroupProgress result to the schema types.
@@ -18,16 +16,13 @@ class GroupProgress
      * @param  array{groupId: string}  $args
      * @return array<string, mixed>
      */
-    public function __invoke(mixed $root, array $args, GraphQLContext $context): array
+    public function __invoke(mixed $root, array $args): array
     {
-        $educator = $context->user();
-        assert($educator instanceof User);
-
         if (! ctype_digit($args['groupId'])) {
             throw NotFoundException::group();
         }
 
-        $result = GroupProgressQuery::for($educator, (int) $args['groupId']);
+        $result = GroupProgressQuery::for(request()->user(), (int) $args['groupId']);
 
         return [
             'group' => ['id' => $result->groupId, 'name' => $result->groupName, 'institution' => $result->institutionName],
