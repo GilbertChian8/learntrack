@@ -25,7 +25,7 @@ test('a request line has the request id, the user id, the route and the status, 
     $lines = captureLogLines();
 
     $token = postJson('/api/v1/auth/login', ['email' => 'anna.keller@example.edu', 'password' => 'tr0ub4dor-and-3'])->assertOk()->json('data.token');
-    postJson('/api/v1/groups', ['name' => 'Body Marker Group'], ['Authorization' => "Bearer {$token}"])->assertCreated();
+    postJson('/api/v1/groups', ['name' => 'Cardiology Group D', 'note' => 'Body Marker'], ['Authorization' => "Bearer {$token}"])->assertCreated();
 
     [$login, $create] = requestLines($lines());
 
