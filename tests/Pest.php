@@ -1,12 +1,14 @@
 <?php
 
 use App\Enums\ContentType;
+use App\Models\Assignment;
 use App\Models\ContentItem;
 use App\Models\Group;
 use App\Models\Institution;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
@@ -105,6 +107,49 @@ function cardiologyGroup(): array
     });
 
     return [$group, $educator, $content, ...$learners->all()];
+}
+
+/**
+ * A learner as the MCP tools show one.
+ *
+ * @return array{id: int, name: string}
+ */
+function learnerItem(User $learner): array
+{
+    return ['id' => $learner->id, 'name' => $learner->name];
+}
+
+/**
+ * The assignment object for the Heart Failure Question Set of cardiologyGroup(), created at the test clock's 12:00 UTC.
+ *
+ * @param  list<array{id: int, name: string}>|null  $learners  null for scope group
+ * @return array<string, mixed>
+ */
+function heartFailureAssignment(Assignment $assignment, ?array $learners = null, string $dueAt = '2026-10-16T23:59:59+02:00'): array
+{
+    return [
+        'id' => $assignment->id,
+        'group_id' => $assignment->group_id,
+        'content' => ['id' => $assignment->content_item_id, 'title' => 'Heart Failure Question Set', 'topic' => 'Cardiology', 'type' => 'question_set', 'estimated_minutes' => 30],
+        'due_at' => $dueAt,
+        'scope' => $learners === null ? 'group' : 'learners',
+        'targeted_count' => $learners === null ? 3 : count($learners),
+        'learners' => $learners,
+        'created_at' => '2026-10-09T14:00:00+02:00',
+    ];
+}
+
+/**
+ * The Heart Failure Question Set of cardiologyGroup() assigned in the group, due 2026-10-16 in Berlin, created at the test clock's 12:00 UTC.
+ *
+ * @param  list<User>  $learners  empty for scope group
+ */
+function assignHeartFailure(Group $group, User $educator, ContentItem $content, array $learners = []): Assignment
+{
+    $factory = Assignment::factory()->for($group)->for($content, 'contentItem');
+
+    return ($learners === [] ? $factory : $factory->forLearners($learners))
+        ->create(['due_at' => '2026-10-16 21:59:59', 'created_by' => $educator->id, 'created_at' => '2026-10-09 12:00:00']);
 }
 
 /**
@@ -250,6 +295,45 @@ function learnerStanding(): array
 function mcpRequest(string $method, array $params = []): array
 {
     return ['jsonrpc' => '2.0', 'id' => 1, 'method' => $method, 'params' => $params];
+}
+
+/**
+ * Calls a tool of the EducatorServer as the acting user.
+ *
+ * @param  array<string, mixed>  $arguments
+ * @return TestResponse<Response>
+ */
+function callTool(string $name, array $arguments): TestResponse
+{
+    return postJson('/mcp', mcpRequest('tools/call', ['name' => $name, 'arguments' => $arguments]))->assertOk();
+}
+
+/**
+ * One tool as tools/list publishes it.
+ *
+ * @return array<string, mixed>
+ */
+function listedTool(string $name): array
+{
+    $tool = postJson('/mcp', mcpRequest('tools/list'))->assertOk()->collect('result.tools')->firstWhere('name', $name);
+
+    expect($tool)->toBeArray();
+
+    return $tool;
+}
+
+/**
+ * The dotted paths of every key in a decoded JSON value that is named $key.
+ *
+ * @param  array<array-key, mixed>  $value
+ * @return list<string>
+ */
+function keysNamed(string $key, array $value): array
+{
+    return collect(Arr::dot($value))->keys()
+        ->filter(fn (string|int $path) => in_array($key, explode('.', (string) $path), true))
+        ->values()
+        ->all();
 }
 
 /**
