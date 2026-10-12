@@ -31,16 +31,22 @@ class DueDate
         return $dueAt;
     }
 
+    /**
+     * A moment after 9999 in UTC does not fit a DATETIME column, so it is not a date either.
+     */
     private static function read(string $input, string $timezone): ?CarbonImmutable
     {
-        if (preg_match(self::DATE, $input, $date) === 1 && checkdate((int) $date[2], (int) $date[3], (int) $date[1])) {
-            return CarbonImmutable::parse("{$input} 23:59:59", $timezone)->utc();
-        }
+        $dueAt = match (true) {
+            self::matches(self::DATE, $input) => CarbonImmutable::parse("{$input} 23:59:59", $timezone)->utc(),
+            self::matches(self::DATE_TIME, $input) => CarbonImmutable::parse($input)->utc()->startOfSecond(),
+            default => null,
+        };
 
-        if (preg_match(self::DATE_TIME, $input, $date) === 1 && checkdate((int) $date[2], (int) $date[3], (int) $date[1])) {
-            return CarbonImmutable::parse($input)->utc()->startOfSecond();
-        }
+        return $dueAt !== null && $dueAt->year <= 9999 ? $dueAt : null;
+    }
 
-        return null;
+    private static function matches(string $pattern, string $input): bool
+    {
+        return preg_match($pattern, $input, $date) === 1 && checkdate((int) $date[2], (int) $date[3], (int) $date[1]);
     }
 }

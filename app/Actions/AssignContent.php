@@ -90,7 +90,7 @@ class AssignContent
             return $this->result(AssignOutcome::Unchanged, $group, $existing, new Collection, $named);
         }
 
-        $targetedIds = $existing->learners()->pluck('users.id');
+        $targetedIds = $existing->learners()->sharedLock()->pluck('users.id');
         [$alreadyHadIt, $added] = $named->partition(fn (User $learner) => $targetedIds->contains($learner->id));
 
         if ($namesLearners && $added->isEmpty()) {
@@ -114,6 +114,7 @@ class AssignContent
     /**
      * A plain read first: a locking read of a missing key takes a gap lock, and
      * two racing creates would then deadlock instead of hitting the unique key.
+     * Reads after it lock too, so they see rows committed since that first read.
      */
     private function lockActiveAssignment(Group $group, ContentItem $item): ?Assignment
     {

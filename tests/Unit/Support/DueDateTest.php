@@ -57,6 +57,7 @@ test('anything else is not a date and carries the input', function (string $inpu
     'an hour out of range' => '2026-10-16T24:00:00Z',
     'a trailing newline' => "2026-10-16\n",
     'another date order' => '16-10-2026',
+    'past 9999 in UTC' => '9999-12-31T23:00:00-05:00',
 ]);
 
 test('a moment not in the future names today in the institution\'s time zone', function (string $input) use ($parseError) {
