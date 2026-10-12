@@ -64,7 +64,7 @@ jobs:
         id: env
         working-directory: infra/env
         run: |
-          for name in url cluster app_service app_family housekeeping_family task_subnet_ids task_security_group_id; do
+          for name in url cluster app_service app_family housekeeping_family housekeeping_schedule task_subnet_ids task_security_group_id; do
             value="$(terraform output -raw "$name")"
             echo "$name=$value" >> "$GITHUB_OUTPUT"
           done
@@ -86,11 +86,16 @@ jobs:
           SECURITY_GROUP: ${{ steps.env.outputs.task_security_group_id }}
         run: scripts/deploy/run-migration.sh "$CLUSTER" "$TASK_DEFINITION" "$SUBNETS" "$SECURITY_GROUP"
 
-      - name: Register the housekeeping revision
+      - name: Register the housekeeping revision and move the schedule to it
+        id: housekeeping
         env:
           FAMILY: ${{ steps.env.outputs.housekeeping_family }}
           IMAGE: ${{ steps.image.outputs.uri }}
-        run: scripts/deploy/register-task-definition.sh "$FAMILY" "$IMAGE"
+          SCHEDULE: ${{ steps.env.outputs.housekeeping_schedule }}
+        run: |
+          arn="$(scripts/deploy/register-task-definition.sh "$FAMILY" "$IMAGE")"
+          scripts/deploy/update-schedule.sh "$SCHEDULE" "$arn"
+          echo "arn=$arn" >> "$GITHUB_OUTPUT"
 
       - name: Update the service
         env:
@@ -99,10 +104,15 @@ jobs:
           TASK_DEFINITION: ${{ steps.app.outputs.arn }}
         run: scripts/deploy/update-service.sh "$CLUSTER" "$SERVICE" "$TASK_DEFINITION"
 
-      - name: Print the URL
+      - name: Print the URL and the revisions
         env:
           URL: ${{ steps.env.outputs.url }}
-          TASK_DEFINITION: ${{ steps.app.outputs.arn }}
+          APP: ${{ steps.app.outputs.arn }}
+          HOUSEKEEPING: ${{ steps.housekeeping.outputs.arn }}
         run: |
-          echo "$URL runs $TASK_DEFINITION"
-          echo "$URL runs \`$TASK_DEFINITION\`" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "$URL"
+            echo
+            echo "- app: \`$APP\`"
+            echo "- housekeeping: \`$HOUSEKEEPING\`"
+          } | tee -a "$GITHUB_STEP_SUMMARY"

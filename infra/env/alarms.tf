@@ -164,3 +164,18 @@ resource "aws_cloudwatch_event_target" "housekeeping_failed" {
   rule = aws_cloudwatch_event_rule.housekeeping_failed.name
   arn  = data.aws_sns_topic.alarms.arn
 }
+
+resource "aws_cloudwatch_metric_alarm" "housekeeping_not_started" {
+  alarm_name          = "${local.name}-housekeeping-not-started"
+  alarm_description   = "The schedule could not start the housekeeping task (RunTask returned an error)."
+  namespace           = "AWS/Scheduler"
+  metric_name         = "TargetErrorCount"
+  dimensions          = { ScheduleGroup = aws_scheduler_schedule.housekeeping.group_name }
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = 0
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = local.alarm_topic
+}

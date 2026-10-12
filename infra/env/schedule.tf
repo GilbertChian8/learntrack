@@ -67,8 +67,7 @@ resource "aws_scheduler_schedule" "housekeeping" {
     role_arn = aws_iam_role.scheduler.arn
 
     ecs_parameters {
-      # No revision: the latest revision, which the pipeline registers.
-      task_definition_arn = aws_ecs_task_definition.housekeeping.arn_without_revision
+      task_definition_arn = aws_ecs_task_definition.housekeeping.arn
       launch_type         = "FARGATE"
 
       network_configuration {
@@ -77,5 +76,10 @@ resource "aws_scheduler_schedule" "housekeeping" {
         assign_public_ip = false
       }
     }
+  }
+
+  # The pipeline moves the schedule to each housekeeping revision it registers.
+  lifecycle {
+    ignore_changes = [target[0].ecs_parameters[0].task_definition_arn]
   }
 }

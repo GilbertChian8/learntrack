@@ -26,6 +26,10 @@ output "housekeeping_family" {
   value = aws_ecs_task_definition.housekeeping.family
 }
 
+output "housekeeping_schedule" {
+  value = aws_scheduler_schedule.housekeeping.name
+}
+
 output "task_subnet_ids" {
   value = join(",", [for subnet in aws_subnet.private : subnet.id])
 }
