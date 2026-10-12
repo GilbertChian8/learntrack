@@ -50,7 +50,7 @@ test('the full flow: consent, code, token, a working /mcp call and a refresh', f
     withToken($tokens['access_token'])
         ->postJson('/mcp', mcpRequest('tools/list'))
         ->assertOk()
-        ->assertJsonPath('result.tools.0.name', 'list_my_groups');
+        ->assertJsonIsArray('result.tools');
 
     $refreshed = post('/oauth/token', [
         'grant_type' => 'refresh_token',

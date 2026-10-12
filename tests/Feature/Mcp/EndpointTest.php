@@ -49,7 +49,7 @@ test('an educator initializes and gets the server name, version and instructions
     ]);
 });
 
-test('tools/list returns the read tools in the contract order', function () {
+test('tools/list names the tools in contract order', function () {
     actingAsEducator();
 
     postJson('/mcp', mcpRequest('tools/list'))

@@ -49,7 +49,8 @@ test('by id: only the groups the caller teaches, with the contract text', functi
     $fixture = cardiologyProgress();
     $groupB($fixture['group'], $fixture['sara']);
 
-    $result = callTool($fixture['educator'], 'get_learner_summary', ['learner_id' => $fixture['sara']->id]);
+    actingAsEducator($fixture['educator']);
+    $result = callTool('get_learner_summary', ['learner_id' => $fixture['sara']->id])->json('result');
 
     expect($result['isError'])->toBeFalse()
         ->and($result['structuredContent'])->toBe([
@@ -69,7 +70,8 @@ test('by id: a shared group shows once the caller teaches it too, ordered by nam
     $groupB = $groupB($fixture['group'], $fixture['sara']);
     $groupB->educators()->attach($fixture['educator']);
 
-    $result = callTool($fixture['educator'], 'get_learner_summary', ['learner_id' => $fixture['sara']->id]);
+    actingAsEducator($fixture['educator']);
+    $result = callTool('get_learner_summary', ['learner_id' => $fixture['sara']->id])->json('result');
     $groups = $result['structuredContent']['groups'];
 
     expect(array_column($groups, 'id'))->toBe([$fixture['group']->id, $groupB->id])
@@ -87,8 +89,9 @@ test('by id: a shared group shows once the caller teaches it too, ordered by nam
 test('by a unique name, in any case: the same answer as by id', function () {
     $fixture = cardiologyProgress();
 
-    $byId = callTool($fixture['educator'], 'get_learner_summary', ['learner_id' => $fixture['sara']->id]);
-    $byName = callTool($fixture['educator'], 'get_learner_summary', ['name' => 'LINDQ']);
+    actingAsEducator($fixture['educator']);
+    $byId = callTool('get_learner_summary', ['learner_id' => $fixture['sara']->id])->json('result');
+    $byName = callTool('get_learner_summary', ['name' => 'LINDQ'])->json('result');
 
     expect($byName['isError'])->toBeFalse()
         ->and($byName['structuredContent'])->toBe($byId['structuredContent'])
@@ -105,7 +108,8 @@ test('by an ambiguous name: the candidates with their group names, no learner, a
     educatorOf($foreign);
     learnerIn($foreign)->update(['name' => 'Sara Outsider']);
 
-    $result = callTool($fixture['educator'], 'get_learner_summary', ['name' => 'sara']);
+    actingAsEducator($fixture['educator']);
+    $result = callTool('get_learner_summary', ['name' => 'sara'])->json('result');
 
     expect($result['isError'])->toBeFalse()
         ->and($result['structuredContent'])->toBe([
@@ -126,7 +130,8 @@ test('by an ambiguous name: the candidates with their group names, no learner, a
 test('learner_id wins over name', function () {
     $fixture = cardiologyProgress();
 
-    $result = callTool($fixture['educator'], 'get_learner_summary', ['learner_id' => $fixture['tom']->id, 'name' => 'Sara']);
+    actingAsEducator($fixture['educator']);
+    $result = callTool('get_learner_summary', ['learner_id' => $fixture['tom']->id, 'name' => 'Sara'])->json('result');
 
     expect($result['structuredContent']['learner'])->toBe(['id' => $fixture['tom']->id, 'name' => 'Tom Becker']);
 });
@@ -138,7 +143,8 @@ test('a name that only matches learners outside the caller\'s groups, and anothe
     $outsider = learnerIn($foreign);
     $outsider->update(['name' => 'Zed Outsider']);
 
-    $result = callTool($fixture['educator'], 'get_learner_summary', $arguments($outsider));
+    actingAsEducator($fixture['educator']);
+    $result = callTool('get_learner_summary', $arguments($outsider))->json('result');
 
     expect($result['isError'])->toBeTrue()
         ->and($result['content'])->toBe([['type' => 'text', 'text' => 'Learner not found.']])
@@ -152,16 +158,18 @@ test('a name that only matches learners outside the caller\'s groups, and anothe
 test('no arguments answer the exact error', function () {
     ['educator' => $educator] = cardiologyProgress();
 
-    $result = callTool($educator, 'get_learner_summary');
+    actingAsEducator($educator);
+    $result = callTool('get_learner_summary', [])->json('result');
 
     expect($result['isError'])->toBeTrue()
         ->and($result['content'])->toBe([['type' => 'text', 'text' => 'Give a learner_id or a name.']]);
 });
 
-test('a name shorter than 2 characters is rejected by the schema', function () {
+test('a name shorter than 2 characters answers a tool error', function () {
     ['educator' => $educator] = cardiologyProgress();
 
-    $result = callTool($educator, 'get_learner_summary', ['name' => 'S']);
+    actingAsEducator($educator);
+    $result = callTool('get_learner_summary', ['name' => 'S'])->json('result');
 
     expect($result['isError'])->toBeTrue()
         ->and($result['content'])->toBe([['type' => 'text', 'text' => 'The name field must be at least 2 characters.']]);

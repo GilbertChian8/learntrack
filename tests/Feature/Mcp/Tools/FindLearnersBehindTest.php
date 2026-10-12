@@ -12,7 +12,8 @@ beforeEach(function () {
 test('only the learners with reasons, with the rule, the threshold and the contract text', function () {
     ['group' => $group, 'educator' => $educator, 'sara' => $sara, 'tom' => $tom, 'assignments' => $assignments] = cardiologyProgress();
 
-    $result = callTool($educator, 'find_learners_behind', ['group_id' => $group->id]);
+    actingAsEducator($educator);
+    $result = callTool('find_learners_behind', ['group_id' => $group->id])->json('result');
 
     expect($result['isError'])->toBeFalse()
         ->and($result['structuredContent'])->toBe([
@@ -59,7 +60,8 @@ test('one learner behind takes the singular verb', function () {
     learnerIn($group);
     Assignment::factory()->for($group)->forLearners([$learner])->create(['due_at' => '2026-10-08 21:59:59']);
 
-    expect(callTool($educator, 'find_learners_behind', ['group_id' => $group->id])['content'][0]['text'])
+    actingAsEducator($educator);
+    expect(callTool('find_learners_behind', ['group_id' => $group->id])->json('result')['content'][0]['text'])
         ->toStartWith('1 of 2 learners in Cardiology Group B is behind. ');
 });
 
@@ -70,7 +72,8 @@ test('a group with nobody behind gives an empty list and the Nobody text', funct
     learnerIn($group);
     Assignment::factory()->for($group)->create(['due_at' => '2026-10-16 21:59:59']);
 
-    $result = callTool($educator, 'find_learners_behind', ['group_id' => $group->id]);
+    actingAsEducator($educator);
+    $result = callTool('find_learners_behind', ['group_id' => $group->id])->json('result');
 
     expect($result['structuredContent']['learners'])->toBe([])
         ->and($result['structuredContent']['behind_count'])->toBe(0)
@@ -84,7 +87,8 @@ test('another educator\'s group answers the not found error', function () {
     educatorOf($foreign);
     learnerIn($foreign);
 
-    $result = callTool($educator, 'find_learners_behind', ['group_id' => $foreign->id]);
+    actingAsEducator($educator);
+    $result = callTool('find_learners_behind', ['group_id' => $foreign->id])->json('result');
 
     expect($result['isError'])->toBeTrue()
         ->and($result['content'])->toBe([['type' => 'text', 'text' => 'Group not found.']])

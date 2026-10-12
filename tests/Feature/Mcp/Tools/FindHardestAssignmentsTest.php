@@ -10,7 +10,8 @@ beforeEach(function () {
 test('lowest completion rate first, then lowest average with nulls last; nobody-targeted assignments left out', function () {
     ['group' => $group, 'educator' => $educator, 'assignments' => $assignments] = cardiologyProgress();
 
-    $result = callTool($educator, 'find_hardest_assignments', ['group_id' => $group->id]);
+    actingAsEducator($educator);
+    $result = callTool('find_hardest_assignments', ['group_id' => $group->id])->json('result');
 
     expect($result['isError'])->toBeFalse()
         ->and($result['structuredContent'])->toBe([
@@ -35,7 +36,8 @@ test('lowest completion rate first, then lowest average with nulls last; nobody-
 test('limit caps the list', function () {
     ['group' => $group, 'educator' => $educator, 'assignments' => $assignments] = cardiologyProgress();
 
-    $result = callTool($educator, 'find_hardest_assignments', ['group_id' => $group->id, 'limit' => 2]);
+    actingAsEducator($educator);
+    $result = callTool('find_hardest_assignments', ['group_id' => $group->id, 'limit' => 2])->json('result');
 
     expect(array_column($result['structuredContent']['assignments'], 'id'))->toBe([$assignments['cardiomyopathy']->id, $assignments['heartFailure']->id])
         ->and($result['content'][0]['text'])->toBe('Hardest assignments in Cardiology Group A: '
@@ -43,10 +45,11 @@ test('limit caps the list', function () {
             .'2. Heart Failure Question Set: 1 of 2 learners completed it (50%), average score 40.');
 });
 
-test('limit 0 and 21 are rejected by the schema', function (int $limit, string $message) {
+test('limit 0 and 21 answer a tool error', function (int $limit, string $message) {
     ['group' => $group, 'educator' => $educator] = cardiologyProgress();
 
-    $result = callTool($educator, 'find_hardest_assignments', ['group_id' => $group->id, 'limit' => $limit]);
+    actingAsEducator($educator);
+    $result = callTool('find_hardest_assignments', ['group_id' => $group->id, 'limit' => $limit])->json('result');
 
     expect($result['isError'])->toBeTrue()
         ->and($result['content'])->toBe([['type' => 'text', 'text' => $message]]);
@@ -60,7 +63,8 @@ test('a group with no active assignments gives an empty list and the empty text'
     $educator = educatorOf($group);
     learnerIn($group);
 
-    $result = callTool($educator, 'find_hardest_assignments', ['group_id' => $group->id]);
+    actingAsEducator($educator);
+    $result = callTool('find_hardest_assignments', ['group_id' => $group->id])->json('result');
 
     expect($result['structuredContent'])->toBe(['group' => ['id' => $group->id, 'name' => 'Cardiology Group B'], 'assignments' => []])
         ->and($result['content'])->toBe([['type' => 'text', 'text' => 'Cardiology Group B has no active assignments.']]);
@@ -72,7 +76,8 @@ test('another educator\'s group answers the not found error', function () {
     educatorOf($foreign);
     learnerIn($foreign);
 
-    $result = callTool($educator, 'find_hardest_assignments', ['group_id' => $foreign->id]);
+    actingAsEducator($educator);
+    $result = callTool('find_hardest_assignments', ['group_id' => $foreign->id])->json('result');
 
     expect($result['isError'])->toBeTrue()
         ->and($result['content'])->toBe([['type' => 'text', 'text' => 'Group not found.']])

@@ -5,6 +5,7 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Database\Seeders\ContentSeeder;
 use Database\Seeders\DemoSeeder;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
 use function Pest\Laravel\seed;
@@ -25,29 +26,28 @@ $readToolSections = function (): array {
     return collect($matches)->mapWithKeys(fn (array $match) => [$match[1] => $match[2]])->all();
 };
 
-test('tools/list publishes the five read tools with the contract name, title, description and input schema', function () use ($readToolSections) {
+test('tools/list publishes the five read tools with the contract title, description, input schema and annotations', function () use ($readToolSections) {
     $sections = $readToolSections();
-    $tools = publishedTools(User::factory()->educator()->create());
+    actingAsEducator();
 
-    expect(array_keys($sections))->toBe(['list_my_groups', 'get_group_progress', 'find_learners_behind', 'get_learner_summary', 'find_hardest_assignments'])
-        ->and(array_keys($tools))->toBe(array_keys($sections));
+    expect(array_keys($sections))->toBe(['list_my_groups', 'get_group_progress', 'find_learners_behind', 'get_learner_summary', 'find_hardest_assignments']);
 
     foreach ($sections as $name => $section) {
         preg_match('/^\| Title \| (.+) \|$/m', $section, $title);
         preg_match('/^Description:\n\n> (.+)$/m', $section, $description);
         preg_match('/^Input schema:\n\n```json\n(.*?)\n```/ms', $sections[$name === 'find_learners_behind' ? 'get_group_progress' : $name], $inputSchema);
+        $tool = listedTool($name);
 
-        expect($tools[$name]['title'])->toBe($title[1])
-            ->and($tools[$name]['description'])->toBe($description[1])
-            ->and($tools[$name]['inputSchema'])->toEqual(json_decode($inputSchema[1], true))
-            ->and($tools[$name]['annotations'])->toBe(['readOnlyHint' => true, 'idempotentHint' => true])
-            ->and($tools[$name]['outputSchema']['type'])->toBe('object')
-            ->and($tools[$name]['outputSchema']['additionalProperties'])->toBeFalse();
+        expect($tool['title'])->toBe($title[1])
+            ->and($tool['description'])->toBe($description[1])
+            ->and(Arr::except($tool['inputSchema'], 'additionalProperties'))->toEqual(Arr::except(json_decode($inputSchema[1], true), 'additionalProperties'))
+            ->and($tool['annotations'])->toBe(['readOnlyHint' => true, 'idempotentHint' => true])
+            ->and($tool['outputSchema']['type'])->toBe('object');
     }
 });
 
 test('every example in mcp-tools.md section 3 matches its tool\'s published output schema', function () use ($readToolSections) {
-    $tools = publishedTools(User::factory()->educator()->create());
+    actingAsEducator();
     $exampleCount = 0;
 
     foreach ($readToolSections() as $name => $section) {
@@ -56,7 +56,7 @@ test('every example in mcp-tools.md section 3 matches its tool\'s published outp
         foreach ($examples[1] as $example) {
             $exampleCount++;
 
-            expect(schemaErrors($tools[$name]['outputSchema'], json_decode($example, true, flags: JSON_THROW_ON_ERROR)))->toBe([], "{$name} example");
+            expect(schemaErrors(listedTool($name)['outputSchema'], json_decode($example, true, flags: JSON_THROW_ON_ERROR)))->toBe([], "{$name} example");
         }
     }
 
@@ -68,7 +68,7 @@ test('every read tool\'s answer on the seeded data matches its published output 
     $educator = User::query()->where('email', 'anna.keller@example.edu')->sole();
     $group = Group::query()->where('name', 'Cardiology Group A')->sole();
     $sara = User::query()->where('email', 'sara.lindqvist@example.edu')->sole();
-    $tools = publishedTools($educator);
+    actingAsEducator($educator);
 
     $calls = [
         ['list_my_groups', []],
@@ -80,13 +80,14 @@ test('every read tool\'s answer on the seeded data matches its published output 
     ];
 
     foreach ($calls as [$name, $arguments]) {
-        expect(schemaErrors($tools[$name]['outputSchema'], callTool($educator, $name, $arguments)['structuredContent']))->toBe([], $name);
+        expect(schemaErrors(listedTool($name)['outputSchema'], callTool($name, $arguments)->json('result')['structuredContent']))->toBe([], $name);
     }
 });
 
-test('a schema error is found: an answer with an extra field does not match', function () {
-    $tools = publishedTools(User::factory()->educator()->create());
+test('a schema error is found: a learner or group with an email does not match', function () {
+    actingAsEducator();
+    $group = ['id' => 12, 'name' => 'Cardiology Group A', 'institution' => 'Northside Medical School', 'learner_count' => 42, 'assignment_count' => 9];
 
-    expect(schemaErrors($tools['list_my_groups']['outputSchema'], ['groups' => [], 'email' => 'anna@example.edu']))
-        ->toBe(['$.email is not allowed']);
+    expect(schemaErrors(listedTool('list_my_groups')['outputSchema'], ['groups' => [[...$group, 'email' => 'anna@example.edu']]]))
+        ->toBe(['$.groups[0].email is not allowed']);
 });

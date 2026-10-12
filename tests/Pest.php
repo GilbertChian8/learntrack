@@ -10,6 +10,7 @@ use App\Models\Progress;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
@@ -108,72 +109,6 @@ function cardiologyGroup(): array
     });
 
     return [$group, $educator, $content, ...$learners->all()];
-}
-
-/**
- * cardiologyGroup() with five assignments and progress, read at 2026-10-09 12:20 UTC:
- * Priya is on track, Sara is behind by a low average, Tom by two overdue assignments.
- * Lipid Disorders targets nobody.
- *
- * @return array{group: Group, educator: User, priya: User, sara: User, tom: User, assignments: array{ecg: Assignment, arrhythmia: Assignment, heartFailure: Assignment, lipids: Assignment, cardiomyopathy: Assignment}}
- */
-function cardiologyProgress(): array
-{
-    [$group, $educator, $heartFailure, $priya, $sara, $tom] = cardiologyGroup();
-
-    $content = fn (string $title, ContentType $type) => ContentItem::factory()->create(['title' => $title, 'topic' => 'Cardiology', 'type' => $type]);
-    $assign = fn (ContentItem $content, string $dueAt, AssignmentScope $scope = AssignmentScope::Group) => Assignment::factory()
-        ->for($group)->for($content, 'contentItem')
-        ->create(['due_at' => $dueAt, 'scope' => $scope, 'created_by' => $educator->id]);
-    $complete = fn (Assignment $assignment, User $learner, ?int $score, string $at) => Progress::factory()
-        ->for($assignment)->for($learner, 'user')->completed($score)
-        ->create(['started_at' => $at, 'completed_at' => $at]);
-
-    $assignments = [
-        'ecg' => $assign($content('ECG Basics', ContentType::Article), '2026-10-02 21:59:59'),
-        'arrhythmia' => $assign($content('Arrhythmia Question Set', ContentType::QuestionSet), '2026-10-05 21:59:59'),
-        'heartFailure' => $assign($heartFailure, '2026-10-16 21:59:59', AssignmentScope::Learners),
-        'lipids' => $assign($content('Lipid Disorders Question Set', ContentType::QuestionSet), '2026-10-20 21:59:59', AssignmentScope::Learners),
-        'cardiomyopathy' => $assign($content('Cardiomyopathy Question Set', ContentType::QuestionSet), '2026-10-23 21:59:59'),
-    ];
-    $assignments['heartFailure']->learners()->attach([$sara->id, $tom->id]);
-
-    $complete($assignments['ecg'], $priya, null, '2026-10-01 08:00:00');
-    $complete($assignments['ecg'], $sara, null, '2026-10-01 16:02:00');
-    $complete($assignments['arrhythmia'], $priya, 90, '2026-10-04 10:00:00');
-    $complete($assignments['arrhythmia'], $sara, 45, '2026-10-05 09:00:00');
-    $complete($assignments['heartFailure'], $sara, 40, '2026-10-08 18:15:00');
-    Progress::factory()->for($assignments['heartFailure'])->for($tom, 'user')->create(['started_at' => '2026-10-08 09:00:00']);
-
-    return compact('group', 'educator', 'priya', 'sara', 'tom', 'assignments');
-}
-
-/**
- * Calls a tool on POST /mcp as the educator and returns the JSON-RPC result.
- *
- * @param  array<string, mixed>  $arguments
- * @return array<string, mixed>
- */
-function callTool(User $educator, string $name, array $arguments = []): array
-{
-    Passport::actingAs($educator);
-
-    return postJson('/mcp', mcpRequest('tools/call', ['name' => $name, 'arguments' => (object) $arguments]))
-        ->assertOk()
-        ->assertJsonMissingPath('error')
-        ->json('result');
-}
-
-/**
- * The tools as tools/list publishes them, keyed by name.
- *
- * @return array<string, array<string, mixed>>
- */
-function publishedTools(User $educator): array
-{
-    Passport::actingAs($educator);
-
-    return array_column(postJson('/mcp', mcpRequest('tools/list'))->assertOk()->json('result.tools'), null, 'name');
 }
 
 /**
@@ -278,6 +213,44 @@ function seedLargeGroup(Group $group, User $educator, int $learnerCount, int $as
 }
 
 /**
+ * cardiologyGroup() with five assignments and progress, read at 2026-10-09 12:20 UTC:
+ * Priya is on track, Sara is behind by a low average, Tom by two overdue assignments.
+ * Lipid Disorders targets nobody.
+ *
+ * @return array{group: Group, educator: User, priya: User, sara: User, tom: User, assignments: array{ecg: Assignment, arrhythmia: Assignment, heartFailure: Assignment, lipids: Assignment, cardiomyopathy: Assignment}}
+ */
+function cardiologyProgress(): array
+{
+    [$group, $educator, $heartFailure, $priya, $sara, $tom] = cardiologyGroup();
+
+    $content = fn (string $title, ContentType $type) => ContentItem::factory()->create(['title' => $title, 'topic' => 'Cardiology', 'type' => $type]);
+    $assign = fn (ContentItem $content, string $dueAt, AssignmentScope $scope = AssignmentScope::Group) => Assignment::factory()
+        ->for($group)->for($content, 'contentItem')
+        ->create(['due_at' => $dueAt, 'scope' => $scope, 'created_by' => $educator->id]);
+    $complete = fn (Assignment $assignment, User $learner, ?int $score, string $at) => Progress::factory()
+        ->for($assignment)->for($learner, 'user')->completed($score)
+        ->create(['started_at' => $at, 'completed_at' => $at]);
+
+    $assignments = [
+        'ecg' => $assign($content('ECG Basics', ContentType::Article), '2026-10-02 21:59:59'),
+        'arrhythmia' => $assign($content('Arrhythmia Question Set', ContentType::QuestionSet), '2026-10-05 21:59:59'),
+        'heartFailure' => $assign($heartFailure, '2026-10-16 21:59:59', AssignmentScope::Learners),
+        'lipids' => $assign($content('Lipid Disorders Question Set', ContentType::QuestionSet), '2026-10-20 21:59:59', AssignmentScope::Learners),
+        'cardiomyopathy' => $assign($content('Cardiomyopathy Question Set', ContentType::QuestionSet), '2026-10-23 21:59:59'),
+    ];
+    $assignments['heartFailure']->learners()->attach([$sara->id, $tom->id]);
+
+    $complete($assignments['ecg'], $priya, null, '2026-10-01 08:00:00');
+    $complete($assignments['ecg'], $sara, null, '2026-10-01 16:02:00');
+    $complete($assignments['arrhythmia'], $priya, 90, '2026-10-04 10:00:00');
+    $complete($assignments['arrhythmia'], $sara, 45, '2026-10-05 09:00:00');
+    $complete($assignments['heartFailure'], $sara, 40, '2026-10-08 18:15:00');
+    Progress::factory()->for($assignments['heartFailure'])->for($tom, 'user')->create(['started_at' => '2026-10-08 09:00:00']);
+
+    return compact('group', 'educator', 'priya', 'sara', 'tom', 'assignments');
+}
+
+/**
  * @return array{name: string, columns: list<string>, type: string, unique: bool, primary: bool}|null
  */
 function findIndex(string $table, string $name): ?array
@@ -319,6 +292,45 @@ function learnerStanding(): array
 function mcpRequest(string $method, array $params = []): array
 {
     return ['jsonrpc' => '2.0', 'id' => 1, 'method' => $method, 'params' => $params];
+}
+
+/**
+ * Calls a tool of the EducatorServer as the acting user.
+ *
+ * @param  array<string, mixed>  $arguments
+ * @return TestResponse<Response>
+ */
+function callTool(string $name, array $arguments): TestResponse
+{
+    return postJson('/mcp', mcpRequest('tools/call', ['name' => $name, 'arguments' => $arguments]))->assertOk();
+}
+
+/**
+ * One tool as tools/list publishes it.
+ *
+ * @return array<string, mixed>
+ */
+function listedTool(string $name): array
+{
+    $tool = postJson('/mcp', mcpRequest('tools/list'))->assertOk()->collect('result.tools')->firstWhere('name', $name);
+
+    expect($tool)->toBeArray();
+
+    return $tool;
+}
+
+/**
+ * The dotted paths of every key in a decoded JSON value that is named $key.
+ *
+ * @param  array<array-key, mixed>  $value
+ * @return list<string>
+ */
+function keysNamed(string $key, array $value): array
+{
+    return collect(Arr::dot($value))->keys()
+        ->filter(fn (string|int $path) => in_array($key, explode('.', (string) $path), true))
+        ->values()
+        ->all();
 }
 
 /**

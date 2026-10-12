@@ -16,7 +16,8 @@ beforeEach(function () {
 test('the structured content has the contract fields, every member without statuses, and the assignments', function () {
     ['group' => $group, 'educator' => $educator, 'priya' => $priya, 'sara' => $sara, 'tom' => $tom, 'assignments' => $assignments] = cardiologyProgress();
 
-    $result = callTool($educator, 'get_group_progress', ['group_id' => $group->id]);
+    actingAsEducator($educator);
+    $result = callTool('get_group_progress', ['group_id' => $group->id])->json('result');
 
     expect($result['isError'])->toBeFalse()
         ->and($result['structuredContent'])->toBe([
@@ -67,7 +68,8 @@ test('the structured content has the contract fields, every member without statu
 test('behind_count counts the behind learners, and the text gives total completed over total targeted', function () {
     ['group' => $group, 'educator' => $educator] = cardiologyProgress();
 
-    $result = callTool($educator, 'get_group_progress', ['group_id' => $group->id]);
+    actingAsEducator($educator);
+    $result = callTool('get_group_progress', ['group_id' => $group->id])->json('result');
     $learners = $result['structuredContent']['learners'];
 
     expect($result['structuredContent']['behind_count'])->toBe(count(array_filter(array_column($learners, 'behind'))))
@@ -82,7 +84,8 @@ test('a group with nothing assigned reads 0% and takes the singular for one lear
     $educator = educatorOf($group);
     learnerIn($group);
 
-    expect(callTool($educator, 'get_group_progress', ['group_id' => $group->id])['content'])->toBe([
+    actingAsEducator($educator);
+    expect(callTool('get_group_progress', ['group_id' => $group->id])->json('result')['content'])->toBe([
         ['type' => 'text', 'text' => 'Cardiology Group B: 1 learner, 0 active assignments, 0 learners behind. Completion across assignments: 0%.'],
     ]);
 });
@@ -90,7 +93,8 @@ test('a group with nothing assigned reads 0% and takes the singular for one lear
 test('another educator\'s group and a missing id answer the not found error', function (Closure $groupId) {
     ['educator' => $educator] = cardiologyProgress();
 
-    $result = callTool($educator, 'get_group_progress', ['group_id' => $groupId()]);
+    actingAsEducator($educator);
+    $result = callTool('get_group_progress', ['group_id' => $groupId()])->json('result');
 
     expect($result['isError'])->toBeTrue()
         ->and($result['content'])->toBe([['type' => 'text', 'text' => 'Group not found.']])
@@ -100,10 +104,11 @@ test('another educator\'s group and a missing id answer the not found error', fu
     'a missing id' => fn () => 999999,
 ]);
 
-test('a missing group_id is rejected by the schema', function () {
+test('a missing group_id answers a tool error', function () {
     ['educator' => $educator] = cardiologyProgress();
 
-    $result = callTool($educator, 'get_group_progress');
+    actingAsEducator($educator);
+    $result = callTool('get_group_progress', [])->json('result');
 
     expect($result['isError'])->toBeTrue()
         ->and($result['content'])->toBe([['type' => 'text', 'text' => 'The group id field is required.']]);
@@ -114,7 +119,8 @@ test('get_group_progress and POST /graphql report the same flags, reasons, count
     $educator = User::query()->where('email', 'anna.keller@example.edu')->sole();
     $group = Group::query()->where('name', 'Cardiology Group A')->sole();
 
-    $tool = callTool($educator, 'get_group_progress', ['group_id' => $group->id])['structuredContent'];
+    actingAsEducator($educator);
+    $tool = callTool('get_group_progress', ['group_id' => $group->id])->json('result')['structuredContent'];
     $graphql = postJson('/graphql', [
         'query' => 'query ($groupId: ID!) { groupProgress(groupId: $groupId) {
             assignments { id completionRate averageScore }
