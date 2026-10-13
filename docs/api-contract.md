@@ -14,6 +14,7 @@ The MCP tools have their own contract in [mcp-tools.md](mcp-tools.md). The reaso
 - Requests carry `Accept: application/json` and, when they have a body, `Content-Type: application/json`.
 - Authentication: `Authorization: Bearer <token>` on every request except `POST /api/v1/auth/login`.
 - Responses are always JSON, including errors.
+- Rate limit headers (Laravel's own): every response of a rate-limited route carries `X-RateLimit-Limit` and `X-RateLimit-Remaining`, and its 429 also `Retry-After` (seconds) and `X-RateLimit-Reset` (Unix time). Every route that needs a token is rate limited; a 401 is answered before the limit, and the failed-login 429 of `POST /api/v1/auth/login` carries `Retry-After` only. The limits are in the TDD (Rate limits).
 
 ### Identifiers
 

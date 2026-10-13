@@ -12,9 +12,12 @@ use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
 use Laravel\Passport\Passport;
+use Monolog\Formatter\JsonFormatter;
 use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
 
@@ -490,4 +493,56 @@ function schemaErrors(array $schema, mixed $value, string $path = '$'): array
     }
 
     return $errors;
+}
+
+/**
+ * Asserts the contract's 429: Retry-After and details.retry_after carry the same seconds.
+ *
+ * @param  TestResponse<Response>  $response
+ */
+function assertTooManyRequests(TestResponse $response, int $retryAfter): void
+{
+    $response->assertTooManyRequests()
+        ->assertHeader('Retry-After', (string) $retryAfter)
+        ->assertExactJson([
+            'error' => [
+                'code' => 'too_many_requests',
+                'message' => 'Too many requests.',
+                'details' => ['retry_after' => $retryAfter],
+            ],
+        ]);
+}
+
+/**
+ * The requests a named limiter has counted for a key. The counter is a row in the cache table.
+ */
+function rateLimitHits(string $limiter, string $key): int
+{
+    $cacheKey = md5($limiter.$key);
+
+    expect(DB::table('cache')->where('key', config('cache.prefix').$cacheKey)->exists())->toBeTrue();
+
+    return RateLimiter::attempts($cacheKey);
+}
+
+/**
+ * Sends the default log channel's JSON lines to a temporary file, and returns a reader for them.
+ *
+ * @return Closure(): list<array<string, mixed>>
+ */
+function captureLogLines(): Closure
+{
+    $path = (string) tempnam(sys_get_temp_dir(), 'learntrack-log');
+
+    config([
+        'logging.default' => 'stderr',
+        'logging.channels.stderr.level' => 'debug',
+        'logging.channels.stderr.formatter' => JsonFormatter::class,
+        'logging.channels.stderr.handler_with.stream' => $path,
+    ]);
+    Log::forgetChannel('stderr');
+
+    return fn (): array => collect(file($path, FILE_IGNORE_NEW_LINES) ?: [])
+        ->map(fn (string $line) => json_decode($line, true, flags: JSON_THROW_ON_ERROR))
+        ->all();
 }

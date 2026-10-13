@@ -12,10 +12,13 @@ use App\Models\Group;
 use App\Support\Scope;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -43,6 +46,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureUrls();
         $this->configurePassport();
         $this->configureRouteBindings();
+        $this->configureRateLimiting();
         $this->configureGraphQL();
     }
 
@@ -106,6 +110,17 @@ class AppServiceProvider extends ServiceProvider
 
         Route::pattern('learnerAssignment', '[0-9]+');
         Route::bind('learnerAssignment', fn (string $id): Assignment => Scope::learnerAssignment(request()->user(), (int) $id));
+    }
+
+    /**
+     * The limits of the TDD's rate limit table. The failed login limits live in LoginRequest.
+     */
+    protected function configureRateLimiting(): void
+    {
+        RateLimiter::for('oauth-token', fn (Request $request): Limit => Limit::perMinute(30)->by($request->ip()));
+        RateLimiter::for('oauth-register', fn (Request $request): Limit => Limit::perHour(10)->by($request->ip()));
+        RateLimiter::for('mcp', fn (Request $request): Limit => Limit::perMinute(60)->by($request->user()?->getAuthIdentifier()));
+        RateLimiter::for('api', fn (Request $request): Limit => Limit::perMinute(300)->by($request->user()?->getAuthIdentifier()));
     }
 
     /**

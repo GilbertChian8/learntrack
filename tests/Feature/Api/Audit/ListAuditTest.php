@@ -5,12 +5,14 @@ use App\Models\AuditEntry;
 use App\Models\Group;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 
 use function Pest\Laravel\deleteJson;
 use function Pest\Laravel\getJson;
 use function Pest\Laravel\patchJson;
 use function Pest\Laravel\postJson;
+use function Pest\Laravel\withoutMiddleware;
 
 test('lists every action newest first with the actor\'s name and the contract\'s changes', function () {
     [$groupA, $educator, $content, $priya, $sara, $tom] = cardiologyGroup();
@@ -104,6 +106,7 @@ test('pages newest first by created_at to the microsecond, then by id, and lists
 });
 
 test('actor names are read in one query, whatever the number of actors', function () {
+    withoutMiddleware(ThrottleRequests::class);
     [$group] = cardiologyGroup();
     $viewer = educatorOf($group);
 

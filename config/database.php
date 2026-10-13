@@ -60,6 +60,7 @@ return [
             'strict' => true,
             'engine' => null,
             'isolation_level' => 'READ COMMITTED',
+            'mask_bindings_in_exception_messages' => true,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],

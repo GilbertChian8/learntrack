@@ -4,6 +4,7 @@ namespace App\Exceptions;
 
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -13,14 +14,16 @@ use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 /**
- * Renders api-contract.md's error shape for REST, GraphQL and MCP requests.
+ * Renders api-contract.md's error shape for REST, GraphQL and MCP requests, and for a rate limit on any route.
  * Web requests return null and keep the default rendering.
  */
 class ErrorRenderer
 {
     public function __invoke(Throwable $exception, Request $request): ?JsonResponse
     {
-        if (! $request->is('api/*', 'graphql', 'mcp') || $exception instanceof HttpResponseException) {
+        $rendersHere = $request->is('api/*', 'graphql', 'mcp') || $exception instanceof ThrottleRequestsException;
+
+        if (! $rendersHere || $exception instanceof HttpResponseException) {
             return null;
         }
 

@@ -9,6 +9,8 @@ void createInertiaApp({
     layout: (name: string) =>
         name.startsWith('auth/') || name.startsWith('mcp/') ? AuthLayout : null,
     strictMode: true,
+    nonce: document.querySelector<HTMLMetaElement>('meta[property="csp-nonce"]')
+        ?.nonce,
     progress: {
         color: '#4B5563',
     },

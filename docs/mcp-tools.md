@@ -12,6 +12,7 @@ This file is the exact contract of the EducatorServer: names, descriptions, anno
 |---|---|
 | Endpoint | `POST /mcp`, Streamable HTTP, stateless (every call carries the bearer token) |
 | Auth | OAuth 2.1 through Passport (ADR-003). `auth:api` plus the educator role. A learner's token answers 403 |
+| Rate limit | 60 calls per minute per educator (token owner) on `POST /mcp`. Over the limit: HTTP 429 `too_many_requests`. The response carries a `Retry-After` header in seconds, and `details.retry_after` is the same number. Every response with a valid token carries `X-RateLimit-Limit` and `X-RateLimit-Remaining`, and the 429 also `X-RateLimit-Reset` (Unix time), as in [api-contract.md](api-contract.md) |
 | Server name | `LearnTrack Educator` |
 | Version | `1.0.0` |
 | Class | `App\Mcp\Servers\EducatorServer` |

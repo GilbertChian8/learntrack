@@ -16,11 +16,15 @@ COPY . .
 RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-dist --no-scripts --ignore-platform-reqs
 
 # nginx plus PHP-FPM on PHP 8.5, unprivileged (www-data), HTTP on 8080.
+# No nginx access log and only critical nginx errors (both hold query strings), and no nginx security headers: Laravel writes those.
 FROM serversideup/php:8.5.8-fpm-nginx-trixie-v4.5.1
 ENV HEALTHCHECK_PATH=/up \
     SHOW_WELCOME_MESSAGE=false \
+    NGINX_ACCESS_LOG=/dev/null \
     PHP_OPCACHE_ENABLE=1 \
     PHP_OPCACHE_VALIDATE_TIMESTAMPS=0
+RUN sed -i '/^add_header /d' /etc/nginx/server-opts.d/security.conf \
+    && sed -i 's/\$LOG_OUTPUT_LEVEL;/crit;/' /etc/nginx/nginx.conf.template
 # The RDS certificate authorities, for MYSQL_ATTR_SSL_CA in AWS.
 COPY docker/rds-global-bundle.pem /etc/ssl/certs/rds-global-bundle.pem
 COPY --chown=www-data:www-data . /var/www/html
