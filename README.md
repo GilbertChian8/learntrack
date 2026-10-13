@@ -59,7 +59,7 @@ On the day you seed, the groups look like this (the overdue numbers grow as due 
 | Riverside | Neurology Group B | Priya Shah | 29 | 14 | 8 | 5 | 1 |
 | Riverside | Pediatrics Group B | Hannah Clarke | 50 | 19 | 14 | 1 | 4 |
 
-Riverside also has **Full Size Group**, for the load check of the launch ([ticket 15](docs/tickets/15-launch-check.md)): 60 learners and 100 assignments, the largest group the performance targets name, 8 learners behind on the day you seed, and its own educator, `full.size.educator@example.edu`, who teaches nothing else.
+Riverside also has **Full Size Group**, for the load check of the launch ([ticket 15](docs/tickets/15-launch-check.md)): 60 learners and 100 assignments, the largest group the performance targets name, 8 learners behind on the day you seed, and its own educator, `full.size.educator@example.edu`, who teaches nothing else. Its 60 new content items, "Full Size Item 1" to "Full Size Item 60", bring the library to 100 items.
 
 A learner is behind when an assignment is past its due date and not completed, or when their average score over completed question sets is below 50.
 
