@@ -16,7 +16,7 @@ export AWS_REGION=eu-central-1
 
 | Item | Value |
 |---|---|
-| Date (UTC) | 2026-10-13, 12:50 to 16:24 |
+| Date (UTC) | 2026-10-13, 12:50 to 16:53 |
 | Commit on `main` | `3d13c9e` (the merge of #17) deployed first. The merges of #18 and #19 then deployed through the same pipeline. Flow 5, the load runs and the destroy and rebuild ran on `c7e09d4` (the merge of #19) |
 | Environment | `prod` in `eu-central-1`, `https://<domain>`: 2 app tasks of 0.5 vCPU each |
 | Load client in the region | A one-off Fargate task in `learntrack-prod`: 1 vCPU, 2 GB, k6 2.3.0, the script at `eed7952` (unchanged since) |
@@ -34,6 +34,7 @@ export AWS_REGION=eu-central-1
 | No alarm in `ALARM` after the load runs | All 8 alarms `OK` after the runs. `learntrack-prod-response-time` was in `ALARM` for 6 minutes during each verdict run | Met |
 | Destroy and rebuild with no manual step beyond the bootstrap | About 55 minutes from the destroy start to the first answer. Beyond the bootstrap: only the seed task, and the reconnect a person makes | Met |
 | Scheduled housekeeping (#14, test plan step 7) | The schedule started the task, it exited 0, and no failure email was sent (section 7) | Met |
+| HTTPS after the rebuild (#14, test plan step 8) | `http://` answers 301 to `https://`; `https://` answers 200 with a valid certificate (section 6) | Met |
 
 Diagnostic, not the verdict: groupProgress with 1 call at once, from `eu-central-1`: p50 507 ms, p95 669 ms, p99 1,084 ms (section 4).
 
@@ -167,7 +168,7 @@ Reconnect at about 13:11 UTC: disconnect, connect, log in, one Approve. Claude s
 | "Show the progress of group 8" (Cardiology Group C) | Not found, the same answer as below; nothing about the group | `get_group_progress` answered the tool error "Group not found." Claude: "Group 8 was not found. It may not exist, or it may not be one of your groups." No name, no count, nothing about the group | Pass |
 | "Show the progress of group 999999." | Not found | The same tool error, "Group not found." Claude: "Group 999999 was not found either." | Pass |
 
-**Write tool times.** Each request writes a "Request handled." log line with its route and `duration_ms`. List the `/mcp` lines of the Flow 5 window, and match each write to the line at the time of its approval:
+**Write tool times.** Each request writes a "Request handled." log line with its route and `duration_ms`. List the `/mcp` lines of the Flow 5 window, and match each write to the line at the time of the write:
 
 ```
 aws logs start-query --log-group-name /learntrack/prod/app \

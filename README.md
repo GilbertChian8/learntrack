@@ -2,7 +2,7 @@
 
 LearnTrack is a backend service for medical schools and teaching hospitals. Educators teach groups of learners, for example a cohort of third-year students or residents on a rotation, and assign them articles and question sets with due dates. Today an educator finds out who needs help by opening every group and scanning long progress tables, so struggling learners are often noticed after several due dates have passed.
 
-With LearnTrack the educator connects an AI assistant such as Claude once, with their own login, and asks in plain language: "Which learners in Cardiology Group A are behind?" Claude answers with the reasons (an overdue question set, an average score below 50), and the educator can act in the same conversation: assign content or move a due date, approving each change. Claude sees only the groups the educator teaches, gets names and progress but never emails, and can never delete anything. Apps use the same rules through a REST and GraphQL API.
+With LearnTrack the educator connects an AI assistant such as Claude once, with their own login, and asks in plain language: "Which learners in Cardiology Group A are behind?" Claude answers with the reasons (an overdue question set, an average score below 50), and the educator can act in the same conversation: assign content or move a due date. Claude asks before each change unless the educator has let it run tools without asking. Claude sees only the groups the educator teaches, gets names and progress but never emails, and can never delete anything. Apps use the same rules through a REST and GraphQL API.
 
 ![Architecture](docs/architecture.png)
 

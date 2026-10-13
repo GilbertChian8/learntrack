@@ -417,7 +417,7 @@ Rules for the tools:
 
 - A tool never takes a user id to act as: the educator is the token's owner.
 - Every write runs through the same action class as REST, inside one transaction with its audit row (channel mcp), and the answer lists what changed.
-- Claude asks the educator to approve a write before calling it, unless the educator has let it run tools without asking (Claude Desktop's Auto mode did this in the launch check). The server never relies on that prompt: writes only add, a repeat changes nothing, and every change has an audit row [ADR-004]. The annotations tell the client the write is not destructive and is safe to repeat, which is what makes the approval dialog honest.
+- Claude asks the educator to approve a write before calling it, unless the educator has let it run tools without asking (Claude Desktop's Auto mode did this in the launch check). The server never relies on that prompt: writes only add, a repeat changes nothing, and every change has an audit row (ADR-004). The annotations tell the client the write is not destructive and is safe to repeat, which is what makes the approval dialog honest.
 - The structured content has no email field, so its JSON text holds no email address either. A test asserts both.
 - Dates in answers carry the institution's offset, so "due Friday" reads as Friday.
 
