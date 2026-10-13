@@ -4,6 +4,7 @@ locals {
 
   container_environment = [
     for name, value in {
+      APP_NAME          = "LearnTrack"
       APP_ENV           = "production"
       APP_URL           = "https://${var.domain_name}"
       DB_HOST           = aws_db_instance.main.address

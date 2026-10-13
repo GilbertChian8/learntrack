@@ -155,3 +155,7 @@ Everything about the design is in [docs/](docs/):
 - [review-lessons.md](docs/review-lessons.md): rules added after reviews.
 - [launch-check.md](docs/launch-check.md): the launch check on AWS: the flows from Claude Desktop, the measured times against the targets, and the destroy and rebuild. The load script is in [scripts/load/](scripts/load/README.md).
 - [infra/README.md](infra/README.md): the Terraform layout.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
