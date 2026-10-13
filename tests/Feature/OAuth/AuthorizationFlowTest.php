@@ -140,6 +140,7 @@ test('a request answers once: a second answer gets the message page, not Passpor
     $again->assertForbidden()
         ->assertInertia(fn (Assert $page) => $page
             ->component('mcp/message')
+            ->where('title', 'Request no longer open')
             ->where('message', 'This request has expired or was already answered. Start the connection again from your AI assistant.')
             ->where('signOut', false));
 
