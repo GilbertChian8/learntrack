@@ -1,0 +1,14 @@
+time="2026-10-13T14:48:57Z" level=info msg="Group 13 (Full Size Group), learner 308." source=console
+LearnTrack launch check, 2026-10-13T15:06:08.881Z
+Full Size Group, groupProgress 1 at once (diagnostic, not the verdict)
+operation                  count    p50 ms    p95 ms    p99 ms    max ms   target    verdict
+group_progress           200/200     507.3     669.0    1084.2    1324.9        -    diagnostic
+list_my_groups           100/100      70.2     151.6     223.6     408.1    <1000    met
+get_group_progress       100/100     195.1     274.0     341.2     396.8    <1000    met
+find_learners_behind     100/100     192.8     232.5     260.9     262.9    <1000    met
+get_learner_summary      100/100      70.8      91.6     102.3     193.7    <1000    met
+find_hardest_assignments 100/100     192.7     380.8     799.7    1764.7    <1000    met
+Failed requests: 0 of 714
+429 answers: 0
+Checks passed: 1400 of 1400
+Thresholds: all passed

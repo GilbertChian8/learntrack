@@ -1,0 +1,517 @@
+time="2026-10-13T14:35:20Z" level=info msg="Group 13 (Full Size Group), learner 308." source=console
+LearnTrack launch check, 2026-10-13T14:46:51.030Z
+Full Size Group, groupProgress 10 at once
+operation                  count    p50 ms    p95 ms    p99 ms    max ms   target    verdict
+group_progress           138/200    4052.1    9231.4    9694.2    9753.5     <300    not met
+list_my_groups           100/100      71.0     135.5     174.0     273.5    <1000    met
+get_group_progress       100/100     197.8     267.4     342.6     364.6    <1000    met
+find_learners_behind     100/100     197.0     247.5     262.9     266.4    <1000    met
+get_learner_summary      100/100      72.5     112.7     223.9     572.3    <1000    met
+find_hardest_assignments 100/100     197.3     417.4     476.0     484.8    <1000    met
+Failed requests: 0 of 652
+429 answers: 0
+Checks passed: 1276 of 1276
+Thresholds failed: http_reqs{op:group_progress} count==200; http_req_duration{op:group_progress} p(95)<300
+time="2026-10-13T14:46:51Z" level=error msg="thresholds on metrics 'http_req_duration{op:group_progress}, http_reqs{op:group_progress}' have been crossed"
+SUMMARY-JSON-BEGIN
+{
+  "options": {
+    "summaryTrendStats": [
+      "min",
+      "p(50)",
+      "p(95)",
+      "p(99)",
+      "max",
+      "count"
+    ],
+    "summaryTimeUnit": "",
+    "noColor": false
+  },
+  "state": {
+    "isStdOutTTY": false,
+    "isStdErrTTY": false,
+    "testRunDurationMs": 693173.079021
+  },
+  "metrics": {
+    "dropped_iterations": {
+      "values": {
+        "count": 62,
+        "rate": 0.08944375059626584
+      },
+      "type": "counter",
+      "contains": "default"
+    },
+    "http_req_duration{op:group_progress}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "max": 9753.454064,
+        "count": 138,
+        "min": 475.787141,
+        "p(50)": 4052.095878,
+        "p(95)": 9231.402507,
+        "p(99)": 9694.182997259999
+      },
+      "thresholds": {
+        "p(95)<300": {
+          "ok": false
+        }
+      }
+    },
+    "iteration_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "min": 504.481547,
+        "p(50)": 1200.8004205,
+        "p(95)": 7974.7654624,
+        "p(99)": 9262.12520549,
+        "max": 9777.395124,
+        "count": 638
+      }
+    },
+    "data_received": {
+      "type": "counter",
+      "contains": "data",
+      "values": {
+        "count": 109626651,
+        "rate": 158151.91662496576
+      }
+    },
+    "http_req_waiting": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "min": 10.005594,
+        "p(50)": 189.034308,
+        "p(95)": 7778.66333629998,
+        "p(99)": 9233.34282335,
+        "max": 9747.900628,
+        "count": 652
+      }
+    },
+    "http_req_failed": {
+      "thresholds": {
+        "rate==0": {
+          "ok": true
+        }
+      },
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "fails": 652,
+        "rate": 0,
+        "passes": 0
+      }
+    },
+    "checks": {
+      "thresholds": {
+        "rate==1": {
+          "ok": true
+        }
+      },
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 1,
+        "passes": 1276,
+        "fails": 0
+      }
+    },
+    "http_req_blocked": {
+      "contains": "time",
+      "values": {
+        "min": 0.000275,
+        "p(50)": 0.000397,
+        "p(95)": 0.0006896999999999996,
+        "p(99)": 12.865804070000012,
+        "max": 23.837887,
+        "count": 652
+      },
+      "type": "trend"
+    },
+    "http_req_connecting": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "min": 0,
+        "p(50)": 0,
+        "p(95)": 0,
+        "p(99)": 3.2571526500000063,
+        "max": 5.770755,
+        "count": 652
+      }
+    },
+    "data_sent": {
+      "type": "counter",
+      "contains": "data",
+      "values": {
+        "count": 342749,
+        "rate": 494.46380763096
+      }
+    },
+    "iterations": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 638,
+        "rate": 0.9204050464583485
+      }
+    },
+    "http_req_duration{op:find_learners_behind}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(95)": 247.543581,
+        "p(99)": 262.90710430000007,
+        "max": 266.380747,
+        "count": 100,
+        "min": 164.293585,
+        "p(50)": 196.982977
+      },
+      "thresholds": {
+        "p(95)<1000": {
+          "ok": true
+        }
+      }
+    },
+    "http_req_duration{expected_response:true}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(99)": 9237.9626302,
+        "max": 9753.454064,
+        "count": 652,
+        "min": 10.19893,
+        "p(50)": 189.905351,
+        "p(95)": 7783.58073334998
+      }
+    },
+    "http_req_duration{op:list_my_groups}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "min": 59.229456,
+        "p(50)": 71.049662,
+        "p(95)": 135.5309351,
+        "p(99)": 173.98625194000053,
+        "max": 273.541042,
+        "count": 100
+      },
+      "thresholds": {
+        "p(95)<1000": {
+          "ok": true
+        }
+      }
+    },
+    "vus_max": {
+      "type": "gauge",
+      "contains": "default",
+      "values": {
+        "max": 10,
+        "value": 10,
+        "min": 10
+      }
+    },
+    "rate_limited": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 0,
+        "rate": 0
+      },
+      "thresholds": {
+        "count==0": {
+          "ok": true
+        }
+      }
+    },
+    "http_reqs{op:list_my_groups}": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 100,
+        "rate": 0.1442641138649449
+      },
+      "thresholds": {
+        "count==100": {
+          "ok": true
+        }
+      }
+    },
+    "http_req_duration{op:find_hardest_assignments}": {
+      "contains": "time",
+      "values": {
+        "p(95)": 417.3644504,
+        "p(99)": 475.96747307000004,
+        "max": 484.7963,
+        "count": 100,
+        "min": 161.211508,
+        "p(50)": 197.27220649999998
+      },
+      "thresholds": {
+        "p(95)<1000": {
+          "ok": true
+        }
+      },
+      "type": "trend"
+    },
+    "http_req_receiving": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "min": 0.063186,
+        "p(50)": 0.3122705,
+        "p(95)": 5.614477799999995,
+        "p(99)": 12.38674486,
+        "max": 90.201834,
+        "count": 652
+      }
+    },
+    "http_reqs{op:find_learners_behind}": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 100,
+        "rate": 0.1442641138649449
+      },
+      "thresholds": {
+        "count==100": {
+          "ok": true
+        }
+      }
+    },
+    "http_req_duration{op:get_learner_summary}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "min": 63.652023,
+        "p(50)": 72.5195235,
+        "p(95)": 112.74831584999993,
+        "p(99)": 223.8588575400018,
+        "max": 572.348118,
+        "count": 100
+      },
+      "thresholds": {
+        "p(95)<1000": {
+          "ok": true
+        }
+      }
+    },
+    "http_req_sending": {
+      "contains": "time",
+      "values": {
+        "min": 0.06041,
+        "p(50)": 0.125832,
+        "p(95)": 0.3812429499999999,
+        "p(99)": 1.5587629600000008,
+        "max": 3.693727,
+        "count": 652
+      },
+      "type": "trend"
+    },
+    "vus": {
+      "type": "gauge",
+      "contains": "default",
+      "values": {
+        "value": 1,
+        "min": 0,
+        "max": 10
+      }
+    },
+    "http_reqs{op:get_group_progress}": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 100,
+        "rate": 0.1442641138649449
+      },
+      "thresholds": {
+        "count==100": {
+          "ok": true
+        }
+      }
+    },
+    "http_req_duration{op:get_group_progress}": {
+      "values": {
+        "p(99)": 342.6092041600001,
+        "max": 364.578112,
+        "count": 100,
+        "min": 164.073465,
+        "p(50)": 197.794739,
+        "p(95)": 267.35493745
+      },
+      "thresholds": {
+        "p(95)<1000": {
+          "ok": true
+        }
+      },
+      "type": "trend",
+      "contains": "time"
+    },
+    "http_reqs": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 652,
+        "rate": 0.9406020223994408
+      }
+    },
+    "http_req_tls_handshaking": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "min": 0,
+        "p(50)": 0,
+        "p(95)": 0,
+        "p(99)": 6.693236690000004,
+        "max": 12.113505,
+        "count": 652
+      }
+    },
+    "http_reqs{op:group_progress}": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 138,
+        "rate": 0.19908447713362395
+      },
+      "thresholds": {
+        "count==200": {
+          "ok": false
+        }
+      }
+    },
+    "http_req_duration": {
+      "values": {
+        "max": 9753.454064,
+        "count": 652,
+        "min": 10.19893,
+        "p(50)": 189.905351,
+        "p(95)": 7783.58073334998,
+        "p(99)": 9237.9626302
+      },
+      "type": "trend",
+      "contains": "time"
+    },
+    "http_reqs{op:get_learner_summary}": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 100,
+        "rate": 0.1442641138649449
+      },
+      "thresholds": {
+        "count==100": {
+          "ok": true
+        }
+      }
+    },
+    "http_reqs{op:find_hardest_assignments}": {
+      "values": {
+        "count": 100,
+        "rate": 0.1442641138649449
+      },
+      "thresholds": {
+        "count==100": {
+          "ok": true
+        }
+      },
+      "type": "counter",
+      "contains": "default"
+    }
+  },
+  "root_group": {
+    "groups": [],
+    "checks": [
+        {
+          "fails": 0,
+          "name": "group_progress answers 200",
+          "path": "::group_progress answers 200",
+          "id": "8758b90ee85f5c0f22c37b21c2812e65",
+          "passes": 138
+        },
+        {
+          "name": "group_progress answers the group without errors",
+          "path": "::group_progress answers the group without errors",
+          "id": "b160291d2492e83b334dde67f633cf52",
+          "passes": 138,
+          "fails": 0
+        },
+        {
+          "name": "list_my_groups answers 200",
+          "path": "::list_my_groups answers 200",
+          "id": "caa8ac797e833a38ec81071828cab123",
+          "passes": 100,
+          "fails": 0
+        },
+        {
+          "name": "list_my_groups answers a result, not an error",
+          "path": "::list_my_groups answers a result, not an error",
+          "id": "89f60e61b3302668b07bfca71bd068ea",
+          "passes": 100,
+          "fails": 0
+        },
+        {
+          "name": "get_group_progress answers 200",
+          "path": "::get_group_progress answers 200",
+          "id": "5608939c20c24beccebc11031912390c",
+          "passes": 100,
+          "fails": 0
+        },
+        {
+          "fails": 0,
+          "name": "get_group_progress answers a result, not an error",
+          "path": "::get_group_progress answers a result, not an error",
+          "id": "e40a345d4bce4b00c797dea7c0eceac3",
+          "passes": 100
+        },
+        {
+          "path": "::find_learners_behind answers 200",
+          "id": "b66f397a4f6be29f2154b7812930423d",
+          "passes": 100,
+          "fails": 0,
+          "name": "find_learners_behind answers 200"
+        },
+        {
+          "fails": 0,
+          "name": "find_learners_behind answers a result, not an error",
+          "path": "::find_learners_behind answers a result, not an error",
+          "id": "8086ddb42dce37ccb850d5f038edb09c",
+          "passes": 100
+        },
+        {
+          "fails": 0,
+          "name": "get_learner_summary answers 200",
+          "path": "::get_learner_summary answers 200",
+          "id": "7f99bde95075a0b19f0f4cbf5aa481ef",
+          "passes": 100
+        },
+        {
+          "fails": 0,
+          "name": "get_learner_summary answers a result, not an error",
+          "path": "::get_learner_summary answers a result, not an error",
+          "id": "a967f4cee545134af72b0c1c70ea71ff",
+          "passes": 100
+        },
+        {
+          "name": "find_hardest_assignments answers 200",
+          "path": "::find_hardest_assignments answers 200",
+          "id": "d57cf28d06ad2a5ea69e3c976d9d5789",
+          "passes": 100,
+          "fails": 0
+        },
+        {
+          "passes": 100,
+          "fails": 0,
+          "name": "find_hardest_assignments answers a result, not an error",
+          "path": "::find_hardest_assignments answers a result, not an error",
+          "id": "e454521bf33b01a858213982e859f509"
+        }
+      ],
+    "name": "",
+    "path": "",
+    "id": "d41d8cd98f00b204e9800998ecf8427e"
+  }
+}SUMMARY-JSON-END
+k6 exit code 99
