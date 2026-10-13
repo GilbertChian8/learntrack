@@ -154,3 +154,7 @@ Everything about the design is in [docs/](docs/):
 - [tickets/](docs/tickets/README.md): the work, one ticket per pull request.
 - [review-lessons.md](docs/review-lessons.md): rules added after reviews.
 - [infra/README.md](infra/README.md): the Terraform layout.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
