@@ -56,20 +56,21 @@ test('a new date moves the assignment, counts the affected learners and writes o
 
     $message = 'Moved Heart Failure Question Set in Cardiology Group A from 2026-10-16T23:59:59+02:00 to 2026-10-23T23:59:59+02:00. 2 learners are affected.';
 
-    callTool('change_due_date', ['assignment_id' => $assignment->id, 'due_date' => '2026-10-23'])
+    $result = callTool('change_due_date', ['assignment_id' => $assignment->id, 'due_date' => '2026-10-23'])
         ->assertJsonPath('result.isError', false)
-        ->assertJsonPath('result.content', [['type' => 'text', 'text' => $message]])
         ->assertJsonPath('result.structuredContent', [
             'changed' => true,
             'assignment' => heartFailureAssignment($assignment, [learnerItem($priya), learnerItem($sara)], '2026-10-23T23:59:59+02:00'),
             'previous_due_at' => '2026-10-16T23:59:59+02:00',
             'due_at' => '2026-10-23T23:59:59+02:00',
             'message' => $message,
-        ]);
+        ])
+        ->json('result');
 
     $audit = AuditEntry::query()->sole();
 
-    expect($assignment->fresh()?->due_at->toIso8601ZuluString())->toBe('2026-10-23T21:59:59Z')
+    expect(textAsJson($result))->toBe($result['structuredContent'])
+        ->and($assignment->fresh()?->due_at->toIso8601ZuluString())->toBe('2026-10-23T21:59:59Z')
         ->and($audit->action)->toBe(AuditAction::AssignmentDueChanged)
         ->and($audit->channel)->toBe(AuditChannel::Mcp)
         ->and($audit->actor_id)->toBe($educator->id)
@@ -83,7 +84,7 @@ test('the affected learners sentence counts the targeted learners', function (bo
     actingAsEducator($educator);
 
     callTool('change_due_date', ['assignment_id' => $assignment->id, 'due_date' => '2026-10-23'])
-        ->assertJsonPath('result.content.0.text', "Moved Heart Failure Question Set in Cardiology Group A from 2026-10-16T23:59:59+02:00 to 2026-10-23T23:59:59+02:00. {$sentence}");
+        ->assertJsonPath('result.structuredContent.message', "Moved Heart Failure Question Set in Cardiology Group A from 2026-10-16T23:59:59+02:00 to 2026-10-23T23:59:59+02:00. {$sentence}");
 })->with([
     'one learner' => [false, '1 learner is affected.'],
     'the whole group' => [true, '3 learners are affected.'],
@@ -96,18 +97,19 @@ test('the same due date answers changed false and writes nothing', function (str
 
     $message = 'Heart Failure Question Set in Cardiology Group A is already due 2026-10-16T23:59:59+02:00. Nothing changed.';
 
-    callTool('change_due_date', ['assignment_id' => $assignment->id, 'due_date' => $dueDate])
+    $result = callTool('change_due_date', ['assignment_id' => $assignment->id, 'due_date' => $dueDate])
         ->assertJsonPath('result.isError', false)
-        ->assertJsonPath('result.content', [['type' => 'text', 'text' => $message]])
         ->assertJsonPath('result.structuredContent', [
             'changed' => false,
             'assignment' => heartFailureAssignment($assignment),
             'previous_due_at' => '2026-10-16T23:59:59+02:00',
             'due_at' => '2026-10-16T23:59:59+02:00',
             'message' => $message,
-        ]);
+        ])
+        ->json('result');
 
-    expect(AuditEntry::query()->count())->toBe(0);
+    expect(textAsJson($result))->toBe($result['structuredContent'])
+        ->and(AuditEntry::query()->count())->toBe(0);
 })->with([
     'as a date' => '2026-10-16',
     'as the same instant in UTC' => '2026-10-16T21:59:59Z',

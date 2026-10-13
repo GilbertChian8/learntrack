@@ -25,14 +25,7 @@ test('lowest completion rate first, then lowest average with nulls last; nobody-
                 ['id' => $assignments['ecg']->id, 'title' => 'ECG Basics', 'topic' => 'Cardiology', 'type' => 'article', 'due_at' => '2026-10-02T23:59:59+02:00', 'scope' => 'group', 'targeted_count' => 3, 'completed_count' => 2, 'completion_rate' => 0.67, 'average_score' => null, 'reason' => '2 of 3 learners completed it (67%)'],
             ],
         ])
-        ->and($result['content'])->toBe([[
-            'type' => 'text',
-            'text' => 'Hardest assignments in Cardiology Group A: '
-                .'1. Cardiomyopathy Question Set: 0 of 3 learners completed it (0%). '
-                .'2. Heart Failure Question Set: 1 of 2 learners completed it (50%), average score 40. '
-                .'3. Arrhythmia Question Set: 2 of 3 learners completed it (67%), average score 67.5. '
-                .'4. ECG Basics: 2 of 3 learners completed it (67%).',
-        ]]);
+        ->and(textAsJson($result))->toBe($result['structuredContent']);
 });
 
 test('limit caps the list', function () {
@@ -42,9 +35,10 @@ test('limit caps the list', function () {
     $result = callTool('find_hardest_assignments', ['group_id' => $group->id, 'limit' => 2])->json('result');
 
     expect(array_column($result['structuredContent']['assignments'], 'id'))->toBe([$assignments['cardiomyopathy']->id, $assignments['heartFailure']->id])
-        ->and($result['content'][0]['text'])->toBe('Hardest assignments in Cardiology Group A: '
-            .'1. Cardiomyopathy Question Set: 0 of 3 learners completed it (0%). '
-            .'2. Heart Failure Question Set: 1 of 2 learners completed it (50%), average score 40.');
+        ->and(array_column($result['structuredContent']['assignments'], 'reason'))->toBe([
+            '0 of 3 learners completed it (0%)',
+            '1 of 2 learners completed it (50%), average score 40',
+        ]);
 });
 
 test('limit 0 and 21 answer a tool error', function (int $limit, string $message) {
@@ -60,7 +54,7 @@ test('limit 0 and 21 answer a tool error', function (int $limit, string $message
     [21, 'The limit field must not be greater than 20.'],
 ]);
 
-test('a group with no assignment that targets a learner gives an empty list and the empty text', function (Closure $assign) {
+test('a group with no assignment that targets a learner gives an empty list', function (Closure $assign) {
     $group = Group::factory()->create(['name' => 'Cardiology Group B']);
     $educator = educatorOf($group);
     learnerIn($group);
@@ -70,7 +64,7 @@ test('a group with no assignment that targets a learner gives an empty list and 
     $result = callTool('find_hardest_assignments', ['group_id' => $group->id])->json('result');
 
     expect($result['structuredContent'])->toBe(['group' => ['id' => $group->id, 'name' => 'Cardiology Group B'], 'assignments' => []])
-        ->and($result['content'])->toBe([['type' => 'text', 'text' => 'Cardiology Group B has no active assignments that target a learner.']]);
+        ->and(textAsJson($result))->toBe($result['structuredContent']);
 })->with([
     'no active assignment' => fn (Group $group) => Assignment::factory()->for($group)->removed()->create(),
     'one that targets nobody' => fn (Group $group) => Assignment::factory()->for($group)->create(['scope' => AssignmentScope::Learners]),

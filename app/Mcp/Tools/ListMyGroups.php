@@ -5,7 +5,6 @@ namespace App\Mcp\Tools;
 use App\Models\Group;
 use App\Queries\MyGroups;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Support\Str;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
@@ -44,20 +43,5 @@ class ListMyGroups extends BaseTool
                 'assignment_count' => $group->getAttribute('assignment_count'),
             ])->all(),
         ];
-    }
-
-    protected function summary(array $answer, Request $request): string
-    {
-        $groups = $answer['groups'];
-
-        if ($groups === []) {
-            return 'You teach no groups yet.';
-        }
-
-        $lines = array_map(fn (array $group) => $group['name']
-            .' ('.$group['learner_count'].' '.Str::plural('learner', $group['learner_count'])
-            .', '.$group['assignment_count'].' '.Str::plural('assignment', $group['assignment_count']).')', $groups);
-
-        return 'You teach '.count($groups).' '.Str::plural('group', count($groups)).': '.implode('; ', $lines).'.';
     }
 }

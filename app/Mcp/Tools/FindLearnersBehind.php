@@ -8,7 +8,6 @@ use App\Queries\GroupProgress;
 use App\Queries\Results\LearnerProgress;
 use App\Queries\Results\Reason;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Support\Str;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
@@ -67,27 +66,5 @@ class FindLearnersBehind extends BaseTool
                 'reasons' => array_map(fn (Reason $reason) => $reason->toArray(), $learner->reasons),
             ], $behind),
         ];
-    }
-
-    /**
-     * One sentence per learner, reasons joined with "; ".
-     */
-    protected function summary(array $answer, Request $request): string
-    {
-        $group = $answer['group']['name'];
-        $learnerCount = $answer['learner_count'];
-        $learners = Str::plural('learner', $learnerCount);
-
-        if ($answer['learners'] === []) {
-            return "Nobody in {$group} is behind ({$learnerCount} {$learners}).";
-        }
-
-        $sentences = array_map(
-            fn (array $learner) => $learner['name'].': '.implode('; ', array_column($learner['reasons'], 'text')).'.',
-            $answer['learners'],
-        );
-
-        return "{$answer['behind_count']} of {$learnerCount} {$learners} in {$group} ".($answer['behind_count'] === 1 ? 'is' : 'are').' behind. '
-            .implode(' ', $sentences);
     }
 }

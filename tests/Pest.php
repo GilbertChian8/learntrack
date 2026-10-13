@@ -341,6 +341,19 @@ function mcpRequest(string $method, array $params = []): array
 }
 
 /**
+ * The one text item of a successful tool result, decoded from JSON. It must equal the structured content.
+ *
+ * @param  array<string, mixed>  $result
+ */
+function textAsJson(array $result): mixed
+{
+    expect($result['content'])->toHaveCount(1)
+        ->and($result['content'][0]['type'])->toBe('text');
+
+    return json_decode($result['content'][0]['text'], true, flags: JSON_THROW_ON_ERROR);
+}
+
+/**
  * Calls a tool of the EducatorServer as the acting user.
  *
  * @param  array<string, mixed>  $arguments

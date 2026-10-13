@@ -9,7 +9,7 @@ beforeEach(function () {
     CarbonImmutable::setTestNow('2026-10-09 12:20:00');
 });
 
-test('only the learners with reasons, with the rule, the threshold and the contract text', function () {
+test('only the learners with reasons, with the rule and the threshold, and the same object as the text', function () {
     ['group' => $group, 'educator' => $educator, 'sara' => $sara, 'tom' => $tom, 'assignments' => $assignments] = cardiologyProgress();
 
     actingAsEducator($educator);
@@ -45,15 +45,10 @@ test('only the learners with reasons, with the rule, the threshold and the contr
                 ],
             ],
         ])
-        ->and($result['content'])->toBe([[
-            'type' => 'text',
-            'text' => '2 of 3 learners in Cardiology Group A are behind. '
-                .'Sara Lindqvist: Average question set score 42.5 is below 50 (scores: 45, 40). '
-                .'Tom Becker: Overdue: ECG Basics, due 2026-10-02, 7 days overdue; Overdue: Arrhythmia Question Set, due 2026-10-05, 4 days overdue.',
-        ]]);
+        ->and(textAsJson($result))->toBe($result['structuredContent']);
 });
 
-test('one learner behind takes the singular verb', function () {
+test('an overdue subset assignment puts only its learner behind', function () {
     $group = Group::factory()->create(['name' => 'Cardiology Group B']);
     $educator = educatorOf($group);
     $learner = learnerIn($group);
@@ -61,11 +56,14 @@ test('one learner behind takes the singular verb', function () {
     Assignment::factory()->for($group)->forLearners([$learner])->create(['due_at' => '2026-10-08 21:59:59']);
 
     actingAsEducator($educator);
-    expect(callTool('find_learners_behind', ['group_id' => $group->id])->json('result')['content'][0]['text'])
-        ->toStartWith('1 of 2 learners in Cardiology Group B is behind. ');
+    $answer = callTool('find_learners_behind', ['group_id' => $group->id])->json('result.structuredContent');
+
+    expect($answer['behind_count'])->toBe(1)
+        ->and($answer['learner_count'])->toBe(2)
+        ->and(array_column($answer['learners'], 'id'))->toBe([$learner->id]);
 });
 
-test('a group with nobody behind gives an empty list and the Nobody text', function () {
+test('a group with nobody behind gives an empty list', function () {
     $group = Group::factory()->create(['name' => 'Cardiology Group B']);
     $educator = educatorOf($group);
     learnerIn($group);
@@ -78,7 +76,7 @@ test('a group with nobody behind gives an empty list and the Nobody text', funct
     expect($result['structuredContent']['learners'])->toBe([])
         ->and($result['structuredContent']['behind_count'])->toBe(0)
         ->and($result['structuredContent']['learner_count'])->toBe(2)
-        ->and($result['content'])->toBe([['type' => 'text', 'text' => 'Nobody in Cardiology Group B is behind (2 learners).']]);
+        ->and(textAsJson($result))->toBe($result['structuredContent']);
 });
 
 test('another educator\'s group answers the not found error', function () {
