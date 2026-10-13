@@ -1,4 +1,4 @@
-region            = "eu-central-1"
-domain_name       = "learntrack.example.com"
-github_repository = "your-org/learntrack"
-alarm_email       = "alarms@example.com"
+region                = "eu-central-1"
+domain_name           = "learntrack.example.com"
+github_subject_prefix = "repo:your-org@1234567/learntrack@7654321"
+alarm_email           = "alarms@example.com"

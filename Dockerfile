@@ -21,6 +21,8 @@ ENV HEALTHCHECK_PATH=/up \
     SHOW_WELCOME_MESSAGE=false \
     PHP_OPCACHE_ENABLE=1 \
     PHP_OPCACHE_VALIDATE_TIMESTAMPS=0
+# The RDS certificate authorities, for MYSQL_ATTR_SSL_CA in AWS.
+COPY docker/rds-global-bundle.pem /etc/ssl/certs/rds-global-bundle.pem
 COPY --chown=www-data:www-data . /var/www/html
 COPY --chown=www-data:www-data --from=vendor /app/vendor /var/www/html/vendor
 COPY --chown=www-data:www-data --from=assets /app/public/build /var/www/html/public/build

@@ -7,8 +7,8 @@ locals {
   account_id = data.aws_caller_identity.current.account_id
 
   github_subjects = {
-    deploy = "repo:${var.github_repository}:ref:refs/heads/main"
-    plan   = "repo:${var.github_repository}:pull_request"
+    deploy = "${var.github_subject_prefix}:ref:refs/heads/main"
+    plan   = "${var.github_subject_prefix}:pull_request"
   }
 }
 
@@ -38,8 +38,9 @@ data "aws_iam_policy_document" "github_trust" {
 }
 
 resource "aws_iam_role" "deploy" {
-  name               = "learntrack-deploy"
-  assume_role_policy = data.aws_iam_policy_document.github_trust["deploy"].json
+  name                 = "learntrack-deploy"
+  assume_role_policy   = data.aws_iam_policy_document.github_trust["deploy"].json
+  max_session_duration = 7200
 }
 
 resource "aws_iam_role_policy" "deploy" {
