@@ -174,6 +174,8 @@ To stop paying for the environment, run `destroy.yml` from `main` (Actions, dest
 
 To rebuild, run `deploy.yml` from `main` (Actions, deploy, Run workflow), or push to `main`. Nothing else is needed. This deploy takes longer than the others, because RDS Multi-AZ takes about 20 minutes to create.
 
+A new environment sends a few alarm emails, the ALB 5xx alarm (`learntrack-prod-alb-5xx`) among them, until its first deploy finishes, because its public load balancer answers internet scanners with 503 before the app exists; the alarms are right.
+
 Deploy and destroy share one concurrency group, and GitHub keeps only one waiting run per group: a newer deploy replaces a destroy that waits behind a running deploy, and the reverse.
 
 ## Secrets

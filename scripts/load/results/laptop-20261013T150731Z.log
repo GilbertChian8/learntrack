@@ -1,0 +1,20 @@
+Started 2026-10-13T15:07:31Z
+time="2026-10-13T15:07:37Z" level=info msg="Group 13 (Full Size Group), learner 308." source=console
+
+LearnTrack launch check, 2026-10-13T15:19:09.571Z
+Full Size Group, groupProgress 10 at once
+
+operation                  count    p50 ms    p95 ms    p99 ms    max ms   target    verdict
+group_progress           148/200    4078.4    7766.1    8627.3    9174.2     <300    not met
+list_my_groups           100/100     310.9     393.2     483.1     600.1    <1000    met
+get_group_progress       100/100     433.1     530.9     568.4     604.4    <1000    met
+find_learners_behind     100/100     437.3     546.6     686.2     817.1    <1000    met
+get_learner_summary      100/100     316.1     546.7     648.4     651.1    <1000    met
+find_hardest_assignments 100/100     433.7     678.1     879.3    1543.9    <1000    met
+
+Failed requests: 0 of 662
+429 answers: 0
+Checks passed: 1296 of 1296
+Thresholds failed: http_reqs{op:group_progress} count==200; http_req_duration{op:group_progress} p(95)<300
+time="2026-10-13T15:19:09Z" level=error msg="thresholds on metrics 'http_req_duration{op:group_progress}, http_reqs{op:group_progress}' have been crossed"
+Finished 2026-10-13T15:19:10Z, k6 exit code 99

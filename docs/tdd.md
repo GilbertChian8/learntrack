@@ -417,7 +417,7 @@ Rules for the tools:
 
 - A tool never takes a user id to act as: the educator is the token's owner.
 - Every write runs through the same action class as REST, inside one transaction with its audit row (channel mcp), and the answer lists what changed.
-- Claude asks the educator to approve a write before calling it. The annotations tell the client the write is not destructive and is safe to repeat, which is what makes the approval dialog honest.
+- Claude asks the educator to approve a write before calling it, unless the educator has let it run tools without asking (Claude Desktop's Auto mode did this in the launch check). The server never relies on that prompt: writes only add, a repeat changes nothing, and every change has an audit row (ADR-004). The annotations tell the client the write is not destructive and is safe to repeat, which is what makes the approval dialog honest.
 - The structured content has no email field, so its JSON text holds no email address either. A test asserts both.
 - Dates in answers carry the institution's offset, so "due Friday" reads as Friday.
 
@@ -619,7 +619,8 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 
 - **No data migration**: the system is new. Migrations run as a one-off ECS task in the pipeline before the service update, never on task boot. Migrations are expand-only in v1: no column or table is dropped while the previous image can still run.
 - **Environments**: docker compose locally; one AWS environment built and destroyed by the pipeline. The environment name and the region are Terraform variables, so a second environment is one set of variables, one state key and its own deploy and plan roles. [ADR-015, ADR-016]
-- **Rollout in three steps**: 1) deploy with seed data and connect one educator's Claude; 2) one pilot group with real educators and learners for two weeks, watching the alarms and the audit log; 3) onboard institutions by adding their accounts with the account command, since v1 has no admin screen.
+- **Rollout**: v1 launches on seed data: deploy, seed the database and connect one educator's Claude (item 15). A pilot with real educators and learners, and onboarding institutions, need account management first. v1 has none: accounts come from seed data, with no sign-up and no admin role, and the blueprint lists an institution admin role as future work (Release 2).
+- **Seeded environments**: an environment with seed data is a demo, on purpose: reviewers need the demo logins to try it. Its accounts share the password published in the repository, it never holds real data, and real people need account management first (future work, see Rollout).
 - **Rollback**: one command to the previous task definition revision. Migrations are forward-only, so a rollback never needs a schema change. [ADR-016]
 - **Monitoring** (minimal on purpose): CloudWatch alarms on ALB 5xx rate, unhealthy target count, running task count below 2, target response time p95 above 1 s, RDS CPU, free storage and connection count, and a failed housekeeping run (the task stops with a non-zero exit code or fails to start, or the schedule cannot start it). JSON logs in CloudWatch with 30 day retention. An email topic receives the alarms.
 - **Success check after launch**: the blueprint metrics. groupProgress p95 under 300 ms on the largest group, every MCP tool p95 under 1 s, 99.9% uptime, a fixed query count at any group size, and no tool returning data from a group the educator does not teach.

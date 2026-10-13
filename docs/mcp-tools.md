@@ -388,7 +388,7 @@ Errors: `Group not found.`
 
 ## 4. Write tools
 
-Both write tools return `changed` and a `message` that says exactly what happened. The client shows the educator an approval dialog before calling a write tool; the annotations tell it the call is not destructive and is safe to repeat.
+Both write tools return `changed` and a `message` that says exactly what happened. The client shows the educator an approval dialog before calling a write tool, unless the educator has let it run tools without asking (Claude Desktop's Auto mode did this in the launch check). The server never relies on that dialog: writes only add, a repeat changes nothing, and every change has an audit row (ADR-004). The annotations tell the client the call is not destructive and is safe to repeat.
 
 ### assign_content
 

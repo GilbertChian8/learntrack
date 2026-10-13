@@ -2,7 +2,7 @@
 
 LearnTrack is a backend service for medical schools and teaching hospitals. Educators teach groups of learners, for example a cohort of third-year students or residents on a rotation, and assign them articles and question sets with due dates. Today an educator finds out who needs help by opening every group and scanning long progress tables, so struggling learners are often noticed after several due dates have passed.
 
-With LearnTrack the educator connects an AI assistant such as Claude once, with their own login, and asks in plain language: "Which learners in Cardiology Group A are behind?" Claude answers with the reasons (an overdue question set, an average score below 50), and the educator can act in the same conversation: assign content or move a due date, approving each change. Claude sees only the groups the educator teaches, gets names and progress but never emails, and can never delete anything. Apps use the same rules through a REST and GraphQL API.
+With LearnTrack the educator connects an AI assistant such as Claude once, with their own login, and asks in plain language: "Which learners in Cardiology Group A are behind?" Claude answers with the reasons (an overdue question set, an average score below 50), and the educator can act in the same conversation: assign content or move a due date. Claude asks before each change unless the educator has let it run tools without asking. Claude sees only the groups the educator teaches, gets names and progress but never emails, and can never delete anything. Apps use the same rules through a REST and GraphQL API.
 
 ![Architecture](docs/architecture.png)
 
@@ -120,7 +120,7 @@ Five questions to start with, as Anna Keller:
 4. Which assignments in Neurology Group A are the hardest?
 5. Assign the Hypertension Pharmacology Question Set to the learners who are behind in Cardiology Group A, due next Friday.
 
-Claude asks before it changes anything, and the answer says exactly what changed.
+Claude asks before it changes anything, unless the educator has let it run tools without asking (Claude Desktop's Auto mode did this in the launch check). LearnTrack never relies on that prompt: writes only add, a repeat changes nothing, and every change has an audit row ([ADR-004](docs/adr/ADR-004-ai-writes.md)). The answer says exactly what changed.
 
 ## Deployment
 
@@ -136,7 +136,7 @@ LearnTrack runs on AWS: two ECS Fargate tasks behind a load balancer, RDS MySQL 
 4. moves the service to the new image and waits until it is stable;
 5. moves the daily housekeeping task to the new image.
 
-The app then answers on `https://<domain>`, so `<host>` above is `<domain>`. A new environment starts with an empty database: the pipeline runs the migrations only. Seeding it for the first login is part of the launch check, [ticket 15](docs/tickets/15-launch-check.md).
+The app then answers on `https://<domain>`, so `<host>` above is `<domain>`. A new environment starts with an empty database: the pipeline runs the migrations only. Seed it once with the one-off task in [docs/launch-check.md](docs/launch-check.md) (Seed).
 
 **Roll back.** A new image that fails the `/up` health check is rolled back by ECS by itself. To go back to an earlier deploy, move the service to that run's app revision with one command, as in [infra/README.md](infra/README.md) (Roll back). Migrations only add, so an older image runs on the newer schema.
 
@@ -153,6 +153,7 @@ Everything about the design is in [docs/](docs/):
 - [adr/](docs/adr/README.md): the architecture decisions and why they were made.
 - [tickets/](docs/tickets/README.md): the work, one ticket per pull request.
 - [review-lessons.md](docs/review-lessons.md): rules added after reviews.
+- [launch-check.md](docs/launch-check.md): the launch check on AWS: the flows from Claude Desktop, the measured times against the targets, and the destroy and rebuild. The load script is in [scripts/load/](scripts/load/README.md).
 - [infra/README.md](infra/README.md): the Terraform layout.
 
 ## License
