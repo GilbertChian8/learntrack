@@ -26,7 +26,7 @@ Tests run against MySQL, in the `learntrack_test` database that compose creates.
 
 ## Demo data
 
-`php artisan migrate --seed` creates two institutions, 6 educators, 300 learners, 12 groups and the content library. Every password is `password`. Faker uses a fixed seed, so every machine gets the same names, groups and progress. Due dates count from the day you seed.
+`php artisan migrate --seed` creates two institutions, 7 educators, 360 learners, 13 groups and the content library. Every password is `password`. Faker uses a fixed seed, so every machine gets the same names, groups and progress. Due dates count from the day you seed.
 
 | Account | Role | Where |
 |---|---|---|
@@ -36,7 +36,7 @@ Tests run against MySQL, in the `learntrack_test` database that compose creates.
 
 The other educators are `jonas.weber`, `miriam.hoffmann`, `oliver.bennett`, `priya.shah` and `hannah.clarke`, all `@example.edu`.
 
-Every group has 20 to 60 learners and 5 to 12 assignments:
+The twelve demo groups have 20 to 60 learners and 5 to 12 assignments:
 
 - The first assignment is a question set of the group's topic, due 3 to 30 days ago. Learners who are behind by overdue work have not completed it.
 - The second is due 3 to 30 days ahead. The last two target a few learners only.
@@ -58,6 +58,8 @@ On the day you seed, the groups look like this (the overdue numbers grow as due 
 | Riverside | Nephrology Group B | Oliver Bennett, Priya Shah | 48 | 23 | 14 | 6 | 3 |
 | Riverside | Neurology Group B | Priya Shah | 29 | 14 | 8 | 5 | 1 |
 | Riverside | Pediatrics Group B | Hannah Clarke | 50 | 19 | 14 | 1 | 4 |
+
+Riverside also has **Full Size Group**, for the load check of the launch ([ticket 15](docs/tickets/15-launch-check.md)): 60 learners and 100 assignments, the largest group the performance targets name, 8 learners behind on the day you seed, and its own educator, `full.size.educator@example.edu`, who teaches nothing else.
 
 A learner is behind when an assignment is past its due date and not completed, or when their average score over completed question sets is below 50.
 
