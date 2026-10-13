@@ -53,4 +53,4 @@ Which actions does the MCP server expose for writing?
 - Every effect is reversible without a restore feature: a new assignment can be removed in REST, a due date can be moved back.
 - The tools are annotated as not destructive and idempotent, and every change writes an audit row (who, what, when, through which channel), so the support question "who changed this due date" always has an answer.
 - Ratified by: Gilbert Lavensky Chan (09/10/2026)
-- Amended 14/10/2026 (launch check): the approval prompt is the client's choice; Claude Desktop's Auto mode ran a write without one. This decision rests on the guards the server enforces: additive writes, natural idempotency (ADR-005) and the audit row. The pros and cons above are unchanged.
+- Amended 14/10/2026 (launch check): the approval prompt is the client's choice; Claude Desktop's Auto mode ran a write without one. This decision rests on the guards the server enforces: additive writes, natural idempotency (ADR-005) and the audit row. The context and pros above assume the prompt. The decision is unchanged.
