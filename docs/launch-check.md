@@ -60,6 +60,8 @@ The check found three defects. Each was fixed in its own pull request:
 - **The MCP text had no ids** ([#19](https://github.com/GilbertChian8/learntrack/pull/19)). Claude Desktop gives the model only a tool's text content, and the text was a summary without ids. In Flow 5a Claude could not target the learners who are behind. The text is now the structured content as JSON.
 - **The seed had no full-size group** ([#17](https://github.com/GilbertChian8/learntrack/pull/17)). The largest seeded group had 50 learners, smaller than the group the target names. The seed now has Full Size Group (60 learners, 100 assignments), and the production image can run the seed (Faker moved to `require`).
 
+The check also showed a starter kit leftover: the login and consent pages showed the Laravel logo. [#20](https://github.com/GilbertChian8/learntrack/pull/20) replaces it, and the Laravel favicons, with a LearnTrack mark.
+
 Observations, with no change:
 
 - Claude Desktop's Auto mode ran `assign_content` in Flow 5a without asking. Auto mode runs the calls it assesses as lower risk, and the tool is annotated as not destructive and safe to repeat. The prompt is the client's choice. The server's guarantees are [ADR-004](adr/ADR-004-ai-writes.md): additive, idempotent writes, each with an audit row. Steps b to d ran in Manual mode.
