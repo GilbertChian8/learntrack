@@ -1,11 +1,14 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/react-starter-kit",
+    "name": "gilbertchian8/learntrack",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "A backend service for medical schools and teaching hospitals: educators see which learners are behind and why, through REST, GraphQL and an MCP server for AI assistants.",
     "keywords": [
-        "laravel",
-        "framework"
+        "medical-education",
+        "learner-progress",
+        "mcp",
+        "graphql",
+        "rest-api"
     ],
     "license": "MIT",
     "require": {
