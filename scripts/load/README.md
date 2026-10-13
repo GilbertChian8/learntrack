@@ -14,7 +14,7 @@ It reports p50, p95, p99 and max per operation, and writes the raw k6 summary to
 
 A run takes about 12 minutes. The limits stay on:
 
-- REST and GraphQL allow 300 requests a minute per user. groupProgress makes 200, plus 2 setup calls, so it runs at full speed with 10 at once and stays under the limit. It has 90 seconds.
+- REST and GraphQL allow 300 requests a minute per user. groupProgress makes 200, plus 2 setup calls, so it runs at full speed with 10 at once and stays under the limit. It has 60 seconds to start its calls, plus 30 to finish them.
 - `/mcp` allows 60 calls a minute per educator. The 500 tool calls start 90 seconds after setup's 2 calls. Each call starts at least 1.2 seconds after the one before, so they take at least 10 minutes and no minute holds more than 51.
 - Client registration allows 10 an hour per IP address, so at most 10 runs an hour from one address.
 
