@@ -22,7 +22,7 @@ export AWS_REGION=eu-central-1
 
 | Target | Measured | Verdict |
 |---|---|---|
-| groupProgress p95 under 300 ms on the largest seeded group, from `eu-central-1` | To be filled by the lead | To be filled by the lead |
+| groupProgress p95 under 300 ms on Full Size Group (60 learners, 100 assignments), from `eu-central-1` | To be filled by the lead | To be filled by the lead |
 | groupProgress p95 under 300 ms, from the laptop | To be filled by the lead | To be filled by the lead |
 | Every MCP read tool p95 under 1 s, from `eu-central-1` (slowest tool) | To be filled by the lead | To be filled by the lead |
 | Every MCP read tool p95 under 1 s, from the laptop (slowest tool) | To be filled by the lead | To be filled by the lead |
@@ -55,6 +55,8 @@ The run page's summary lists the app and housekeeping revisions. The image tag i
 
 ## 2. Seed
 
+A seeded environment is a demo (TDD, Launch plan): its accounts share the password published in this repository, it never holds real data, and real people need account management first, which is future work.
+
 The pipeline runs the migrations only. Seed once with a one-off task: the housekeeping revision from step 1, with its command changed to `php artisan migrate --seed --force` (`--force` because the image runs in production). The task uses the app's subnets and security group, read from the service:
 
 ```
@@ -76,7 +78,7 @@ aws logs get-log-events --log-group-name /learntrack/prod/app \
 
 Exit code 0 and the log lists PassportSeeder, ContentSeeder and DemoSeeder as DONE. Due dates count from the day of the seed. The seed runs the housekeeping task definition, so a seed that fails also sends the housekeeping failure email.
 
-Seed a database once only. A second run adds the content library and the first institution again, then stops on a duplicate email. After that, a content title matches two items, so Flow 5 gets candidates instead of an assignment. The production image refuses `migrate:fresh`, so only a destroy and rebuild cleans it.
+Seed once per environment. A second run adds the content library and the first institution again, then stops on a duplicate email. After that, a content title matches two items, so Flow 5 gets candidates instead of an assignment. The production image refuses `migrate:fresh`, so only a destroy and rebuild cleans it.
 
 | Item | Value |
 |---|---|
@@ -159,17 +161,14 @@ curl -s "https://<domain>/api/v1/groups/$GROUP/audit" -H "Authorization: Bearer 
 
 ## 4. Load script
 
-[scripts/load/](../scripts/load/README.md) logs in as `hannah.clarke@example.edu`, who teaches the largest seeded group, Pediatrics Group B (50 learners, 12 assignments, 511 learner-assignment pairs). It runs groupProgress 200 times, 10 at once, then each of the five MCP read tools 100 times, with a token from the real OAuth flow. A run takes about 12 minutes. Run it once from `eu-central-1` and once from the laptop, not at the same time:
+[scripts/load/](../scripts/load/README.md) logs in as `full.size.educator@example.edu`, who teaches Full Size Group: 60 learners and 100 assignments, the largest group the targets name. It runs groupProgress 200 times, 10 at once, then each of the five MCP read tools 100 times, with a token from the real OAuth flow. A run takes about 12 minutes. Run it once from `eu-central-1` and once from the laptop, not at the same time:
 
 ```
-BASE_URL=https://<domain> EDUCATOR_EMAIL=hannah.clarke@example.edu EDUCATOR_PASSWORD=password \
+BASE_URL=https://<domain> EDUCATOR_EMAIL=full.size.educator@example.edu EDUCATOR_PASSWORD=password \
   scripts/load/run.sh eu-central-1      # on the EC2 instance or CloudShell; use the label laptop on the laptop
 ```
 
 Each run saves its raw k6 summary, report and log in `scripts/load/results/`. Commit them and link them here. A failed request writes its URL to the log, so first replace the domain with `<domain>` in any file that holds it (`grep -l <the domain> scripts/load/results/*`).
-
-The seed's largest group is smaller than the requirement's largest group (60 learners, 100 assignments). The ticket measures the seeded group.
-
 **From `eu-central-1`**
 
 | Item | Value |

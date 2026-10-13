@@ -9,7 +9,7 @@ import { Counter } from 'k6/metrics';
 const BASE_URL = required('BASE_URL').replace(/\/+$/, '');
 const EDUCATOR_EMAIL = required('EDUCATOR_EMAIL');
 const EDUCATOR_PASSWORD = required('EDUCATOR_PASSWORD');
-const GROUP_NAME = __ENV.GROUP_NAME || 'Pediatrics Group B';
+const GROUP_NAME = __ENV.GROUP_NAME || 'Full Size Group';
 const SUMMARY_FILE = __ENV.SUMMARY_FILE || 'summary.json';
 
 const REDIRECT_URI = 'http://localhost:9999/callback';
@@ -84,9 +84,10 @@ export const options = {
 export function setup() {
     const mcpToken = oauthToken();
     const apiToken = apiLogin();
-    const groups = apiGet(apiToken, '/api/v1/groups?limit=200').data;
-    const groupId = findGroupId(groups);
-    const learnerId = findLearnerId(apiToken, groups, groupId);
+    const groupId = findGroupId(
+        apiGet(apiToken, '/api/v1/groups?limit=200').data,
+    );
+    const learnerId = findLearnerId(apiToken, groupId);
 
     console.log(`Group ${groupId} (${GROUP_NAME}), learner ${learnerId}.`);
 
@@ -356,31 +357,16 @@ function findGroupId(groups) {
     return group.id;
 }
 
-/**
- * The learner of the group who is in the most of the educator's groups, so get_learner_summary has the most to answer.
- */
-function findLearnerId(apiToken, groups, groupId) {
-    const memberships = {};
-    let candidates = [];
+function findLearnerId(apiToken, groupId) {
+    const learnerIds = apiGet(apiToken, `/api/v1/groups/${groupId}`)
+        .data.learners.map((learner) => learner.id)
+        .sort((a, b) => a - b);
 
-    for (const group of groups) {
-        const learnerIds = apiGet(
-            apiToken,
-            `/api/v1/groups/${group.id}`,
-        ).data.learners.map((learner) => learner.id);
-
-        for (const learnerId of learnerIds) {
-            memberships[learnerId] = (memberships[learnerId] || 0) + 1;
-        }
-
-        if (group.id === groupId) {
-            candidates = learnerIds;
-        }
+    if (learnerIds.length === 0) {
+        fail(`${GROUP_NAME} has no learners.`);
     }
 
-    return candidates.sort(
-        (a, b) => memberships[b] - memberships[a] || a - b,
-    )[0];
+    return learnerIds[0];
 }
 
 function toolArguments(name, data) {
