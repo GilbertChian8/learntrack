@@ -167,7 +167,7 @@ resource "aws_cloudwatch_event_target" "housekeeping_failed" {
   rule = aws_cloudwatch_event_rule.housekeeping_failed.name
   arn  = data.aws_sns_topic.alarms.arn
 
-  # EventBridge does not escape values, so event values sit only as JSON values.
+  # EventBridge does not escape values: only fixed-form strings, numbers and objects go in.
   input_transformer {
     input_paths = merge(local.housekeeping_event_paths, {
       exit_code = "$.detail.containers[0].exitCode"
