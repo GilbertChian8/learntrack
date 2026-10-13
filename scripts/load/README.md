@@ -36,8 +36,8 @@ It reports p50, p95, p99 and max per operation, and writes the raw k6 summary to
 
 A run takes about 12 minutes, or about 17 with `GROUP_PROGRESS_CONCURRENCY=1`. The limits stay on:
 
-- REST and GraphQL allow 300 requests a minute per user. groupProgress makes 200, plus 2 setup calls, so it runs at full speed with 10 at once and stays under the limit. It has 60 seconds to start its calls, plus 30 to finish them. With fewer at once, it has 2 seconds per round of calls (6 minutes 40 at 1).
-- `/mcp` allows 60 calls a minute per educator. The 500 tool calls start 90 seconds after setup's 2 calls. Each call starts at least 1.2 seconds after the one before, so they take at least 10 minutes and no minute holds more than 51.
+- REST and GraphQL allow 300 requests a minute per user. groupProgress makes 200, plus 2 setup calls, so it runs at full speed with 10 at once and stays under the limit. It has 2 seconds per round of calls to start them, at least 60 seconds (60 at 10 at once, 6 minutes 40 at 1), plus 30 to finish them.
+- `/mcp` allows 60 calls a minute per educator. The 500 tool calls start 30 seconds after the groupProgress time ends (90 seconds after setup's 2 calls at 10 at once). Each call starts at least 1.2 seconds after the one before, so they take at least 10 minutes and no minute holds more than 51.
 - Client registration allows 10 an hour per IP address, so at most 10 runs an hour from one address.
 
 Do not run two at once, for example the laptop and the EC2 run: both use the same educator's limits.
@@ -57,7 +57,7 @@ The targets are for the largest group, 60 learners and 100 assignments. The seed
 | `BASE_URL` | yes | The app's public URL, the same as its `APP_URL`: `https://<domain>`, or `http://localhost:8080` locally. The run stops if the discovery documents name another URL |
 | `EDUCATOR_EMAIL`, `EDUCATOR_PASSWORD` | yes | An educator who teaches the group. Seed data: `full.size.educator@example.edu`, `password` |
 | `GROUP_NAME` | no | Default `Full Size Group` |
-| `GROUP_PROGRESS_CONCURRENCY` | no | How many groupProgress calls run at once. Default 10, the ticket's value: that run gives the verdict. 1 is a diagnostic, not the verdict: it shows a call's own time, without waiting behind other calls. The report says which |
+| `GROUP_PROGRESS_CONCURRENCY` | no | How many groupProgress calls run at once. Default 10, the ticket's value: that run gives the verdict. 1 is a diagnostic, not the verdict: it shows a call's own time, without waiting behind other calls. Any value other than 10 is a diagnostic: the report says so, and groupProgress gets no 300 ms threshold and no met or not met |
 | `RESULTS_DIR` | no | Where `run.sh` saves the files. Default `scripts/load/results` |
 | `K6_NETWORK` | no | The Docker network of the k6 container. Default `bridge` |
 

@@ -11,7 +11,12 @@ const EDUCATOR_EMAIL = required('EDUCATOR_EMAIL');
 const EDUCATOR_PASSWORD = required('EDUCATOR_PASSWORD');
 const GROUP_NAME = __ENV.GROUP_NAME || 'Full Size Group';
 const GROUP_PROGRESS_CALLS = 200;
-const GROUP_PROGRESS_CONCURRENCY = callCount('GROUP_PROGRESS_CONCURRENCY', 10);
+const VERDICT_CONCURRENCY = 10;
+const GROUP_PROGRESS_CONCURRENCY = callCount(
+    'GROUP_PROGRESS_CONCURRENCY',
+    VERDICT_CONCURRENCY,
+);
+const IS_DIAGNOSTIC = GROUP_PROGRESS_CONCURRENCY !== VERDICT_CONCURRENCY;
 // Up to 2 seconds for each round of calls, and at least a minute.
 const GROUP_PROGRESS_SECONDS = Math.max(
     60,
@@ -34,7 +39,7 @@ const OPERATIONS = [
     {
         op: 'group_progress',
         count: GROUP_PROGRESS_CALLS,
-        targetMs: GROUP_PROGRESS_TARGET_MS,
+        targetMs: IS_DIAGNOSTIC ? null : GROUP_PROGRESS_TARGET_MS,
     },
     ...TOOLS.map((op) => ({ op, count: 100, targetMs: MCP_TOOL_TARGET_MS })),
 ];
@@ -86,7 +91,9 @@ export const options = {
             rate_limited: ['count==0'],
         },
         ...OPERATIONS.map(({ op, count, targetMs }) => ({
-            [`http_req_duration{op:${op}}`]: [`p(95)<${targetMs}`],
+            [`http_req_duration{op:${op}}`]: [
+                targetMs === null ? 'max>=0' : `p(95)<${targetMs}`,
+            ],
             [`http_reqs{op:${op}}`]: [`count==${count}`],
         })),
     ),
@@ -555,7 +562,7 @@ function report(data) {
     const lines = [
         '',
         `LearnTrack launch check, ${new Date().toISOString()}`,
-        `${GROUP_NAME}, groupProgress ${GROUP_PROGRESS_CONCURRENCY} at once${GROUP_PROGRESS_CONCURRENCY === 10 ? '' : ' (diagnostic, not the verdict)'}`,
+        `${GROUP_NAME}, groupProgress ${GROUP_PROGRESS_CONCURRENCY} at once${IS_DIAGNOSTIC ? ' (diagnostic, not the verdict)' : ''}`,
         '',
         'operation                  count    p50 ms    p95 ms    p99 ms    max ms   target    verdict',
     ];
@@ -574,8 +581,12 @@ function report(data) {
                 ms(values['p(95)']).padStart(9),
                 ms(values['p(99)']).padStart(9),
                 ms(values.max).padStart(9),
-                `<${targetMs}`.padStart(8),
-                met ? '   met' : '   not met',
+                (targetMs === null ? '-' : `<${targetMs}`).padStart(8),
+                targetMs === null
+                    ? '   diagnostic'
+                    : met
+                      ? '   met'
+                      : '   not met',
             ].join(' '),
         );
     }

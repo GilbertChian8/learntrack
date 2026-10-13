@@ -22,8 +22,8 @@ export AWS_REGION=eu-central-1
 
 | Target | Measured | Verdict |
 |---|---|---|
-| groupProgress p95 under 300 ms on Full Size Group (60 learners, 100 assignments), from `eu-central-1` | To be filled by the lead | To be filled by the lead |
-| groupProgress p95 under 300 ms, from the laptop | To be filled by the lead | To be filled by the lead |
+| groupProgress p95 under 300 ms on Full Size Group (60 learners, 100 assignments), 10 at once, from `eu-central-1` | To be filled by the lead | To be filled by the lead |
+| groupProgress p95 under 300 ms, 10 at once, from the laptop | To be filled by the lead | To be filled by the lead |
 | Every MCP read tool p95 under 1 s, from `eu-central-1` (slowest tool) | To be filled by the lead | To be filled by the lead |
 | Every MCP read tool p95 under 1 s, from the laptop (slowest tool) | To be filled by the lead | To be filled by the lead |
 | `assign_content` under 1 s in the manual flow (slowest call) | To be filled by the lead | To be filled by the lead |
