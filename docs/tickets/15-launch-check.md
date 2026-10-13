@@ -25,7 +25,7 @@ Prove the system against its targets on the real infrastructure: the pipeline de
 5. Targets: `groupProgress` p95 under 300 ms, every MCP tool p95 under 1 s, measured from a client in the same region (an EC2 instance or a Cloud Shell in `eu-central-1`) and once from a laptop, both recorded.
 6. Check the alarms page: no alarm in `ALARM` state after the load run. Record the ALB target response time p95 from CloudWatch for the same window.
 7. Run `destroy.yml`, then `deploy.yml`, then seed again, then one MCP question. Record the elapsed time and that no manual step was needed beyond the bootstrap.
-8. Write `docs/launch-check.md`: date, commit, environment, every number above, every screenshot or transcript reference, and a verdict per target (met or not met). If a target is not met, open a ticket with the measurements and leave the verdict honest.
+8. Write `docs/launch-check.md`: date, commit, environment, every number above, every screenshot or transcript reference, and a verdict per target (met or not met). If a target is not met, record the follow-up in `docs/launch-check.md` with the measurements and leave the verdict honest.
 
 ## Acceptance tests
 
@@ -37,7 +37,7 @@ Prove the system against its targets on the real infrastructure: the pipeline de
 
 ## Out of scope
 
-Tuning beyond a configuration fix; any new feature. A missed target produces a ticket, not a last-minute redesign.
+Tuning beyond a configuration fix; any new feature. A missed target produces a follow-up recorded in `docs/launch-check.md`, not a last-minute redesign.
 
 ## PR checklist
 
