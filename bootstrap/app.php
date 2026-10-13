@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\ConsentRequestClosedException;
 use App\Exceptions\ErrorRenderer;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\HandleAppearance;
@@ -13,6 +14,7 @@ use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Support\Facades\Route;
+use Laravel\Passport\Exceptions\InvalidAuthTokenException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -47,6 +49,8 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(new ErrorRenderer);
+
+        $exceptions->map(InvalidAuthTokenException::class, fn (InvalidAuthTokenException $exception) => new ConsentRequestClosedException($exception));
 
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),

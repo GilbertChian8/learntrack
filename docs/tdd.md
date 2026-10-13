@@ -388,7 +388,7 @@ The resolver calls GroupProgress, which looks the group up through the educator'
 |---|---|
 | GET /login, POST /login | The login page. Email and password, web session in the database. Educators and learners can log in; the consent step below is for educators only |
 | POST /logout | Ends the web session |
-| GET /oauth/authorize | Passport shows the consent page (an Inertia page, styled for LearnTrack): the client's name and what it will be able to do: read progress of your groups, assign content, change due dates. A learner sees a message that only educators can connect an AI assistant, and no code is issued |
+| GET /oauth/authorize | Passport shows the consent page (an Inertia page, styled for LearnTrack): the client's name and what it will be able to do: read progress of your groups, assign content, change due dates. A learner sees a message that only educators can connect an AI assistant, and no code is issued. The Approve and Deny buttons answer once: the first click disables both, and a request already answered, or replaced by a newer one in the same session, shows the message page (403), never Passport's error text |
 | POST /oauth/authorize, DELETE /oauth/authorize | Approve or deny |
 | POST /oauth/token | Authorization code with PKCE, and refresh |
 | POST /oauth/register | Dynamic client registration. Claude registers itself here before the first login |

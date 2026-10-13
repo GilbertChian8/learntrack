@@ -126,6 +126,28 @@ test('denying redirects with access_denied and issues nothing', function () {
         ->and(DB::table('oauth_access_tokens')->count())->toBe(0);
 });
 
+test('a request answers once: a second answer gets the message page, not Passport\'s error', function (string $method) {
+    $clientId = registerOAuthClient();
+    $educator = User::factory()->educator()->create();
+
+    $consent = actingAs($educator)->get('/oauth/authorize?'.http_build_query(authorizationQuery($clientId, Str::random(64))));
+    $form = ['auth_token' => $consent->inertiaProps('authToken'), 'state' => 'state-123'];
+
+    expect(callbackQuery(post('/oauth/authorize', $form), 'http://localhost:9999/callback'))->toHaveKey('code');
+
+    $again = actingAs($educator)->call($method, '/oauth/authorize', $form);
+
+    $again->assertForbidden()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('mcp/message')
+            ->where('title', 'Request no longer open')
+            ->where('message', 'This request has expired or was already answered. Start the connection again from your AI assistant.')
+            ->where('signOut', false));
+
+    expect((string) $again->getContent())->not->toContain('session auth token')
+        ->and(DB::table('oauth_auth_codes')->count())->toBe(1);
+})->with(['approve again' => 'POST', 'deny after approving' => 'DELETE']);
+
 test('a guest is sent to the login page first', function () {
     $clientId = registerOAuthClient();
 
