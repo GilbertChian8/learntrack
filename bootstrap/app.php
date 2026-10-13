@@ -13,6 +13,10 @@ use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
+use Laravel\Passport\Exceptions\InvalidAuthTokenException;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -47,6 +51,19 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(new ErrorRenderer);
+
+        // The handler turns Passport's InvalidAuthTokenException into an AccessDeniedHttpException before rendering.
+        $exceptions->render(function (AccessDeniedHttpException $exception, Request $request): ?Response {
+            if (! $request->is('oauth/authorize') || ! $exception->getPrevious() instanceof InvalidAuthTokenException) {
+                return null;
+            }
+
+            return Inertia::render('mcp/message', [
+                'title' => 'Request no longer open',
+                'message' => 'This request has expired or was already answered. Start the connection again from your AI assistant.',
+                'signOut' => false,
+            ])->toResponse($request)->setStatusCode(403);
+        });
 
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
