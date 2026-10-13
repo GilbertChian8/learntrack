@@ -62,7 +62,7 @@ test('by id: only the groups the caller teaches, and the same object as the text
         ->and(textAsJson($result))->toBe($result['structuredContent']);
 });
 
-test('by id: a shared group shows once the caller teaches it too, ordered by name, not id', function () use ($groupB) {
+test('by id: a shared group shows once the caller teaches it too, ordered by name, not id', function () use ($groupB, $saraInGroupA) {
     $fixture = cardiologyProgress();
     $groupB = $groupB($fixture['group'], $fixture['sara']);
     $groupB->educators()->attach($fixture['educator']);
@@ -78,8 +78,7 @@ test('by id: a shared group shows once the caller teaches it too, ordered by nam
             'average_score' => null,
             'counts' => ['not_started' => 1, 'in_progress' => 0, 'completed' => 0, 'overdue' => 0],
         ])
-        ->and($groups[1]['behind'])->toBeTrue()
-        ->and(array_column($groups[1]['reasons'], 'text'))->toBe(['Average question set score 42.5 is below 50 (scores: 45, 40)']);
+        ->and($groups[1])->toBe($saraInGroupA($fixture));
 });
 
 test('by a unique name, in any case: the same answer as by id', function () {
