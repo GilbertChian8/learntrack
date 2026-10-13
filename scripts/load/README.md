@@ -79,7 +79,67 @@ BASE_URL=https://<domain> EDUCATOR_EMAIL=full.size.educator@example.edu EDUCATOR
   scripts/load/run.sh laptop
 ```
 
-**From eu-central-1,** the same command with the label `eu-central-1`, on an EC2 instance in `eu-central-1` (Amazon Linux 2023):
+**From eu-central-1, as a one-off Fargate task.** This is how the launch check ran it: the same region as the app, no new infrastructure and no instance to manage. The task runs in the `learntrack-prod` cluster, in the app's private subnets with the app's security group, and reaches the public load balancer through the NAT gateways, like any client on the internet. It uses the pinned k6 image: it downloads the script at a fixed commit, runs it, and prints the report and then the raw summary JSON to its log. Its task definition is temporary.
+
+Save this as `loadcheck-task.json`, with your values for `<account id>`, `<domain>` and `<commit>` (a pushed commit that has this script). 1 vCPU keeps the load client from being the bottleneck: k6 reads every 588 KB groupProgress answer.
+
+```json
+{
+  "family": "learntrack-prod-loadcheck",
+  "requiresCompatibilities": ["FARGATE"],
+  "networkMode": "awsvpc",
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::<account id>:role/learntrack-prod-task-execution",
+  "containerDefinitions": [
+    {
+      "name": "k6",
+      "image": "grafana/k6:2.3.0@sha256:9c2dee7f8ed74d317e4027c06a10f169b625638189de8d4555d0b3486a5aeb34",
+      "essential": true,
+      "entryPoint": ["sh", "-c"],
+      "command": ["wget -q -O /tmp/launch-check.js https://raw.githubusercontent.com/GilbertChian8/learntrack/<commit>/scripts/load/launch-check.js && k6 run --quiet /tmp/launch-check.js; status=$?; cat /tmp/summary.json; exit $status"],
+      "environment": [
+        { "name": "BASE_URL", "value": "https://<domain>" },
+        { "name": "EDUCATOR_EMAIL", "value": "full.size.educator@example.edu" },
+        { "name": "EDUCATOR_PASSWORD", "value": "password" },
+        { "name": "SUMMARY_FILE", "value": "/tmp/summary.json" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/learntrack/prod/app",
+          "awslogs-region": "eu-central-1",
+          "awslogs-stream-prefix": "loadcheck"
+        }
+      }
+    }
+  ]
+}
+```
+
+Then register it, run it with the app service's network settings, wait, save the log, and deregister it:
+
+```
+export AWS_REGION=eu-central-1
+aws ecs register-task-definition --cli-input-json file://loadcheck-task.json \
+  --query 'taskDefinition.taskDefinitionArn' --output text
+network="$(aws ecs describe-services --cluster learntrack-prod --services learntrack-prod-app \
+  --query 'services[0].networkConfiguration' --output json)"
+task="$(aws ecs run-task --cluster learntrack-prod --task-definition learntrack-prod-loadcheck \
+  --launch-type FARGATE --network-configuration "$network" --started-by launch-check-load \
+  --query 'tasks[0].taskArn' --output text)"
+until aws ecs wait tasks-stopped --cluster learntrack-prod --tasks "$task"; do echo "still running"; done
+aws ecs describe-tasks --cluster learntrack-prod --tasks "$task" \
+  --query 'tasks[0].[containers[0].exitCode,startedAt,stoppedAt]' --output text
+aws logs get-log-events --log-group-name /learntrack/prod/app \
+  --log-stream-name "loadcheck/k6/${task##*/}" --start-from-head \
+  --query 'events[].[message]' --output text > "scripts/load/results/eu-central-1-$(date -u +%Y%m%dT%H%M%SZ).log"
+aws ecs deregister-task-definition --task-definition learntrack-prod-loadcheck:<revision>
+```
+
+The exit code means the same as with `run.sh`. The start and stop times give the window for the load balancer's p95. For the diagnostic run at 1 at once, add `--overrides '{"containerOverrides":[{"name":"k6","environment":[{"name":"GROUP_PROGRESS_CONCURRENCY","value":"1"}]}]}'` to `run-task`.
+
+**From eu-central-1, on an EC2 instance,** the same `run.sh` command with the label `eu-central-1` (Amazon Linux 2023):
 
 ```
 sudo dnf install -y docker git

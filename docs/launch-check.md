@@ -17,7 +17,7 @@ export AWS_REGION=eu-central-1
 | Date (UTC) | To be filled by the lead |
 | Commit on `main` | To be filled by the lead |
 | Environment | `prod` in `eu-central-1`, `https://<domain>` |
-| Load client in the region | To be filled by the lead (EC2 instance type, or CloudShell) |
+| Load client in the region | To be filled by the lead (a one-off Fargate task in `learntrack-prod` and its size, or an EC2 instance, or CloudShell) |
 | Laptop | To be filled by the lead (place and connection) |
 
 | Target | Measured | Verdict |
@@ -163,14 +163,18 @@ curl -s "https://<domain>/api/v1/groups/$GROUP/audit" -H "Authorization: Bearer 
 
 ## 4. Load script
 
-[scripts/load/](../scripts/load/README.md) logs in as `full.size.educator@example.edu`, who teaches Full Size Group: 60 learners and 100 assignments, the largest group the targets name. It runs groupProgress 200 times, 10 at once, then each of the five MCP read tools 100 times, with a token from the real OAuth flow. A run takes about 12 minutes. Run it once from `eu-central-1` and once from the laptop, not at the same time:
+[scripts/load/](../scripts/load/README.md) logs in as `full.size.educator@example.edu`, who teaches Full Size Group: 60 learners and 100 assignments, the largest group the targets name. It runs groupProgress 200 times, 10 at once, then each of the five MCP read tools 100 times, with a token from the real OAuth flow. A run takes about 12 minutes. Run it once from `eu-central-1` and once from the laptop, not at the same time.
+
+From `eu-central-1`, the launch check runs it as a one-off Fargate task in the `learntrack-prod` cluster: the same region as the app, no new infrastructure, no instance to manage. The task uses the app's private subnets and reaches the public load balancer through the NAT gateways. It runs the pinned k6 image with `sh -c`: it downloads the script from `raw.githubusercontent.com` at a fixed commit, runs it, and prints the summary JSON to its log. Its task definition (`learntrack-prod-loadcheck`) is temporary and is deregistered afterwards. The task definition JSON and the commands are in [scripts/load/README.md](../scripts/load/README.md) (From eu-central-1, as a one-off Fargate task). An EC2 instance or CloudShell with `run.sh` works too.
+
+From the laptop:
 
 ```
 BASE_URL=https://<domain> EDUCATOR_EMAIL=full.size.educator@example.edu EDUCATOR_PASSWORD=password \
-  scripts/load/run.sh eu-central-1      # on the EC2 instance or CloudShell; use the label laptop on the laptop
+  scripts/load/run.sh laptop
 ```
 
-Each run saves its raw k6 summary, report and log in `scripts/load/results/`. Commit them and link them here. A failed request writes its URL to the log, so first replace the domain with `<domain>` in any file that holds it (`grep -l <the domain> scripts/load/results/*`).
+Each run saves its raw k6 summary, report and log in `scripts/load/results/` (the Fargate run: the task's log, saved there by the commands in the README). Commit them and link them here. A failed request writes its URL to the log, so first replace the domain with `<domain>` in any file that holds it (`grep -l <the domain> scripts/load/results/*`).
 
 The groupProgress call is the contract's query ([api-contract.md](api-contract.md), GraphQL, groupProgress), sent unchanged. It asks for every field the schema defines, the whole progress table a client dashboard shows:
 
@@ -236,6 +240,8 @@ The same run with one groupProgress call at a time. It shows a call's own time, 
 GROUP_PROGRESS_CONCURRENCY=1 BASE_URL=https://<domain> EDUCATOR_EMAIL=full.size.educator@example.edu EDUCATOR_PASSWORD=password \
   scripts/load/run.sh eu-central-1-diagnostic
 ```
+
+As a Fargate task, add this to `run-task`: `--overrides '{"containerOverrides":[{"name":"k6","environment":[{"name":"GROUP_PROGRESS_CONCURRENCY","value":"1"}]}]}'`.
 
 | Item | Value |
 |---|---|
