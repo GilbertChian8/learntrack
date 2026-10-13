@@ -63,7 +63,7 @@ The targets are for the largest group, 60 learners and 100 assignments. The seed
 
 ## Run it
 
-Needs Docker and a seeded database. Each run saves three files named after the label and the start time: `<label>-<time>.json` (the raw k6 summary), `.txt` (the report) and `.log` (the console, with the start and finish times). A failed request writes its URL to the log: replace the domain with `<domain>` before you commit a file that holds it.
+Needs a seeded database, and Docker for `run.sh`. Each `run.sh` run saves three files named after the label and the start time: `<label>-<time>.json` (the raw k6 summary), `.txt` (the report) and `.log` (the console, with the start and finish times). The Fargate run saves the same three files from the task's log (below). A failed request writes its URL to the log: replace the domain with `<domain>` before you commit a file that holds it.
 
 **Locally,** against the compose app (`docker compose up -d`, then `php artisan migrate:fresh --seed`). The discovery documents and redirects name `http://localhost:8080`, so the k6 container joins the app container's network, where that address is the app:
 
@@ -115,7 +115,7 @@ Save this as `loadcheck-task.json`, with your values for `<account id>` and `<co
 }
 ```
 
-Then register it, run it with the app service's network settings and the run's settings as overrides, wait, save the log, and deregister it:
+Then register it, run it with the app service's network settings and the run's settings as overrides, wait, save the log, and deregister and delete it:
 
 ```
 export AWS_REGION=eu-central-1
@@ -137,6 +137,7 @@ aws logs get-log-events --log-group-name /learntrack/prod/app \
 sed '/^SUMMARY-JSON-BEGIN$/,$d' "$log" > "${log%.log}.txt"
 sed -n '/^SUMMARY-JSON-BEGIN$/,/SUMMARY-JSON-END$/p' "$log" | sed '1d;$s/SUMMARY-JSON-END$//' > "${log%.log}.json"
 aws ecs deregister-task-definition --task-definition learntrack-prod-loadcheck:<revision>
+aws ecs delete-task-definitions --task-definitions learntrack-prod-loadcheck:<revision>
 ```
 
 The exit code means the same as with `run.sh`. The start and stop times give the window for the load balancer's p95. The two `sed` lines split the log into the report, everything before the first marker, and the raw summary, the text between the markers (`cat` prints no final newline, so the end marker follows the closing brace). For the diagnostic run at 1 at once, use the label `eu-central-1-diagnostic` and add `{"name":"GROUP_PROGRESS_CONCURRENCY","value":"1"}` to the overrides' `environment`.

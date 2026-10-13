@@ -28,12 +28,12 @@ export AWS_REGION=eu-central-1
 | groupProgress p95 under 300 ms, 10 at once, from the laptop | p95 7,766 ms. Only 148 of 200 calls started in the window | Not met |
 | Every MCP read tool p95 under 1 s, from `eu-central-1` (slowest tool) | `find_hardest_assignments`, p95 417 ms | Met |
 | Every MCP read tool p95 under 1 s, from the laptop (slowest tool) | `find_hardest_assignments`, p95 678 ms | Met |
-| `assign_content` under 1 s in the manual flow (slowest call) | Step a, 14:04:30 UTC: the two `/mcp` requests of that second took 83 and 155 ms, and the write is one of them | Met |
+| `assign_content` under 1 s in the manual flow | Step a, 14:04:30 UTC: the two `/mcp` requests of that second took 83 and 155 ms, and the write is one of them. Steps b and d: not recorded | Met |
 | `change_due_date` under 1 s in the manual flow | Step c, 14:10:51 UTC: 189 and 113 ms, and the write is one of them | Met |
 | Flows 1, 4, 5 and 6 from Claude Desktop | Every step passed. Flow 5 passed after the fix in #19, and its step d by a direct tool call (section 3) | Met |
 | No alarm in `ALARM` after the load runs | All 8 alarms `OK` after the runs. `learntrack-prod-response-time` was in `ALARM` for 6 minutes during each verdict run | Met |
 | Destroy and rebuild with no manual step beyond the bootstrap | About 55 minutes from the destroy start to the first answer. Beyond the bootstrap: only the seed task, and the reconnect a person makes | Met |
-| Scheduled housekeeping (PR 14 step 7) | The schedule started the task, it exited 0, and no failure email was sent (section 7) | Met |
+| Scheduled housekeeping (#14, test plan step 7) | The schedule started the task, it exited 0, and no failure email was sent (section 7) | Met |
 
 Diagnostic, not the verdict: groupProgress with 1 call at once, from `eu-central-1`: p50 507 ms, p95 669 ms, p99 1,084 ms (section 4).
 
@@ -46,7 +46,7 @@ What was measured:
 - In the diagnostic run, one groupProgress call at a time took p50 507 ms and p95 669 ms. The app service's CPU was at most 51% (average 46%): one request uses one task's 0.5 vCPU.
 - The answer is 588 KB (measured locally): 60 learners and 6,000 statuses.
 
-So the cost is not the database and not the progress query. It is the GraphQL layer, which resolves the 588 KB answer field by field on 0.5 vCPU per task. One PHP request uses at most one CPU, so 10 calls at once on 2 tasks wait in a queue whatever the CPU size. A configuration change cannot reach the target. The lead decided not to change the CPU.
+The lead's reading: the app tasks are CPU-bound, the database is idle, and the MCP tool computes the same progress in a fraction of the time, so the cost is not the progress query. It is the GraphQL layer, which resolves the 588 KB answer field by field on 0.5 vCPU per task. One PHP request uses at most one CPU, so 10 calls at once on 2 tasks wait in a queue whatever the CPU size. A configuration change cannot reach the target. The lead decided not to change the CPU.
 
 ## Follow-up
 
@@ -60,12 +60,11 @@ The check found three defects. Each was fixed in its own pull request:
 - **The MCP text had no ids** ([#19](https://github.com/GilbertChian8/learntrack/pull/19)). Claude Desktop gives the model only a tool's text content, and the text was a summary without ids. In Flow 5a Claude could not target the learners who are behind. The text is now the structured content as JSON.
 - **The seed had no full-size group** ([#17](https://github.com/GilbertChian8/learntrack/pull/17)). The largest seeded group had 50 learners, smaller than the group the target names. The seed now has Full Size Group (60 learners, 100 assignments), and the production image can run the seed (Faker moved to `require`).
 
-Observations, with no change to LearnTrack:
+Observations, with no change:
 
 - Claude Desktop's Auto mode ran `assign_content` in Flow 5a without asking. Auto mode runs the calls it assesses as lower risk, and the tool is annotated as not destructive and safe to repeat. The prompt is the client's choice. The server's guarantees are [ADR-004](adr/ADR-004-ai-writes.md): additive, idempotent writes, each with an audit row. Steps b to d ran in Manual mode.
 - In Flow 5b Claude miscounted lists it wrote itself ("13 learners" over 12 names, "9 learners" for 10). The tool data was right (20 behind: 12 overdue, 10 with a low average, 2 both), and Claude corrected its counts in step c.
 - After the rebuild, Claude Desktop did not start the login by itself. It told the educator to reconnect in Settings, Connectors (section 6).
-- The login and consent pages show the Laravel logo from the starter kit, a leftover. Its own pull request replaces it: "15: LearnTrack mark instead of the starter kit's".
 
 ## 1. Deploy
 
@@ -203,7 +202,7 @@ curl -s "https://<domain>/api/v1/groups/$GROUP/audit" -H "Authorization: Bearer 
 
 [scripts/load/](../scripts/load/README.md) logs in as `full.size.educator@example.edu`, who teaches Full Size Group: 60 learners and 100 assignments, the largest group the targets name. It runs groupProgress 200 times, 10 at once, then each of the five MCP read tools 100 times, with a token from the real OAuth flow. A run takes about 12 minutes. Run it once from `eu-central-1` and once from the laptop, not at the same time.
 
-From `eu-central-1`, the launch check runs it as a one-off Fargate task in the `learntrack-prod` cluster: the same region as the app, no new infrastructure, no instance to manage. The task uses the app's private subnets and reaches the public load balancer through the NAT gateways. It runs the pinned k6 image with `sh -c`: it downloads the script from `raw.githubusercontent.com` at a fixed commit, runs it, and prints the summary JSON between two marker lines to its log. Its task definition (`learntrack-prod-loadcheck`) is temporary and is deregistered afterwards. The task definition JSON and the commands are in [scripts/load/README.md](../scripts/load/README.md) (From eu-central-1, as a one-off Fargate task). An EC2 instance or CloudShell with `run.sh` works too.
+From `eu-central-1`, the launch check runs it as a one-off Fargate task in the `learntrack-prod` cluster: the same region as the app, no new infrastructure, no instance to manage. The task uses the app's private subnets and reaches the public load balancer through the NAT gateways. It runs the pinned k6 image with `sh -c`: it downloads the script from `raw.githubusercontent.com` at a fixed commit, runs it, and prints the summary JSON between two marker lines to its log. Its task definition (`learntrack-prod-loadcheck`) is temporary: it is deregistered and deleted afterwards. The task definition JSON and the commands are in [scripts/load/README.md](../scripts/load/README.md) (From eu-central-1, as a one-off Fargate task). An EC2 instance or CloudShell with `run.sh` works too.
 
 From the laptop:
 
@@ -242,7 +241,7 @@ In both verdict runs, a groupProgress call took about 4 seconds at p50, so only 
 
 | Item | Value |
 |---|---|
-| Client | Fargate task `173beea37b084edf958a91e59e622d8d` (`learntrack-prod-loadcheck:1`, deregistered afterwards) |
+| Client | Fargate task `173beea37b084edf958a91e59e622d8d` (`learntrack-prod-loadcheck:1`, deregistered and deleted afterwards) |
 | Started and finished (UTC) | 14:35:17 to 14:47:14 |
 | k6 exit code | 99 |
 | Requests | 652, none failed, no 429; checks 1,276 of 1,276 |
@@ -355,9 +354,9 @@ Claude Desktop, after the rebuild:
 | Elapsed, destroy start to the first answer | About 55 minutes |
 | Manual steps beyond the bootstrap | None in the environment: two workflow runs started by hand and the one-off seed task. In Claude Desktop, the reconnect a person makes |
 
-## 7. Scheduled housekeeping (PR 14 step 7)
+## 7. Scheduled housekeeping (#14, test plan step 7)
 
-On the rebuilt environment, the scheduled housekeeping run was checked once at a near time instead of 03:00 UTC: the real schedule, nothing else changed.
+Step 7 of the test plan in [#14](https://github.com/GilbertChian8/learntrack/pull/14) (ticket 05): the scheduled housekeeping run writes its log lines and sends no failure email. On the rebuilt environment it was checked once at a near time instead of 03:00 UTC: the real schedule, nothing else changed.
 
 | Item | Value |
 |---|---|
