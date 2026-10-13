@@ -9,3 +9,4 @@ Rules added after a review found a mistake that could happen again in a later ti
 - Cursor paging reads each order column from the row by name: order only by columns the row really has (page joined or aliased rows as a derived table).
 - laravel/mcp 1.0.1 does not check tool input against the schema: a tool validates its own arguments with rules that mirror the schema.
 - The base image's nginx writes its own logs and headers that Pest never sees: check a built container for any log or header change.
+- Claude Desktop gives the model only a tool's text content: the text must carry every id and value a later call needs (send the structured content as JSON).
