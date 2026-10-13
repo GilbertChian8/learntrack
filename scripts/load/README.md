@@ -6,7 +6,7 @@
 
 1. **Setup, as a real client.** It gets the MCP token the way Claude does: it reads the discovery documents, registers a client (`POST /oauth/register`), opens the authorize URL, logs in on the web login page, approves the consent page and exchanges the code with its PKCE verifier. Then `initialize` and `tools/list` on `/mcp`. It gets the API token with `POST /api/v1/auth/login`. It finds the group by name, and the group's learner who is in the most of the educator's groups.
 2. **groupProgress:** the full GraphQL query from the contract, 200 times, 10 at once.
-3. **MCP read tools:** each of the five tools 100 times, one call every 1.2 seconds (50 a minute), in turn.
+3. **MCP read tools:** each of the five tools 100 times, in turn, one call at a time, and at most one call every 1.2 seconds (50 a minute).
 
 It reports p50, p95, p99 and max per operation, and writes the raw k6 summary to a JSON file. The time is k6's `http_req_duration`: from sending the request to the last byte of the answer. Connection setup (DNS, TCP, TLS) is not in it.
 
@@ -15,7 +15,7 @@ It reports p50, p95, p99 and max per operation, and writes the raw k6 summary to
 A run takes about 12 minutes. The limits stay on:
 
 - REST and GraphQL allow 300 requests a minute per user. groupProgress makes 200, plus 4 setup calls, so it runs at full speed with 10 at once and stays under the limit. It has 90 seconds.
-- `/mcp` allows 60 calls a minute per educator. The 500 tool calls start 90 seconds after setup's 2 calls, at 50 a minute, so they take 10 minutes and no minute holds more than 51.
+- `/mcp` allows 60 calls a minute per educator. The 500 tool calls start 90 seconds after setup's 2 calls. Each call starts at least 1.2 seconds after the one before, so they take at least 10 minutes and no minute holds more than 51.
 - Client registration allows 10 an hour per IP address, so at most 10 runs an hour from one address.
 
 Do not run two at once, for example the laptop and the EC2 run: both use the same educator's limits.
@@ -42,7 +42,7 @@ The seed is fixed, so every seeded database has the same groups.
 
 ## Run it
 
-Needs Docker and a seeded database. Each run saves three files named after the label and the start time: `<label>-<time>.json` (the raw k6 summary), `.txt` (the report) and `.log` (the console, with the start and finish times).
+Needs Docker and a seeded database. Each run saves three files named after the label and the start time: `<label>-<time>.json` (the raw k6 summary), `.txt` (the report) and `.log` (the console, with the start and finish times). A failed request writes its URL to the log: replace the domain with `<domain>` before you commit a file that holds it.
 
 **Locally,** against the compose app (`docker compose up -d`, then `php artisan migrate:fresh --seed`). The discovery documents and redirects name `http://localhost:8080`, so the k6 container joins the app container's network, where that address is the app:
 

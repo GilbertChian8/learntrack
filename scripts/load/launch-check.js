@@ -1,5 +1,5 @@
 /* global __ENV */
-import { check, fail } from 'k6';
+import { check, fail, sleep } from 'k6';
 import crypto from 'k6/crypto';
 import encoding from 'k6/encoding';
 import exec from 'k6/execution';
@@ -15,6 +15,7 @@ const SUMMARY_FILE = __ENV.SUMMARY_FILE || 'summary.json';
 const REDIRECT_URI = 'http://localhost:9999/callback';
 const GROUP_PROGRESS_TARGET_MS = 300;
 const MCP_TOOL_TARGET_MS = 1000;
+const MCP_CALL_INTERVAL_SECONDS = 1.2;
 const TOOLS = [
     'list_my_groups',
     'get_group_progress',
@@ -59,13 +60,11 @@ export const options = {
             maxDuration: '1m',
         },
         mcp_tools: {
-            executor: 'constant-arrival-rate',
+            executor: 'shared-iterations',
             exec: 'mcpTool',
-            rate: 50,
-            timeUnit: '1m',
-            duration: '10m',
-            preAllocatedVUs: 5,
-            maxVUs: 10,
+            vus: 1,
+            iterations: 500,
+            maxDuration: '15m',
             startTime: '90s',
         },
     },
@@ -120,6 +119,7 @@ export function groupProgress(data) {
 }
 
 export function mcpTool(data) {
+    const startedAt = Date.now();
     const iteration = exec.scenario.iterationInTest;
     const name = TOOLS[iteration % TOOLS.length];
     const response = mcp(
@@ -144,6 +144,13 @@ export function mcpTool(data) {
             );
         },
     });
+
+    sleep(
+        Math.max(
+            0,
+            MCP_CALL_INTERVAL_SECONDS - (Date.now() - startedAt) / 1000,
+        ),
+    );
 }
 
 export function handleSummary(data) {
@@ -168,7 +175,7 @@ function oauthToken() {
 
     if (server.issuer !== BASE_URL) {
         fail(
-            `The discovery documents name ${server.issuer}, not BASE_URL. Set BASE_URL to the app's public URL.`,
+            "The discovery documents name another URL than BASE_URL. Set BASE_URL to the app's public URL.",
         );
     }
 
@@ -428,7 +435,7 @@ function getJson(url) {
             tags: { op: 'setup' },
         }),
         200,
-        `GET ${url}`,
+        `GET ${path(url)}`,
     ).json();
 }
 
@@ -456,7 +463,7 @@ function inertiaPage(response) {
         );
 
     if (match === null) {
-        fail(`${response.url} has no Inertia page data.`);
+        fail(`${path(response.url)} has no Inertia page data.`);
     }
 
     return JSON.parse(match[1]);
@@ -474,7 +481,7 @@ function xsrfToken(url) {
 
 function parseQuery(url, prefix) {
     if (url === undefined || !url.startsWith(`${prefix}?`)) {
-        fail(`Expected a redirect to ${prefix}, got ${url}.`);
+        fail(`Expected a redirect to ${prefix}, got ${path(url)}.`);
     }
 
     const values = {};
@@ -487,6 +494,13 @@ function parseQuery(url, prefix) {
     }
 
     return values;
+}
+
+/**
+ * A URL without its scheme and host, so no message prints the domain.
+ */
+function path(url) {
+    return String(url).replace(/^[a-z]+:\/\/[^/]+/, '');
 }
 
 function query(values) {

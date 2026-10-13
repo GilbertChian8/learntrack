@@ -17,6 +17,7 @@ here="$(cd "$(dirname "$0")" && pwd)"
 results="${RESULTS_DIR:-$here/results}"
 name="$1-$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$results"
+results="$(cd "$results" && pwd)"
 status=0
 
 echo "Started $(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee "$results/$name.log"
