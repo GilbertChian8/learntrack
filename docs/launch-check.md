@@ -74,7 +74,7 @@ aws logs get-log-events --log-group-name /learntrack/prod/app \
   --query 'events[].message' --output text
 ```
 
-Exit code 0 and the log lists PassportSeeder, ContentSeeder and DemoSeeder as DONE. Due dates count from the day of the seed.
+Exit code 0 and the log lists PassportSeeder, ContentSeeder and DemoSeeder as DONE. Due dates count from the day of the seed. The seed runs the housekeeping task definition, so a seed that fails also sends the housekeeping failure email.
 
 Seed a database once only. A second run adds the content library and the first institution again, then stops on a duplicate email. After that, a content title matches two items, so Flow 5 gets candidates instead of an assignment. The production image refuses `migrate:fresh`, so only a destroy and rebuild cleans it.
 
