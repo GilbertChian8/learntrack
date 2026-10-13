@@ -4,8 +4,11 @@
     "type": "project",
     "description": "A backend service for medical schools and teaching hospitals: educators see which learners are behind and why, through REST, GraphQL and an MCP server for AI assistants.",
     "keywords": [
-        "laravel",
-        "framework"
+        "medical-education",
+        "learner-progress",
+        "mcp",
+        "graphql",
+        "rest-api"
     ],
     "license": "MIT",
     "require": {
