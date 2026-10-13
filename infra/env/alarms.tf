@@ -159,7 +159,10 @@ resource "aws_cloudwatch_event_rule" "housekeeping_failed" {
   event_pattern = jsonencode({
     source      = ["aws.ecs"]
     detail-type = ["ECS Task State Change"]
-    detail      = merge(local.housekeeping_stopped, { containers = { exitCode = [{ anything-but = 0 }] } })
+    detail = merge(local.housekeeping_stopped, {
+      containers = { exitCode = [{ anything-but = 0 }] }
+      stopCode   = [{ anything-but = ["TaskFailedToStart"] }]
+    })
   })
 }
 
@@ -167,11 +170,12 @@ resource "aws_cloudwatch_event_target" "housekeeping_failed" {
   rule = aws_cloudwatch_event_rule.housekeeping_failed.name
   arn  = data.aws_sns_topic.alarms.arn
 
-  # EventBridge does not escape values: only fixed-form strings, numbers and objects go in.
+  # EventBridge does not escape values: only fixed-form strings, numbers, objects and arrays go in.
   input_transformer {
     input_paths = merge(local.housekeeping_event_paths, {
-      exit_code = "$.detail.containers[0].exitCode"
-      stop_code = "$.detail.stopCode"
+      exit_code  = "$.detail.containers[0].exitCode"
+      stop_code  = "$.detail.stopCode"
+      containers = "$.detail.containers"
     })
     input_template = <<-EOT
       {
@@ -180,7 +184,8 @@ resource "aws_cloudwatch_event_target" "housekeeping_failed" {
         "stop_code": <stop_code>,
         "stopped_at": <stopped_at>,
         "task": <task>,
-        "logs": "${aws_cloudwatch_log_group.app.name}, stream housekeeping/housekeeping/ plus the task id at the end of the task ARN"
+        "logs": "${aws_cloudwatch_log_group.app.name}, stream housekeeping/housekeeping/ plus the task id at the end of the task ARN",
+        "containers": <containers>
       }
     EOT
   }
