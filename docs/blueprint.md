@@ -1,6 +1,6 @@
 # PAS-001: LearnTrack
 
-**Blueprint: LearnTrack** PAS-001 | Status: Approved | Owner: Gilbert | Updated: 09/10/2026
+**Blueprint: LearnTrack** PAS-001 | Status: Approved | Owner: Gilbert | Updated: 14/10/2026
 
 ## What problem we're solving and why
 
@@ -21,7 +21,7 @@ So the flow will be:
 - Learners see their assignments and mark their progress
 - The educator connects Claude to LearnTrack once, with their own login
 - The educator asks about progress and gets answers with reasons
-- The educator acts through Claude (assign content, move a due date), approving each change
+- The educator acts through Claude (assign content, move a due date). Claude asks before each change unless the educator has let it run tools without asking
 
 **Current State:** What happens today without this solution?
 
