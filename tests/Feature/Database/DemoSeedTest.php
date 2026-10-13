@@ -68,27 +68,40 @@ test('migrate:fresh --seed produces the demo data', function () {
 test('the full-size group comes last and leaves the demo groups as they were', function () {
     artisan('migrate:fresh', ['--seed' => true])->assertSuccessful();
 
-    $sizes = DB::table('learner_groups')->orderBy('id')->get(['id', 'name'])
-        ->mapWithKeys(fn (object $group) => [$group->name => [
-            DB::table('group_learners')->where('group_id', $group->id)->count(),
-            DB::table('assignments')->where('group_id', $group->id)->whereNull('removed_at')->count(),
-        ]])
+    $standing = collect(learnerStanding())->groupBy('group_id');
+    $overdue = fn (object $row): bool => $row->overdue > 0;
+    $low = fn (object $row): bool => $row->average_score !== null && (float) $row->average_score < 50;
+
+    $layout = DB::table('learner_groups')->orderBy('id')->get(['id', 'name'])
+        ->mapWithKeys(function (object $group) use ($standing, $overdue, $low): array {
+            $learners = $standing->get($group->id, collect());
+
+            return [$group->name => [
+                DB::table('group_learners')->where('group_id', $group->id)->count(),
+                DB::table('assignments')->where('group_id', $group->id)->whereNull('removed_at')->count(),
+                $learners->filter(fn (object $row) => $overdue($row) || $low($row))->count(),
+                $learners->filter(fn (object $row) => $overdue($row) && ! $low($row))->count(),
+                $learners->filter(fn (object $row) => $low($row) && ! $overdue($row))->count(),
+                $learners->filter(fn (object $row) => $overdue($row) && $low($row))->count(),
+            ]];
+        })
         ->all();
 
-    expect($sizes)->toBe([
-        'Cardiology Group A' => [43, 6],
-        'Cardiology Group B' => [26, 6],
-        'Pulmonology Group A' => [39, 10],
-        'Nephrology Group A' => [20, 7],
-        'Neurology Group A' => [50, 5],
-        'Pediatrics Group A' => [55, 8],
-        'Endocrinology Group A' => [45, 7],
-        'Cardiology Group C' => [58, 8],
-        'Pulmonology Group B' => [56, 7],
-        'Nephrology Group B' => [48, 7],
-        'Neurology Group B' => [29, 11],
-        'Pediatrics Group B' => [50, 12],
-        'Full Size Group' => [60, 100],
+    // Learners, assignments, then the README table: behind, overdue only, low average only, both.
+    expect($layout)->toBe([
+        'Cardiology Group A' => [43, 6, 20, 10, 8, 2],
+        'Cardiology Group B' => [26, 6, 10, 7, 3, 0],
+        'Pulmonology Group A' => [39, 10, 13, 6, 7, 0],
+        'Nephrology Group A' => [20, 7, 10, 6, 3, 1],
+        'Neurology Group A' => [50, 5, 30, 19, 10, 1],
+        'Pediatrics Group A' => [55, 8, 28, 14, 11, 3],
+        'Endocrinology Group A' => [45, 7, 24, 10, 12, 2],
+        'Cardiology Group C' => [58, 8, 27, 15, 7, 5],
+        'Pulmonology Group B' => [56, 7, 27, 12, 13, 2],
+        'Nephrology Group B' => [48, 7, 23, 14, 6, 3],
+        'Neurology Group B' => [29, 11, 14, 8, 5, 1],
+        'Pediatrics Group B' => [50, 12, 19, 14, 1, 4],
+        'Full Size Group' => [60, 100, 8, 4, 3, 1],
     ]);
 });
 

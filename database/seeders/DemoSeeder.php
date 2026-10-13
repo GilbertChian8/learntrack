@@ -83,7 +83,7 @@ class DemoSeeder extends Seeder
     ];
 
     /**
-     * New learners and its own educator, so no other account's answers change. A few learners are behind, the rest on track.
+     * New learners and its own educator, so the demo groups do not change. A few learners are behind, the rest on track.
      *
      * @var array{institution: string, name: string, topic: string, educator: string, learners: int, assignments: int, behind: array<string, int>}
      */
