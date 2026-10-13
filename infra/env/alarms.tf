@@ -32,8 +32,6 @@ locals {
   }
 
   housekeeping_event_paths = {
-    stop_code  = "$.detail.stopCode"
-    reason     = "$.detail.stoppedReason"
     stopped_at = "$.detail.stoppedAt"
     task       = "$.detail.taskArn"
   }
@@ -169,22 +167,26 @@ resource "aws_cloudwatch_event_target" "housekeeping_failed" {
   rule = aws_cloudwatch_event_rule.housekeeping_failed.name
   arn  = data.aws_sns_topic.alarms.arn
 
-  # A string template must be quoted, so the email is this text, not the event JSON.
+  # EventBridge does not escape values, so event values sit only as JSON values.
   input_transformer {
-    input_paths = merge(local.housekeeping_event_paths, { exit_code = "$.detail.containers[0].exitCode" })
-    input_template = format("\"%s\"", join(" ", [
-      "${local.name} housekeeping failed.",
-      "Stop code: <stop_code>.",
-      "Exit code: <exit_code>.",
-      "Reason: <reason>.",
-      "Stopped at: <stopped_at>.",
-      "Task: <task>.",
-      "Logs: ${aws_cloudwatch_log_group.app.name}, stream housekeeping/housekeeping/ plus the task id at the end of the task ARN.",
-    ]))
+    input_paths = merge(local.housekeeping_event_paths, {
+      exit_code = "$.detail.containers[0].exitCode"
+      stop_code = "$.detail.stopCode"
+    })
+    input_template = <<-EOT
+      {
+        "alarm": "${local.name} housekeeping failed",
+        "exit_code": <exit_code>,
+        "stop_code": <stop_code>,
+        "stopped_at": <stopped_at>,
+        "task": <task>,
+        "logs": "${aws_cloudwatch_log_group.app.name}, stream housekeeping/housekeeping/ plus the task id at the end of the task ARN"
+      }
+    EOT
   }
 }
 
-# A task that never started has no exit code, so it gets its own text.
+# A task that never started has no exit code, so it gets its own message.
 resource "aws_cloudwatch_event_rule" "housekeeping_failed_to_start" {
   name        = "${local.name}-housekeeping-failed-to-start"
   description = "A housekeeping task failed to start."
@@ -200,15 +202,17 @@ resource "aws_cloudwatch_event_target" "housekeeping_failed_to_start" {
   rule = aws_cloudwatch_event_rule.housekeeping_failed_to_start.name
   arn  = data.aws_sns_topic.alarms.arn
 
+  # No container ran, so no logs: the whole detail, reason included, is the record.
   input_transformer {
-    input_paths = local.housekeeping_event_paths
-    input_template = format("\"%s\"", join(" ", [
-      "${local.name} housekeeping failed to start.",
-      "Stop code: <stop_code>.",
-      "Reason: <reason>.",
-      "Stopped at: <stopped_at>.",
-      "Task: <task>.",
-    ]))
+    input_paths    = merge(local.housekeeping_event_paths, { detail = "$.detail" })
+    input_template = <<-EOT
+      {
+        "alarm": "${local.name} housekeeping failed to start",
+        "stopped_at": <stopped_at>,
+        "task": <task>,
+        "detail": <detail>
+      }
+    EOT
   }
 }
 
