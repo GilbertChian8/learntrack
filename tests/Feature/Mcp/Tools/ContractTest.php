@@ -9,6 +9,7 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
+use function Pest\Laravel\postJson;
 use function Pest\Laravel\seed;
 use function Pest\Laravel\withoutMiddleware;
 
@@ -102,6 +103,32 @@ test('every read tool\'s answer on the seeded data matches its published output 
 
     foreach ($calls as [$name, $arguments]) {
         expect(schemaErrors(listedTool($name)['outputSchema'], callTool($name, $arguments)->json('result')['structuredContent']))->toBe([], $name);
+    }
+});
+
+test('every tool\'s text is its structured content as JSON, so a client that reads only the text gets every id', function () {
+    seed([ContentSeeder::class, DemoSeeder::class]);
+    $educator = User::query()->where('email', 'anna.keller@example.edu')->sole();
+    $group = Group::query()->where('name', 'Cardiology Group A')->sole();
+    $sara = User::query()->where('email', 'sara.lindqvist@example.edu')->sole();
+    actingAsEducator($educator);
+
+    $assigned = callTool('assign_content', ['group_id' => $group->id, 'content_title' => 'Hypertension Pharmacology', 'due_date' => '2026-10-23', 'learner_ids' => [$sara->id]])->json('result');
+    $results = [
+        'list_my_groups' => callTool('list_my_groups', [])->json('result'),
+        'get_group_progress' => callTool('get_group_progress', ['group_id' => $group->id])->json('result'),
+        'find_learners_behind' => callTool('find_learners_behind', ['group_id' => $group->id])->json('result'),
+        'get_learner_summary' => callTool('get_learner_summary', ['learner_id' => $sara->id])->json('result'),
+        'find_hardest_assignments' => callTool('find_hardest_assignments', ['group_id' => $group->id, 'limit' => 20])->json('result'),
+        'assign_content' => $assigned,
+        'change_due_date' => callTool('change_due_date', ['assignment_id' => $assigned['structuredContent']['assignment']['id'], 'due_date' => '2026-10-30'])->json('result'),
+    ];
+
+    expect(array_keys($results))->toBe(array_column(postJson('/mcp', mcpRequest('tools/list'))->json('result.tools'), 'name'));
+
+    foreach ($results as $name => $result) {
+        expect($result['isError'])->toBeFalse($name)
+            ->and(textAsJson($result))->toBe($result['structuredContent'], $name);
     }
 });
 

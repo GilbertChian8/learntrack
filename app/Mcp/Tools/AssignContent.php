@@ -115,11 +115,6 @@ class AssignContent extends BaseTool
         return $this->assigned($result, $learnerIds !== []);
     }
 
-    protected function summary(array $answer, Request $request): string
-    {
-        return $answer['message'];
-    }
-
     /**
      * The content item, or the candidates when several titles match. content_item_id wins.
      *

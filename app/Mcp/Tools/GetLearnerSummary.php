@@ -100,26 +100,6 @@ class GetLearnerSummary extends BaseTool
         };
     }
 
-    protected function summary(array $answer, Request $request): string
-    {
-        if ($answer['learner'] === null) {
-            $candidates = array_map(fn (array $candidate) => $candidate['name'].' ('.implode(', ', $candidate['groups']).')', $answer['candidates']);
-
-            return count($candidates)." learners match \"{$request->string('name')->value()}\": ".implode(', ', $candidates).'. '
-                .'Ask which one is meant, then call again with the learner_id.';
-        }
-
-        $groups = array_map(function (array $group): string {
-            $standing = $group['behind'] ? 'behind ('.implode('; ', array_column($group['reasons'], 'text')).')' : 'on track';
-            $counts = $group['counts'];
-
-            return "{$group['name']}: {$standing}; {$counts['completed']} completed, {$counts['in_progress']} in progress, "
-                ."{$counts['not_started']} not started, {$counts['overdue']} overdue.";
-        }, $answer['groups']);
-
-        return "{$answer['learner']['name']} is in ".count($groups).' of your groups. '.implode(' ', $groups);
-    }
-
     /**
      * @return array<string, mixed>
      */

@@ -62,10 +62,11 @@ test('the structured content has the contract fields, every member without statu
                 ['id' => $assignments['lipids']->id, 'title' => 'Lipid Disorders Question Set', 'topic' => 'Cardiology', 'type' => 'question_set', 'due_at' => '2026-10-20T23:59:59+02:00', 'scope' => 'learners', 'targeted_count' => 0, 'completed_count' => 0, 'completion_rate' => 0, 'average_score' => null],
                 ['id' => $assignments['cardiomyopathy']->id, 'title' => 'Cardiomyopathy Question Set', 'topic' => 'Cardiology', 'type' => 'question_set', 'due_at' => '2026-10-23T23:59:59+02:00', 'scope' => 'group', 'targeted_count' => 3, 'completed_count' => 0, 'completion_rate' => 0, 'average_score' => null],
             ],
-        ]);
+        ])
+        ->and(textAsJson($result))->toBe($result['structuredContent']);
 });
 
-test('behind_count counts the behind learners, and the text gives total completed over total targeted', function () {
+test('behind_count counts the behind learners, and no learner carries statuses', function () {
     ['group' => $group, 'educator' => $educator] = cardiologyProgress();
 
     actingAsEducator($educator);
@@ -73,21 +74,20 @@ test('behind_count counts the behind learners, and the text gives total complete
     $learners = $result['structuredContent']['learners'];
 
     expect($result['structuredContent']['behind_count'])->toBe(count(array_filter(array_column($learners, 'behind'))))
-        ->and(array_filter($learners, fn (array $learner) => array_key_exists('statuses', $learner)))->toBe([])
-        ->and($result['content'])->toBe([
-            ['type' => 'text', 'text' => 'Cardiology Group A: 3 learners, 5 active assignments, 2 learners behind. Completion across assignments: 45%.'],
-        ]);
+        ->and(array_filter($learners, fn (array $learner) => array_key_exists('statuses', $learner)))->toBe([]);
 });
 
-test('a group with nothing assigned reads 0% and takes the singular for one learner', function () {
+test('a group with nothing assigned answers no assignments and nobody behind', function () {
     $group = Group::factory()->create(['name' => 'Cardiology Group B']);
     $educator = educatorOf($group);
     learnerIn($group);
 
     actingAsEducator($educator);
-    expect(callTool('get_group_progress', ['group_id' => $group->id])->json('result')['content'])->toBe([
-        ['type' => 'text', 'text' => 'Cardiology Group B: 1 learner, 0 active assignments, 0 learners behind. Completion across assignments: 0%.'],
-    ]);
+    $answer = callTool('get_group_progress', ['group_id' => $group->id])->json('result.structuredContent');
+
+    expect($answer['assignments'])->toBe([])
+        ->and($answer['learner_count'])->toBe(1)
+        ->and($answer['behind_count'])->toBe(0);
 });
 
 test('another educator\'s group and a missing id answer the not found error', function (Closure $groupId) {

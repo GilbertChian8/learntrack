@@ -57,19 +57,4 @@ class FindHardestAssignments extends BaseTool
             ], $hardest->assignments),
         ];
     }
-
-    protected function summary(array $answer, Request $request): string
-    {
-        if ($answer['assignments'] === []) {
-            return "{$answer['group']['name']} has no active assignments that target a learner.";
-        }
-
-        $ranked = array_map(
-            fn (int $rank, array $assignment) => ($rank + 1).". {$assignment['title']}: {$assignment['reason']}.",
-            array_keys($answer['assignments']),
-            $answer['assignments'],
-        );
-
-        return "Hardest assignments in {$answer['group']['name']}: ".implode(' ', $ranked);
-    }
 }

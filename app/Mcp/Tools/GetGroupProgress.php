@@ -10,7 +10,6 @@ use App\Queries\Results\AssignmentStats;
 use App\Queries\Results\LearnerProgress;
 use App\Queries\Results\Reason;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Support\Str;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
@@ -75,21 +74,5 @@ class GetGroupProgress extends BaseTool
             ], $progress->learners),
             'assignments' => array_map(fn (AssignmentStats $assignment) => AssignmentStatsSchema::from($assignment), $progress->assignments),
         ];
-    }
-
-    /**
-     * The completion is total completed over total targeted, as a whole percentage.
-     */
-    protected function summary(array $answer, Request $request): string
-    {
-        $assignments = $answer['assignments'];
-        $targeted = array_sum(array_column($assignments, 'targeted_count'));
-        $completion = $targeted === 0 ? 0 : (int) round(array_sum(array_column($assignments, 'completed_count')) / $targeted * 100);
-
-        return "{$answer['group']['name']}: "
-            .$answer['learner_count'].' '.Str::plural('learner', $answer['learner_count']).', '
-            .count($assignments).' active '.Str::plural('assignment', count($assignments)).', '
-            .$answer['behind_count'].' '.Str::plural('learner', $answer['behind_count']).' behind. '
-            ."Completion across assignments: {$completion}%.";
     }
 }

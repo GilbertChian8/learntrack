@@ -46,7 +46,7 @@ $saraInGroupA = fn (array $fixture): array => [
     ],
 ];
 
-test('by id: only the groups the caller teaches, with the contract text', function () use ($groupB, $saraInGroupA) {
+test('by id: only the groups the caller teaches, and the same object as the text', function () use ($groupB, $saraInGroupA) {
     $fixture = cardiologyProgress();
     $groupB($fixture['group'], $fixture['sara']);
 
@@ -59,11 +59,7 @@ test('by id: only the groups the caller teaches, with the contract text', functi
             'groups' => [$saraInGroupA($fixture)],
             'candidates' => [],
         ])
-        ->and($result['content'])->toBe([[
-            'type' => 'text',
-            'text' => 'Sara Lindqvist is in 1 of your groups. '
-                .'Cardiology Group A: behind (Average question set score 42.5 is below 50 (scores: 45, 40)); 3 completed, 0 in progress, 1 not started, 0 overdue.',
-        ]]);
+        ->and(textAsJson($result))->toBe($result['structuredContent']);
 });
 
 test('by id: a shared group shows once the caller teaches it too, ordered by name, not id', function () use ($groupB) {
@@ -82,9 +78,8 @@ test('by id: a shared group shows once the caller teaches it too, ordered by nam
             'average_score' => null,
             'counts' => ['not_started' => 1, 'in_progress' => 0, 'completed' => 0, 'overdue' => 0],
         ])
-        ->and($result['content'][0]['text'])->toBe('Sara Lindqvist is in 2 of your groups. '
-            .'Anatomy Group A: on track; 0 completed, 0 in progress, 1 not started, 0 overdue. '
-            .'Cardiology Group A: behind (Average question set score 42.5 is below 50 (scores: 45, 40)); 3 completed, 0 in progress, 1 not started, 0 overdue.');
+        ->and($groups[1]['behind'])->toBeTrue()
+        ->and(array_column($groups[1]['reasons'], 'text'))->toBe(['Average question set score 42.5 is below 50 (scores: 45, 40)']);
 });
 
 test('by a unique name, in any case: the same answer as by id', function () {
@@ -99,7 +94,7 @@ test('by a unique name, in any case: the same answer as by id', function () {
         ->and($byName['content'])->toBe($byId['content']);
 });
 
-test('by an ambiguous name: the candidates by name, not id, with their group names, no learner, and the contract text', function () use ($groupB) {
+test('by an ambiguous name: the candidates by name, not id, with their group names, and no learner', function () use ($groupB) {
     $fixture = cardiologyProgress();
     $groupB = $groupB($fixture['group'], $fixture['sara']);
     $groupB->educators()->attach($fixture['educator']);
@@ -121,11 +116,7 @@ test('by an ambiguous name: the candidates by name, not id, with their group nam
                 ['id' => $fixture['sara']->id, 'name' => 'Sara Lindqvist', 'groups' => ['Anatomy Group A', 'Cardiology Group A']],
             ],
         ])
-        ->and($result['content'])->toBe([[
-            'type' => 'text',
-            'text' => '2 learners match "sara": Sara Abbott (Anatomy Group A), Sara Lindqvist (Anatomy Group A, Cardiology Group A). '
-                .'Ask which one is meant, then call again with the learner_id.',
-        ]]);
+        ->and(textAsJson($result))->toBe($result['structuredContent']);
 });
 
 test('learner_id wins over name', function () {

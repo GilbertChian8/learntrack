@@ -10,13 +10,13 @@ beforeEach(function () {
     Mcp::web('mcp-fixture', FixtureServer::class)->middleware(['auth:api', 'role:educator']);
 });
 
-test('a result is the structured content plus one text summary, from the same array', function () {
+test('a result is the structured content plus one text item holding the same object as JSON', function () {
     [$group, $educator] = cardiologyGroup();
     actingAsEducator($educator);
 
     postJson('/mcp-fixture', mcpRequest('tools/call', ['name' => 'find_group', 'arguments' => ['group_id' => $group->id]]))
         ->assertOk()
-        ->assertJsonPath('result.content', [['type' => 'text', 'text' => 'Found Cardiology Group A.']])
+        ->assertJsonPath('result.content', [['type' => 'text', 'text' => '{"group":{"id":'.$group->id.',"name":"Cardiology Group A"}}']])
         ->assertJsonPath('result.isError', false)
         ->assertJsonPath('result.structuredContent', ['group' => ['id' => $group->id, 'name' => 'Cardiology Group A']]);
 });
