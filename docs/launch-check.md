@@ -291,7 +291,7 @@ As a Fargate task, add `{"name":"GROUP_PROGRESS_CONCURRENCY","value":"1"}` to th
 | Item | Value |
 |---|---|
 | Client | Fargate task `dc9bbad607b54e72a7226a4fa2e84c7f` |
-| Started and finished (UTC) | 14:48:57 to 15:06:08 |
+| Started and finished (UTC) | 14:48:57 (the task's first log line) to 15:06:08 |
 | k6 exit code | 0 |
 | Requests | 714, none failed, no 429; checks 1,400 of 1,400 |
 | Raw summary, report, log | [json](../scripts/load/results/eu-central-1-diagnostic-20261013T144857Z.json), [txt](../scripts/load/results/eu-central-1-diagnostic-20261013T144857Z.txt), [log](../scripts/load/results/eu-central-1-diagnostic-20261013T144857Z.log) |
@@ -336,7 +336,7 @@ gh workflow run deploy.yml --ref main
 gh run watch <run id> --exit-status
 ```
 
-Then seed as in step 2, with the new housekeeping revision, and ask Claude Desktop "Which groups do I teach?". The new database has no client and no tokens, so Claude must connect again; note whether it asked to log in by itself. During the rebuild the alarm email gets a few alarms until the deploy finishes ([infra/README.md](../infra/README.md), Destroy and rebuild); they are expected.
+Then check HTTPS as in step 2 of the test plan in [#14](https://github.com/GilbertChian8/learntrack/pull/14): `curl -sI http://<domain>/up | grep -iE '^(HTTP|location)'` answers 301 to HTTPS, and `curl -sS -o /dev/null -w '%{http_code} %{ssl_verify_result}\n' https://<domain>/up` answers `200 0` (0: the certificate verifies). Seed as in section 2, with the new housekeeping revision, and ask Claude Desktop "Which groups do I teach?". The new database has no client and no tokens, so Claude must connect again; note whether it asked to log in by itself. During the rebuild the alarm email gets a few alarms until the deploy finishes ([infra/README.md](../infra/README.md), Destroy and rebuild); they are expected.
 
 | Step | Run or evidence | Started (UTC) | Finished (UTC) |
 |---|---|---|---|
@@ -355,6 +355,7 @@ Claude Desktop, after the rebuild:
 |---|---|
 | Elapsed, destroy start to the first answer | About 55 minutes |
 | Manual steps beyond the bootstrap | None in the environment: two workflow runs started by hand and the one-off seed task. In Claude Desktop, the reconnect a person makes |
+| HTTPS after the rebuild (#14, test plan step 8), 16:52:56 UTC | `http://<domain>/up`: 301 with `Location: https://<domain>:443/up`. `https://<domain>/up`: 200, certificate verify result 0 (valid) |
 
 ## 7. Scheduled housekeeping (#14, test plan step 7)
 

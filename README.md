@@ -120,7 +120,7 @@ Five questions to start with, as Anna Keller:
 4. Which assignments in Neurology Group A are the hardest?
 5. Assign the Hypertension Pharmacology Question Set to the learners who are behind in Cardiology Group A, due next Friday.
 
-Claude asks before it changes anything, and the answer says exactly what changed.
+Claude asks before it changes anything, unless the educator has let it run tools without asking (Claude Desktop's Auto mode did this in the launch check). LearnTrack never relies on that prompt: writes only add, a repeat changes nothing, and every change has an audit row ([ADR-004](docs/adr/ADR-004-ai-writes.md)). The answer says exactly what changed.
 
 ## Deployment
 
