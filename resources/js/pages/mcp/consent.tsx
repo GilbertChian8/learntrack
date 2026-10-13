@@ -1,4 +1,5 @@
 import { Head } from '@inertiajs/react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 
@@ -18,6 +19,8 @@ export default function Consent({
     state,
     csrfToken,
 }: ConsentProps) {
+    const [answer, setAnswer] = useState<'approve' | 'deny' | null>(null);
+
     const hiddenFields = (
         <>
             <input type="hidden" name="_token" value={csrfToken} />
@@ -41,17 +44,31 @@ export default function Consent({
                 </div>
 
                 <div className="flex gap-3">
-                    <AuthorizationForm fields={hiddenFields}>
-                        <Button type="submit" className="w-full">
+                    <AuthorizationForm
+                        fields={hiddenFields}
+                        onSubmit={() => setAnswer('approve')}
+                    >
+                        <Button
+                            type="submit"
+                            className="w-full"
+                            disabled={answer !== null}
+                            aria-busy={answer === 'approve'}
+                        >
                             Approve
                         </Button>
                     </AuthorizationForm>
 
-                    <AuthorizationForm fields={hiddenFields} deny>
+                    <AuthorizationForm
+                        fields={hiddenFields}
+                        deny
+                        onSubmit={() => setAnswer('deny')}
+                    >
                         <Button
                             type="submit"
                             variant="outline"
                             className="w-full"
+                            disabled={answer !== null}
+                            aria-busy={answer === 'deny'}
                         >
                             Deny
                         </Button>
@@ -67,17 +84,27 @@ Consent.layout = (props: ConsentProps) => ({
     description: `You are signed in as ${props.userName}.`,
 });
 
+/**
+ * A plain HTML form, so Passport's redirect to the client works. Submitting does not prevent the post.
+ */
 function AuthorizationForm({
     fields,
     deny = false,
+    onSubmit,
     children,
 }: {
     fields: ReactNode;
     deny?: boolean;
+    onSubmit: () => void;
     children: ReactNode;
 }) {
     return (
-        <form method="post" action="/oauth/authorize" className="flex-1">
+        <form
+            method="post"
+            action="/oauth/authorize"
+            className="flex-1"
+            onSubmit={onSubmit}
+        >
             {deny && <input type="hidden" name="_method" value="DELETE" />}
             {fields}
             {children}
