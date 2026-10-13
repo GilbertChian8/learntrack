@@ -213,13 +213,13 @@ aws cloudwatch describe-alarms --alarm-name-prefix learntrack-prod \
   --query 'MetricAlarms[].[AlarmName,StateValue]' --output table
 ```
 
-The load balancer's target response time p95 (in seconds) over each run, from its start and finish times. The period is the run's length in seconds, rounded up to a multiple of 60, so the answer is one number:
+The load balancer's target response time p95 (in seconds) over each run. Round the run's start down and its finish up to the whole minute, and use the seconds between them as the period, so the answer is one number:
 
 ```
 lb="$(aws elbv2 describe-load-balancers --names learntrack-prod --query 'LoadBalancers[0].LoadBalancerArn' --output text)"
 aws cloudwatch get-metric-statistics --namespace AWS/ApplicationELB --metric-name TargetResponseTime \
   --dimensions Name=LoadBalancer,Value="${lb#*:loadbalancer/}" \
-  --start-time <started, UTC> --end-time <finished, UTC> --period <seconds> \
+  --start-time <start, rounded down, UTC> --end-time <finish, rounded up, UTC> --period <end minus start, seconds> \
   --extended-statistics p95 --output table
 ```
 
