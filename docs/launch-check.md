@@ -32,6 +32,8 @@ export AWS_REGION=eu-central-1
 | No alarm in `ALARM` after the load runs | To be filled by the lead | To be filled by the lead |
 | Destroy and rebuild with no manual step beyond the bootstrap | To be filled by the lead | To be filled by the lead |
 
+Diagnostic, not the verdict: groupProgress p95 with 1 call at once, from `eu-central-1` (section 4): To be filled by the lead.
+
 Tickets opened for missed targets: To be filled by the lead.
 
 ## 1. Deploy
@@ -170,6 +172,28 @@ BASE_URL=https://<domain> EDUCATOR_EMAIL=full.size.educator@example.edu EDUCATOR
 
 Each run saves its raw k6 summary, report and log in `scripts/load/results/`. Commit them and link them here. A failed request writes its URL to the log, so first replace the domain with `<domain>` in any file that holds it (`grep -l <the domain> scripts/load/results/*`).
 
+The groupProgress call is the contract's query ([api-contract.md](api-contract.md), GraphQL, groupProgress), sent unchanged. It asks for every field the schema defines, the whole progress table a client dashboard shows:
+
+```graphql
+query ($groupId: ID!) {
+  groupProgress(groupId: $groupId) {
+    group { id name institution }
+    generatedAt
+    assignments { id title topic type dueAt scope targetedCount completedCount completionRate averageScore }
+    learners {
+      learner { id name }
+      behind
+      reasons
+      averageScore
+      counts { notStarted inProgress completed overdue }
+      statuses { assignmentId status score completedAt }
+    }
+  }
+}
+```
+
+The verdict is the run with 10 at once, the ticket's protocol. The diagnostic run below changes only that number.
+
 **From `eu-central-1`**
 
 | Item | Value |
@@ -203,6 +227,22 @@ Each run saves its raw k6 summary, report and log in `scripts/load/results/`. Co
 | find_learners_behind | To be filled by the lead | To be filled by the lead | To be filled by the lead | To be filled by the lead | under 1 s | To be filled by the lead |
 | get_learner_summary | To be filled by the lead | To be filled by the lead | To be filled by the lead | To be filled by the lead | under 1 s | To be filled by the lead |
 | find_hardest_assignments | To be filled by the lead | To be filled by the lead | To be filled by the lead | To be filled by the lead | under 1 s | To be filled by the lead |
+
+**Diagnostic, not the verdict: groupProgress 1 at once, from `eu-central-1`**
+
+The same run with one groupProgress call at a time. It shows a call's own time, without waiting behind other calls, so the two runs together separate the work from the queueing. It takes about 17 minutes. Run it alone, not next to another run:
+
+```
+GROUP_PROGRESS_CONCURRENCY=1 BASE_URL=https://<domain> EDUCATOR_EMAIL=full.size.educator@example.edu EDUCATOR_PASSWORD=password \
+  scripts/load/run.sh eu-central-1-diagnostic
+```
+
+| Item | Value |
+|---|---|
+| Started and finished (UTC) | To be filled by the lead |
+| k6 exit code | To be filled by the lead |
+| Raw summary, report, log | To be filled by the lead |
+| groupProgress p50, p95, p99 (ms), 1 at once | To be filled by the lead |
 
 ## 5. Alarms and the load balancer
 

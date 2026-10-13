@@ -27,7 +27,7 @@ docker run --rm \
   --user "$(id -u):$(id -g)" \
   --volume "$here:/scripts:ro" \
   --volume "$results:/results" \
-  --env BASE_URL --env EDUCATOR_EMAIL --env EDUCATOR_PASSWORD --env GROUP_NAME \
+  --env BASE_URL --env EDUCATOR_EMAIL --env EDUCATOR_PASSWORD --env GROUP_NAME --env GROUP_PROGRESS_CONCURRENCY \
   --env SUMMARY_FILE="/results/$name.json" \
   "$image" run --quiet /scripts/launch-check.js 2>&1 | tee -a "$results/$name.log" || status=$?
 

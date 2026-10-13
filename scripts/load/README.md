@@ -5,16 +5,38 @@
 ## What it does
 
 1. **Setup, as a real client.** It gets the MCP token the way Claude does: it reads the discovery documents, registers a client (`POST /oauth/register`), opens the authorize URL, logs in on the web login page, approves the consent page and exchanges the code with its PKCE verifier. Then `initialize` and `tools/list` on `/mcp`. It gets the API token with `POST /api/v1/auth/login`. It finds the group by name, and its learner with the lowest id for `get_learner_summary`.
-2. **groupProgress:** the full GraphQL query from the contract, 200 times, 10 at once.
+2. **groupProgress:** the contract's GraphQL query (below), 200 times, 10 at once.
 3. **MCP read tools:** each of the five tools 100 times, in turn, one call at a time, and at most one call every 1.2 seconds (50 a minute).
+
+The groupProgress query is the one in [docs/api-contract.md](../../docs/api-contract.md) (GraphQL, groupProgress), sent unchanged:
+
+```graphql
+query ($groupId: ID!) {
+  groupProgress(groupId: $groupId) {
+    group { id name institution }
+    generatedAt
+    assignments { id title topic type dueAt scope targetedCount completedCount completionRate averageScore }
+    learners {
+      learner { id name }
+      behind
+      reasons
+      averageScore
+      counts { notStarted inProgress completed overdue }
+      statuses { assignmentId status score completedAt }
+    }
+  }
+}
+```
+
+It asks for every field the schema defines: the group, each assignment's numbers, and each learner's behind flag, reasons, counts and one status per assignment. That is the whole progress table a client dashboard shows, so it is the call the target is about. A smaller query would measure less than a client gets. For Full Size Group the answer is 588 KB (measured locally).
 
 It reports p50, p95, p99 and max per operation, and writes the raw k6 summary to a JSON file. The time is k6's `http_req_duration`: from sending the request to the last byte of the answer. Connection setup (DNS, TCP, TLS) is not in it.
 
 ## Rate limits and run time
 
-A run takes about 12 minutes. The limits stay on:
+A run takes about 12 minutes, or about 17 with `GROUP_PROGRESS_CONCURRENCY=1`. The limits stay on:
 
-- REST and GraphQL allow 300 requests a minute per user. groupProgress makes 200, plus 2 setup calls, so it runs at full speed with 10 at once and stays under the limit. It has 60 seconds to start its calls, plus 30 to finish them.
+- REST and GraphQL allow 300 requests a minute per user. groupProgress makes 200, plus 2 setup calls, so it runs at full speed with 10 at once and stays under the limit. It has 60 seconds to start its calls, plus 30 to finish them. With fewer at once, it has 2 seconds per round of calls (6 minutes 40 at 1).
 - `/mcp` allows 60 calls a minute per educator. The 500 tool calls start 90 seconds after setup's 2 calls. Each call starts at least 1.2 seconds after the one before, so they take at least 10 minutes and no minute holds more than 51.
 - Client registration allows 10 an hour per IP address, so at most 10 runs an hour from one address.
 
@@ -35,6 +57,7 @@ The targets are for the largest group, 60 learners and 100 assignments. The seed
 | `BASE_URL` | yes | The app's public URL, the same as its `APP_URL`: `https://<domain>`, or `http://localhost:8080` locally. The run stops if the discovery documents name another URL |
 | `EDUCATOR_EMAIL`, `EDUCATOR_PASSWORD` | yes | An educator who teaches the group. Seed data: `full.size.educator@example.edu`, `password` |
 | `GROUP_NAME` | no | Default `Full Size Group` |
+| `GROUP_PROGRESS_CONCURRENCY` | no | How many groupProgress calls run at once. Default 10, the ticket's value: that run gives the verdict. 1 is a diagnostic, not the verdict: it shows a call's own time, without waiting behind other calls. The report says which |
 | `RESULTS_DIR` | no | Where `run.sh` saves the files. Default `scripts/load/results` |
 | `K6_NETWORK` | no | The Docker network of the k6 container. Default `bridge` |
 

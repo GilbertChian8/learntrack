@@ -10,6 +10,13 @@ const BASE_URL = required('BASE_URL').replace(/\/+$/, '');
 const EDUCATOR_EMAIL = required('EDUCATOR_EMAIL');
 const EDUCATOR_PASSWORD = required('EDUCATOR_PASSWORD');
 const GROUP_NAME = __ENV.GROUP_NAME || 'Full Size Group';
+const GROUP_PROGRESS_CALLS = 200;
+const GROUP_PROGRESS_CONCURRENCY = callCount('GROUP_PROGRESS_CONCURRENCY', 10);
+// Up to 2 seconds for each round of calls, and at least a minute.
+const GROUP_PROGRESS_SECONDS = Math.max(
+    60,
+    Math.ceil(GROUP_PROGRESS_CALLS / GROUP_PROGRESS_CONCURRENCY) * 2,
+);
 const SUMMARY_FILE = __ENV.SUMMARY_FILE || 'summary.json';
 
 const REDIRECT_URI = 'http://localhost:9999/callback';
@@ -24,7 +31,11 @@ const TOOLS = [
     'find_hardest_assignments',
 ];
 const OPERATIONS = [
-    { op: 'group_progress', count: 200, targetMs: GROUP_PROGRESS_TARGET_MS },
+    {
+        op: 'group_progress',
+        count: GROUP_PROGRESS_CALLS,
+        targetMs: GROUP_PROGRESS_TARGET_MS,
+    },
     ...TOOLS.map((op) => ({ op, count: 100, targetMs: MCP_TOOL_TARGET_MS })),
 ];
 
@@ -55,9 +66,9 @@ export const options = {
         group_progress: {
             executor: 'shared-iterations',
             exec: 'groupProgress',
-            vus: 10,
-            iterations: 200,
-            maxDuration: '1m',
+            vus: GROUP_PROGRESS_CONCURRENCY,
+            iterations: GROUP_PROGRESS_CALLS,
+            maxDuration: `${GROUP_PROGRESS_SECONDS}s`,
         },
         mcp_tools: {
             executor: 'shared-iterations',
@@ -65,7 +76,7 @@ export const options = {
             vus: 1,
             iterations: 500,
             maxDuration: '15m',
-            startTime: '90s',
+            startTime: `${GROUP_PROGRESS_SECONDS + 30}s`,
         },
     },
     thresholds: Object.assign(
@@ -522,12 +533,29 @@ function required(name) {
     return value;
 }
 
+function callCount(name, fallback) {
+    const value = __ENV[name];
+
+    if (value === undefined || value === '') {
+        return fallback;
+    }
+
+    if (!/^[1-9][0-9]*$/.test(value) || Number(value) > GROUP_PROGRESS_CALLS) {
+        throw new Error(
+            `${name} must be a whole number from 1 to ${GROUP_PROGRESS_CALLS}.`,
+        );
+    }
+
+    return Number(value);
+}
+
 function report(data) {
     const metric = (name) => data.metrics[name] || { values: {} };
     const ms = (value) => (value === undefined ? '-' : value.toFixed(1));
     const lines = [
         '',
         `LearnTrack launch check, ${new Date().toISOString()}`,
+        `${GROUP_NAME}, groupProgress ${GROUP_PROGRESS_CONCURRENCY} at once${GROUP_PROGRESS_CONCURRENCY === 10 ? '' : ' (diagnostic, not the verdict)'}`,
         '',
         'operation                  count    p50 ms    p95 ms    p99 ms    max ms   target    verdict',
     ];
