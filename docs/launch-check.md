@@ -74,7 +74,9 @@ aws logs get-log-events --log-group-name /learntrack/prod/app \
   --query 'events[].message' --output text
 ```
 
-Exit code 0 and the log lists PassportSeeder, ContentSeeder and DemoSeeder as DONE. Seed a database once only: a second run stops on a duplicate key. Due dates count from the day of the seed.
+Exit code 0 and the log lists PassportSeeder, ContentSeeder and DemoSeeder as DONE. Due dates count from the day of the seed.
+
+Seed a database once only. A second run adds the content library and the first institution again, then stops on a duplicate email. After that, a content title matches two items, so Flow 5 gets candidates instead of an assignment. The production image refuses `migrate:fresh`, so only a destroy and rebuild cleans it.
 
 | Item | Value |
 |---|---|
@@ -164,7 +166,7 @@ BASE_URL=https://<domain> EDUCATOR_EMAIL=hannah.clarke@example.edu EDUCATOR_PASS
   scripts/load/run.sh eu-central-1      # on the EC2 instance or CloudShell; use the label laptop on the laptop
 ```
 
-Each run saves its raw k6 summary, report and log in `scripts/load/results/`. Commit them and link them here.
+Each run saves its raw k6 summary, report and log in `scripts/load/results/`. Commit them and link them here. A failed request writes its URL to the log, so first replace the domain with `<domain>` in any file that holds it (`grep -l <the domain> scripts/load/results/*`).
 
 The seed's largest group is smaller than the requirement's largest group (60 learners, 100 assignments). The ticket measures the seeded group.
 
