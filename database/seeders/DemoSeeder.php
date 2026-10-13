@@ -14,6 +14,7 @@ use App\Models\Progress;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Factories\Sequence;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -31,6 +32,9 @@ use Illuminate\Support\Str;
  * - sara.lindqvist@example.edu: learner at Northside Medical School, in Cardiology Group A.
  * - emily.carter@example.edu: learner at Riverside College of Medicine (Europe/London),
  *   in Endocrinology Group A.
+ * - full.size.educator@example.edu: educator at Riverside College of Medicine, teaches
+ *   only Full Size Group: 60 learners and 100 assignments, the size the performance
+ *   targets name, for the load check. It is seeded last, so the groups above stay the same.
  *
  * The other educators are firstname.lastname@example.edu, as listed below.
  * Faker is seeded with 42, so every machine gets the same names, groups and
@@ -78,6 +82,21 @@ class DemoSeeder extends Seeder
         ],
     ];
 
+    /**
+     * New learners and its own educator, so no other account's answers change. A few learners are behind, the rest on track.
+     *
+     * @var array{institution: string, name: string, topic: string, educator: string, learners: int, assignments: int, behind: array<string, int>}
+     */
+    private const FULL_SIZE_GROUP = [
+        'institution' => 'Riverside College of Medicine',
+        'name' => 'Full Size Group',
+        'topic' => 'Cardiology',
+        'educator' => 'Full Size Educator',
+        'learners' => 60,
+        'assignments' => 100,
+        'behind' => ['overdue' => 4, 'low_score' => 3, 'overdue_and_low_score' => 1],
+    ];
+
     private CarbonImmutable $now;
 
     private string $password;
@@ -101,6 +120,7 @@ class DemoSeeder extends Seeder
         $this->progress = [];
 
         $content = ContentItem::query()->orderBy('id')->get();
+        $institutions = [];
 
         foreach (self::INSTITUTIONS as $spec) {
             $institution = Institution::query()->forceCreate([
@@ -109,6 +129,7 @@ class DemoSeeder extends Seeder
                 'created_at' => $this->termStart(),
                 'updated_at' => $this->termStart(),
             ]);
+            $institutions[$spec['name']] = $institution;
 
             $educators = array_map(fn (string $name) => $this->createUser($institution, $name, Role::Educator), $spec['educators']);
             $demoLearner = $this->createUser($institution, $spec['learner'], Role::Learner);
@@ -129,6 +150,8 @@ class DemoSeeder extends Seeder
                 );
             }
         }
+
+        $this->seedFullSizeGroup($institutions[self::FULL_SIZE_GROUP['institution']], $content);
 
         foreach (array_chunk($this->progress, 500) as $rows) {
             Progress::query()->insert($rows);
@@ -208,6 +231,58 @@ class DemoSeeder extends Seeder
 
         $assignments = $this->seedAssignments($group, $institution->timezone, $spec['topic'], $educatorIds, $members, $content);
 
+        $this->addGroupProgress($assignments, $standing);
+    }
+
+    /**
+     * New learners, its own educator and one group-wide assignment of each of 100 content
+     * items, so 6,000 pairs. The content library gets the items it needs for that.
+     *
+     * @param  Collection<int, ContentItem>  $content
+     */
+    private function seedFullSizeGroup(Institution $institution, Collection $content): void
+    {
+        $spec = self::FULL_SIZE_GROUP;
+
+        $educator = $this->createUser($institution, $spec['educator'], Role::Educator);
+        $learners = array_map(
+            fn () => $this->createUser($institution, fake()->firstName().' '.fake()->lastName(), Role::Learner)->id,
+            range(1, $spec['learners']),
+        );
+
+        $group = Group::query()->forceCreate([
+            'institution_id' => $institution->id,
+            'name' => $spec['name'],
+            'created_at' => $this->termStart(),
+            'updated_at' => $this->termStart(),
+        ]);
+
+        $group->educators()->attach($educator->id, ['created_at' => $this->termStart()]);
+        $group->learners()->attach($learners, ['created_at' => $this->termStart()]);
+
+        $items = $content->merge(ContentItem::factory()
+            ->count(max(0, $spec['assignments'] - $content->count()))
+            ->sequence(fn (Sequence $sequence) => ['title' => 'Full Size Item '.($sequence->index + 1)])
+            ->create());
+
+        $standings = [];
+
+        foreach ($spec['behind'] as $standing => $count) {
+            $standings = [...$standings, ...array_fill(0, $count, $standing)];
+        }
+
+        $standing = array_combine(fake()->shuffle($learners), array_pad($standings, $spec['learners'], 'on_track'));
+        $assignments = $this->seedAssignments($group, $institution->timezone, $spec['topic'], [$educator->id], $learners, $items, $spec['assignments'], 0);
+
+        $this->addGroupProgress($assignments, $standing);
+    }
+
+    /**
+     * @param  list<array{id: int, type: ContentType, due_at: CarbonImmutable, created_at: CarbonImmutable, targets: list<int>}>  $assignments
+     * @param  array<int, string>  $standing
+     */
+    private function addGroupProgress(array $assignments, array $standing): void
+    {
         foreach ($assignments as $slot => $assignment) {
             foreach ($assignment['targets'] as $learnerId) {
                 $this->addProgress($assignment, $learnerId, $standing[$learnerId], $slot === 0);
@@ -230,16 +305,17 @@ class DemoSeeder extends Seeder
     /**
      * Slot 0 is a group-wide question set of the group's topic, due in the
      * past, so every member has an overdue candidate and a scored item. Slot 1
-     * is due in the future. The last two slots target a few members only.
+     * is due in the future. The last $subsetCount slots target a few members only.
+     * Without a count, 5 to 12 assignments.
      *
      * @param  list<int>  $educatorIds
      * @param  list<int>  $members
      * @param  Collection<int, ContentItem>  $content
      * @return list<array{id: int, type: ContentType, due_at: CarbonImmutable, created_at: CarbonImmutable, targets: list<int>}>
      */
-    private function seedAssignments(Group $group, string $timezone, string $topic, array $educatorIds, array $members, Collection $content): array
+    private function seedAssignments(Group $group, string $timezone, string $topic, array $educatorIds, array $members, Collection $content, ?int $count = null, int $subsetCount = 2): array
     {
-        $count = fake()->numberBetween(5, 12);
+        $count ??= fake()->numberBetween(5, 12);
         $ofTopic = $content->where('topic', $topic);
         $first = fake()->randomElement($ofTopic->where('type', ContentType::QuestionSet)->all());
 
@@ -260,7 +336,7 @@ class DemoSeeder extends Seeder
             };
             $dueAt = $today->addDays($days)->setTime(23, 59, 59)->utc();
             $createdAt = $dueAt->subDays(21)->min($this->now->subDay());
-            $isSubset = $slot >= $count - 2;
+            $isSubset = $slot >= $count - $subsetCount;
             $targets = $isSubset ? fake()->randomElements($members, fake()->numberBetween(3, 8)) : $members;
 
             $assignment = Assignment::query()->forceCreate([
