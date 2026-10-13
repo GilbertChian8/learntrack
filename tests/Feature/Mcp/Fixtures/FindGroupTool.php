@@ -26,9 +26,4 @@ class FindGroupTool extends BaseTool
 
         return ['group' => ['id' => $group->id, 'name' => $group->name]];
     }
-
-    protected function summary(array $answer, Request $request): string
-    {
-        return "Found {$answer['group']['name']}.";
-    }
 }

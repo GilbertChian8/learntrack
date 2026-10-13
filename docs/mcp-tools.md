@@ -4,7 +4,7 @@
 
 **TDD:** [tdd.md](tdd.md) (MCP tools). **REST and GraphQL:** [api-contract.md](api-contract.md). The reason objects and the rounding rules are defined there (sections 5 and 6) and reused here unchanged.
 
-This file is the exact contract of the EducatorServer: names, descriptions, annotations, input schemas, output fields, text summaries and error messages. The code must match this file; if the code has to differ, this file changes in the same pull request.
+This file is the exact contract of the EducatorServer: names, descriptions, annotations, input schemas, output fields and error messages. The code must match this file; if the code has to differ, this file changes in the same pull request.
 
 ## 1. Server
 
@@ -26,12 +26,12 @@ Server instructions (the `instructions` text the client receives on initialize):
 ## 2. Conventions
 
 - **Names** are snake_case, exactly as listed. Set them with the tool's `$name` property (or the Name attribute), never from the class name.
-- **Result shape.** Every successful call returns structured content (the object described under Output) and one text content item (the summary described under Text). The output schema published in `tools/list` describes the structured content. Both are built from the same PHP array, so they never disagree.
+- **Result shape.** Every successful call returns structured content (the object described under Output) plus one text item holding the same object as JSON (MCP spec), because clients such as Claude Desktop give the model the text content only. The text must carry every id and value a later call needs. The output schema published in `tools/list` describes the structured content. Both come from the same PHP array (laravel/mcp's `Response::structured`), so they never disagree.
 - **Errors** are tool errors (`isError: true`) with one text item holding the exact message listed under Errors. They are not JSON-RPC protocol errors. Input that fails the schema is a tool error too, and nothing is read or written. laravel/mcp does not check input against the schema, so each tool checks its arguments with Laravel validation rules that mirror the schema and answers with Laravel's message (for example `The group id field is required.`). An argument the schema does not name is refused with `The argument "learnerIds" is not in the input schema.`, so a misspelt name never widens a write.
 - **Not found.** A group, learner, assignment or content item that does not exist, or that the educator may not see, gets the same message (ADR-006): `Group not found.`, `Learner not found.`, `Assignment not found.`, `Content item not found.` (the shared exception's message, the same in every interface).
 - **Dates.** Every date-time in an answer is ISO 8601 with the institution's offset, for example `2026-10-16T23:59:59+02:00`. A `due_date` input accepts `YYYY-MM-DD` (23:59:59 on that day in the institution's time zone) or an RFC 3339 date-time with an offset, for example `2026-10-16T18:00:00+02:00`; a fraction of a second is dropped. It must be in the future.
-- **Learners** appear as `{ "id": 101, "name": "Sara Lindqvist" }` and nothing else. No tool has an email field, and no text summary contains an email address. A test asserts both over every tool.
-- **Numbers.** `average_score` is rounded to 1 decimal and `null` when there is nothing to average. `completion_rate` is a fraction from 0 to 1 rounded to 2 decimals. Text summaries write rates as whole percentages (`29%`).
+- **Learners** appear as `{ "id": 101, "name": "Sara Lindqvist" }` and nothing else. No tool has an email field, so neither the structured content nor its JSON text holds an email address. A test asserts both over every tool.
+- **Numbers.** `average_score` is rounded to 1 decimal and `null` when there is nothing to average. `completion_rate` is a fraction from 0 to 1 rounded to 2 decimals. Reason texts write rates as whole percentages (`29%`).
 - **Annotations.** Read tools carry `readOnlyHint: true` and `idempotentHint: true`. Write tools carry `readOnlyHint: false`, `destructiveHint: false` and `idempotentHint: true`. `destructiveHint` must be set to false explicitly, because the protocol's default is true.
 - **Ordering** is stated per tool and is deterministic, so a repeated call gives the same answer in the same order.
 - **Actor.** No tool takes a user to act as. The educator is the owner of the bearer token.
@@ -87,7 +87,7 @@ Shared objects used below:
 
 ## 3. Read tools
 
-In the texts below, a count of 1 takes the singular: `You teach 1 group: Cardiology Group A (1 learner, 1 assignment).`, `1 of 42 learners in Cardiology Group A is behind.`, `1 of 1 learner completed it (100%)`.
+In the reason texts below, a count of 1 takes the singular: `1 of 1 learner completed it (100%)`.
 
 ### list_my_groups
 
@@ -129,8 +129,6 @@ Example:
   ]
 }
 ```
-
-Text: `You teach 2 groups: Cardiology Group A (42 learners, 9 assignments); Cardiology Group B (38 learners, 7 assignments).` With no groups: `You teach no groups yet.`
 
 Errors: none.
 
@@ -200,8 +198,6 @@ Example (shortened):
 }
 ```
 
-Text: `Cardiology Group A: 42 learners, 9 active assignments, 5 learners behind. Completion across assignments: 78%.` The last number is total completed over total targeted, as a whole percentage.
-
 Errors: `Group not found.`
 
 ### find_learners_behind
@@ -257,8 +253,6 @@ Example:
   ]
 }
 ```
-
-Text: `2 of 42 learners in Cardiology Group A are behind. Sara Lindqvist: Average question set score 42.5 is below 50 (scores: 40, 45). Tom Becker: Overdue: ECG Basics, due 2026-10-02, 7 days overdue.` One sentence per learner, reasons joined with `; `. With nobody behind: `Nobody in Cardiology Group A is behind (42 learners).`
 
 Errors: `Group not found.`
 
@@ -341,10 +335,6 @@ Example (several matches):
 }
 ```
 
-Text, one match: `Sara Lindqvist is in 1 of your groups. Cardiology Group A: behind (Average question set score 42.5 is below 50 (scores: 40, 45)); 6 completed, 1 in progress, 2 not started, 0 overdue.` One sentence per group; `on track` replaces `behind (...)` when not behind. Several reasons are joined with `; `, as in find_learners_behind.
-
-Text, several matches: `2 learners match "Sara": Sara Lindqvist (Cardiology Group A), Sara Okafor (Cardiology Group B). Ask which one is meant, then call again with the learner_id.` A learner in several of your groups lists them all: `Sara Lindqvist (Cardiology Group A, Cardiology Group B)`.
-
 Errors: `Learner not found.` (no match by name, or an id that is not in any of the educator's groups). `Give a learner_id or a name.` (neither given).
 
 ### find_hardest_assignments
@@ -394,13 +384,11 @@ Example:
 }
 ```
 
-Text: `Hardest assignments in Cardiology Group A: 1. Arrhythmia Question Set: 12 of 42 learners completed it (29%), average score 48. 2. ECG Basics: 39 of 42 learners completed it (93%).` With no active assignment that targets a learner (none at all, or all of them target nobody): `Cardiology Group A has no active assignments that target a learner.`
-
 Errors: `Group not found.`
 
 ## 4. Write tools
 
-Both write tools return `changed` and a `message` that says exactly what happened. The text summary is the `message`. The client shows the educator an approval dialog before calling a write tool; the annotations tell it the call is not destructive and is safe to repeat.
+Both write tools return `changed` and a `message` that says exactly what happened. The client shows the educator an approval dialog before calling a write tool; the annotations tell it the call is not destructive and is safe to repeat.
 
 ### assign_content
 
@@ -446,7 +434,7 @@ Output:
 | `added` | array of learner | Learners targeted for the first time by this call |
 | `already_had_it` | array of learner | Learners named in `learner_ids` (or every member, when no ids were given) who were already targeted |
 | `candidates` | array of object | Empty unless `result` is `candidates`. Each: `id`, `title`, `topic`, `type` |
-| `message` | string | What happened, in one or two sentences. Also the text summary |
+| `message` | string | What happened, in one or two sentences |
 
 `added`, `already_had_it` and the assignment's `learners` are ordered by name, then id. `candidates` are ordered by title, then id.
 
@@ -529,7 +517,7 @@ Output:
 | `assignment` | assignment | With the new `due_at` |
 | `previous_due_at` | string | |
 | `due_at` | string | The due date after the call |
-| `message` | string | Also the text summary |
+| `message` | string | What happened, in one or two sentences |
 
 | Case | `changed` | `message` |
 |---|---|---|
@@ -558,7 +546,8 @@ Errors (nothing is written):
 
 - `tools/list` returns exactly the seven names above, each with the annotations in section 2 and an output schema.
 - One test per tool with another educator's group, learner or assignment: the not-found message, nothing else.
-- One privacy test over every tool: no key named `email` anywhere in the structured content, and no `@` in the text summary.
+- Every tool's text content decodes to exactly its structured content.
+- One privacy test over every tool: no key named `email` anywhere in the structured content or its JSON text, and no `@` in the text.
 - `get_learner_summary` with an ambiguous name returns candidates and `learner: null`.
 - `assign_content` with an ambiguous title returns candidates and writes nothing; called twice with the same input, the second answer has `changed: false` and one audit row exists.
 - `change_due_date` with the same date answers `changed: false` and writes no audit row.

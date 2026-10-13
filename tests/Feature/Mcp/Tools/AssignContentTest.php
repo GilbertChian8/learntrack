@@ -81,7 +81,6 @@ test('a new assignment for the whole group answers created, lists every member a
     $message = 'Assigned Heart Failure Question Set to Cardiology Group A, due 2026-10-16T23:59:59+02:00, for all 3 learners.';
 
     $response->assertJsonPath('result.isError', false)
-        ->assertJsonPath('result.content', [['type' => 'text', 'text' => $message]])
         ->assertJsonPath('result.structuredContent', [
             'changed' => true,
             'result' => 'created',
@@ -92,7 +91,8 @@ test('a new assignment for the whole group answers created, lists every member a
             'message' => $message,
         ]);
 
-    expect($assignment->content_item_id)->toBe($heartFailure->id)
+    expect(textAsJson($response->json('result')))->toBe($response->json('result.structuredContent'))
+        ->and($assignment->content_item_id)->toBe($heartFailure->id)
         ->and($audit->channel)->toBe(AuditChannel::Mcp)
         ->and($audit->action)->toBe(AuditAction::AssignmentCreated)
         ->and($audit->actor_id)->toBe($educator->id)
@@ -119,7 +119,6 @@ test('the same call again answers unchanged, and there is still one assignment a
 
     callTool('assign_content', $arguments)
         ->assertJsonPath('result.isError', false)
-        ->assertJsonPath('result.content', [['type' => 'text', 'text' => $message]])
         ->assertJsonPath('result.structuredContent', [
             'changed' => false,
             'result' => 'unchanged',
@@ -140,14 +139,13 @@ test('learner_ids create a learners assignment; one more id adds only that learn
 
     $created = 'Assigned Heart Failure Question Set to Cardiology Group A, due 2026-10-16T23:59:59+02:00, for 2 learners: Sara Lindqvist, Tom Becker.';
     callTool('assign_content', ['group_id' => $group->id, 'content_item_id' => $content->id, 'due_date' => '2026-10-16', 'learner_ids' => [$tom->id, $sara->id]])
-        ->assertJsonPath('result.content', [['type' => 'text', 'text' => $created]])
+        ->assertJsonPath('result.structuredContent.message', $created)
         ->assertJsonPath('result.structuredContent.result', 'created')
         ->assertJsonPath('result.structuredContent.assignment.scope', 'learners')
         ->assertJsonPath('result.structuredContent.added', [learnerItem($sara), learnerItem($tom)]);
 
     $added = 'Heart Failure Question Set was already assigned in Cardiology Group A, due 2026-10-16T23:59:59+02:00. Added 1 learner: Priya Nair. 2 learners already had it: Sara Lindqvist, Tom Becker.';
     callTool('assign_content', ['group_id' => $group->id, 'content_item_id' => $content->id, 'due_date' => '2026-10-16', 'learner_ids' => [$tom->id, $sara->id, $priya->id]])
-        ->assertJsonPath('result.content', [['type' => 'text', 'text' => $added]])
         ->assertJsonPath('result.structuredContent', [
             'changed' => true,
             'result' => 'learners_added',
@@ -172,7 +170,7 @@ test('when none of the named learners had it, the message leaves out the already
     callTool('assign_content', ['group_id' => $group->id, 'content_item_id' => $content->id, 'due_date' => '2026-10-16', 'learner_ids' => [$sara->id]]);
 
     callTool('assign_content', ['group_id' => $group->id, 'content_item_id' => $content->id, 'due_date' => '2026-10-16', 'learner_ids' => [$priya->id]])
-        ->assertJsonPath('result.content.0.text', 'Heart Failure Question Set was already assigned in Cardiology Group A, due 2026-10-16T23:59:59+02:00. Added 1 learner: Priya Nair.')
+        ->assertJsonPath('result.structuredContent.message', 'Heart Failure Question Set was already assigned in Cardiology Group A, due 2026-10-16T23:59:59+02:00. Added 1 learner: Priya Nair.')
         ->assertJsonPath('result.structuredContent.result', 'learners_added')
         ->assertJsonPath('result.structuredContent.added', [learnerItem($priya)])
         ->assertJsonPath('result.structuredContent.already_had_it', []);
@@ -185,7 +183,7 @@ test('the same learner_ids again answer unchanged with the named-learners messag
     callTool('assign_content', $arguments);
 
     callTool('assign_content', $arguments)
-        ->assertJsonPath('result.content.0.text', 'Heart Failure Question Set is already assigned to Cardiology Group A, due 2026-10-16T23:59:59+02:00, and every learner you named already has it. Nothing changed.')
+        ->assertJsonPath('result.structuredContent.message', 'Heart Failure Question Set is already assigned to Cardiology Group A, due 2026-10-16T23:59:59+02:00, and every learner you named already has it. Nothing changed.')
         ->assertJsonPath('result.structuredContent.changed', false)
         ->assertJsonPath('result.structuredContent.result', 'unchanged')
         ->assertJsonPath('result.structuredContent.added', [])
@@ -204,7 +202,6 @@ test('no learner_ids widen a learners assignment to the whole group', function (
     callTool('assign_content', ['group_id' => $group->id, 'content_item_id' => $content->id, 'due_date' => '2026-10-16', 'learner_ids' => $learnerIds]);
 
     callTool('assign_content', ['group_id' => $group->id, 'content_item_id' => $content->id, 'due_date' => '2026-10-16'])
-        ->assertJsonPath('result.content.0.text', $message)
         ->assertJsonPath('result.structuredContent.changed', true)
         ->assertJsonPath('result.structuredContent.result', 'learners_added')
         ->assertJsonPath('result.structuredContent.assignment.scope', 'group')
@@ -231,7 +228,6 @@ test('another due date for assigned content answers already_assigned with the ex
 
     callTool('assign_content', ['group_id' => $group->id, 'content_item_id' => $content->id, 'due_date' => '2026-10-23'])
         ->assertJsonPath('result.isError', false)
-        ->assertJsonPath('result.content', [['type' => 'text', 'text' => $message]])
         ->assertJsonPath('result.structuredContent', [
             'changed' => false,
             'result' => 'already_assigned',
@@ -258,7 +254,6 @@ test('a content_title matching several items answers the candidates and writes n
 
     callTool('assign_content', ['group_id' => $group->id, 'content_title' => 'heart', 'due_date' => '2026-10-16'])
         ->assertJsonPath('result.isError', false)
-        ->assertJsonPath('result.content', [['type' => 'text', 'text' => $message]])
         ->assertJsonPath('result.structuredContent', [
             'changed' => false,
             'result' => 'candidates',

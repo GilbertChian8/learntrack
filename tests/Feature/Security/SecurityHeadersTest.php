@@ -10,6 +10,7 @@ use Illuminate\Testing\TestResponse;
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 use function Pest\Laravel\getJson;
+use function Pest\Laravel\post;
 use function Pest\Laravel\postJson;
 use function Pest\Laravel\withHeaders;
 
@@ -21,6 +22,15 @@ $pages = [
         return actingAs(User::factory()->educator()->create())->get('/oauth/authorize?'.http_build_query($query))->assertOk();
     },
     'the message page' => fn (): TestResponse => actingAs(User::factory()->educator()->create())->get('/')->assertOk(),
+    'the message page for an answered consent' => function (): TestResponse {
+        $query = authorizationQuery(registerOAuthClient(), Str::random(64));
+        $consent = actingAs(User::factory()->educator()->create())->get('/oauth/authorize?'.http_build_query($query));
+        $form = ['auth_token' => $consent->inertiaProps('authToken'), 'state' => $query['state']];
+
+        post('/oauth/authorize', $form)->assertRedirect();
+
+        return post('/oauth/authorize', $form)->assertForbidden();
+    },
 ];
 
 $otherResponses = [

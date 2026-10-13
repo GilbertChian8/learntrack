@@ -388,7 +388,7 @@ The resolver calls GroupProgress, which looks the group up through the educator'
 |---|---|
 | GET /login, POST /login | The login page. Email and password, web session in the database. Educators and learners can log in; the consent step below is for educators only |
 | POST /logout | Ends the web session |
-| GET /oauth/authorize | Passport shows the consent page (an Inertia page, styled for LearnTrack): the client's name and what it will be able to do: read progress of your groups, assign content, change due dates. A learner sees a message that only educators can connect an AI assistant, and no code is issued |
+| GET /oauth/authorize | Passport shows the consent page (an Inertia page, styled for LearnTrack): the client's name and what it will be able to do: read progress of your groups, assign content, change due dates. A learner sees a message that only educators can connect an AI assistant, and no code is issued. The Approve and Deny buttons answer once: the first click disables both, and a request already answered, or replaced by a newer one in the same session, shows the message page (403), never Passport's error text |
 | POST /oauth/authorize, DELETE /oauth/authorize | Approve or deny |
 | POST /oauth/token | Authorization code with PKCE, and refresh |
 | POST /oauth/register | Dynamic client registration. Claude registers itself here before the first login |
@@ -401,7 +401,7 @@ Token lifetimes: MCP access tokens 1 hour, refresh tokens 30 days (Claude refres
 
 ## MCP tools
 
-Server: EducatorServer at /mcp. Seven tools. Every tool returns structured content (parseable JSON, with an output schema) plus a short text summary, and every answer carries the reason or the numbers behind it (requirement 8). Learners appear as id and name only (requirement 9). A group, learner or assignment outside the educator's scope is "not found" (ADR-006). The exact schemas are in [mcp-tools.md](mcp-tools.md).
+Server: EducatorServer at /mcp. Seven tools. Every tool returns structured content (parseable JSON, with an output schema) plus one text item holding the same object as JSON (MCP spec), because clients such as Claude Desktop give the model the text content only; every answer carries the reason or the numbers behind it (requirement 8). Learners appear as id and name only (requirement 9). A group, learner or assignment outside the educator's scope is "not found" (ADR-006). The exact schemas are in [mcp-tools.md](mcp-tools.md).
 
 | Tool | Input | Output | Annotations |
 |---|---|---|---|
@@ -418,7 +418,7 @@ Rules for the tools:
 - A tool never takes a user id to act as: the educator is the token's owner.
 - Every write runs through the same action class as REST, inside one transaction with its audit row (channel mcp), and the answer lists what changed.
 - Claude asks the educator to approve a write before calling it. The annotations tell the client the write is not destructive and is safe to repeat, which is what makes the approval dialog honest.
-- The text summary never includes an email address, and the structured content has no email field. A test asserts both.
+- The structured content has no email field, so its JSON text holds no email address either. A test asserts both.
 - Dates in answers carry the institution's offset, so "due Friday" reads as Friday.
 
 ## Rate limits
@@ -453,7 +453,7 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 2\. **Data model, migrations and seed (2 days)** [ADR-007, ADR-008]
 
 - Migrations for every table in Database Design, with the unique keys and the CHECK constraints.
-- Seed: 2 institutions, 6 educators, about 300 learners, 12 groups, 40 content items across 6 topics, assignments with past and future due dates, subset assignments, and progress that leaves some learners behind by overdue work and some by low scores. A fixed random seed, so every machine gets the same names, memberships, assignments and scores; due dates are relative to the seeding day so the demo always has overdue and upcoming work.
+- Seed: 2 institutions, 6 educators, about 300 learners, 12 groups, 40 content items across 6 topics, assignments with past and future due dates, subset assignments, and progress that leaves some learners behind by overdue work and some by low scores. Then one full-size group, the largest group the performance targets name: 60 new learners, 100 group-wide assignments (60 more content items) and its own educator, for the load check of item 15. A fixed random seed, so every machine gets the same names, memberships, assignments and scores; due dates are relative to the seeding day so the demo always has overdue and upcoming work.
 - Factories for tests.
 
 3\. **Authentication, roles and Policies (2 days)** [ADR-003, ADR-006]
@@ -607,7 +607,7 @@ Numbered work items with an estimate in days, none over 3 days. Items 1 to 5 are
 - **Unit tests for BehindRule and the status derivation**, with a fixed clock: not started, in progress, completed, overdue; behind by overdue; behind by average below 50; exactly 50 is not behind; the average covers completed question sets only; an article never carries a score; a subset assignment counts only for its learners; a late completion is completed, not overdue.
 - **Feature tests per REST endpoint**: the happy path, validation (422), the 404 rule with another educator's group on every route, the role rule (a learner on an educator route gets 403), and the repeat rules: the same assign twice gives one row; a different due date answers 409 with no change; the same PUT progress twice gives one row and changed: false; a backward status answers 409; completed with a different score answers 409.
 - **Action tests** for the audit log: every change writes exactly one row with the right action and channel, and a failed write leaves no row.
-- **MCP tool tests** call `POST /mcp` acting as an educator (`callTool` in tests/Pest.php), so they can assert the exact text and the whole structured content (the laravel/mcp test helpers only check that a text contains a string): one test per tool for a group outside their scope (not found); one privacy test over every tool that asserts no email key and no email string in the whole answer; the content title candidates case; the learner name candidates case; a repeated write answers changed: false.
+- **MCP tool tests** call `POST /mcp` acting as an educator (`callTool` in tests/Pest.php), so they can assert the whole structured content, and that the text content decodes to exactly the structured content (the laravel/mcp test helpers only check that a text contains a string): one test per tool for a group outside their scope (not found); one privacy test over every tool that asserts no email key and no email string in the whole answer; the content title candidates case; the learner name candidates case; a repeated write answers changed: false.
 - **GraphQL tests**: the full groupProgress on a seeded group, the not-found answer for a foreign group, and a comparison test that asserts GraphQL and get_group_progress report the same statuses, behind flags and reasons for the same group.
 - **Query-count tests**: seed a group with 60 learners and 100 assignments, run groupProgress and every MCP read tool, assert the exact query count; double the learners and the assignments and assert the same count.
 - **Timing check**: time the pair query at full size locally (expected tens of milliseconds); the real p95 is measured in AWS in item 15 against the 300 ms and 1 s targets.

@@ -82,9 +82,4 @@ class ChangeDueDate extends BaseTool
                 : "{$title} in {$group} is already due {$due}. Nothing changed.",
         ];
     }
-
-    protected function summary(array $answer, Request $request): string
-    {
-        return $answer['message'];
-    }
 }

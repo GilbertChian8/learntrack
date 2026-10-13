@@ -13,7 +13,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tool;
 
 /**
- * One array is the structured content and the source of the text summary. Not found is a tool error.
+ * One array is the structured content, and its JSON is the text content (MCP spec): some clients give the model only the text. Not found is a tool error.
  */
 abstract class BaseTool extends Tool
 {
@@ -30,7 +30,7 @@ abstract class BaseTool extends Tool
             return Response::error($exception->getMessage());
         }
 
-        return Response::make(Response::text($this->summary($answer, $request)))->withStructuredContent($answer);
+        return Response::structured($answer);
     }
 
     /**
@@ -48,13 +48,6 @@ abstract class BaseTool extends Tool
      * @return array<string, mixed>
      */
     abstract protected function answer(Request $request): array;
-
-    /**
-     * The text, built from the answer and the request, nothing else.
-     *
-     * @param  array<string, mixed>  $answer
-     */
-    abstract protected function summary(array $answer, Request $request): string;
 
     /**
      * An argument the input schema does not name is an error, not ignored.

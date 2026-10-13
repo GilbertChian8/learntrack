@@ -13,19 +13,22 @@ test('migrate:fresh --seed produces the demo data', function () {
     artisan('migrate:fresh', ['--seed' => true])->assertSuccessful();
 
     expect(DB::table('institutions')->count())->toBe(2)
-        ->and(DB::table('users')->where('role', 'educator')->count())->toBe(6)
+        ->and(DB::table('users')->where('role', 'educator')->count())->toBe(7)
         ->and(DB::table('users')->where('role', 'learner')->count())->toBeGreaterThanOrEqual(250)
-        ->and(DB::table('learner_groups')->count())->toBe(12)
-        ->and(DB::table('content_items')->count())->toBe(40)
+        ->and(DB::table('learner_groups')->count())->toBe(13)
+        ->and(DB::table('content_items')->count())->toBe(100)
         ->and(DB::table('content_items')->distinct()->count('topic'))->toBe(6);
 
     $groups = DB::table('learner_groups')
+        ->where('name', '!=', 'Full Size Group')
         ->select('id')
         ->selectSub(fn ($query) => $query->from('group_educators')->selectRaw('count(*)')->whereColumn('group_id', 'learner_groups.id'), 'educators')
         ->selectSub(fn ($query) => $query->from('group_learners')->selectRaw('count(*)')->whereColumn('group_id', 'learner_groups.id'), 'learners')
         ->selectSub(fn ($query) => $query->from('assignments')->selectRaw('count(*)')->whereColumn('group_id', 'learner_groups.id')->whereNull('removed_at'), 'active_assignments')
         ->selectSub(fn ($query) => $query->from('assignments')->selectRaw('count(*)')->whereColumn('group_id', 'learner_groups.id')->whereNull('removed_at')->where('scope', 'learners'), 'subset_assignments')
         ->get();
+
+    expect($groups)->toHaveCount(12);
 
     foreach ($groups as $group) {
         expect($group->educators)->toBeGreaterThanOrEqual(1)
@@ -36,7 +39,7 @@ test('migrate:fresh --seed produces the demo data', function () {
 
     $standing = collect(learnerStanding())->groupBy('group_id');
 
-    expect($standing)->toHaveCount(12);
+    expect($standing)->toHaveCount(13);
 
     foreach ($standing as $groupId => $learners) {
         $behindByOverdue = $learners->filter(fn (object $row) => $row->overdue > 0);
@@ -60,6 +63,89 @@ test('migrate:fresh --seed produces the demo data', function () {
             ->where('group_educators.user_id', $anna->id)
             ->where('learner_groups.name', 'Cardiology Group A')
             ->exists())->toBeTrue();
+});
+
+test('the full-size group comes last and leaves the demo groups as they were', function () {
+    artisan('migrate:fresh', ['--seed' => true])->assertSuccessful();
+
+    $standing = collect(learnerStanding())->groupBy('group_id');
+    $overdue = fn (object $row): bool => $row->overdue > 0;
+    $low = fn (object $row): bool => $row->average_score !== null && (float) $row->average_score < 50;
+
+    $layout = DB::table('learner_groups')->orderBy('id')->get(['id', 'name'])
+        ->mapWithKeys(function (object $group) use ($standing, $overdue, $low): array {
+            $learners = $standing->get($group->id, collect());
+
+            return [$group->name => [
+                DB::table('group_learners')->where('group_id', $group->id)->count(),
+                DB::table('assignments')->where('group_id', $group->id)->whereNull('removed_at')->count(),
+                $learners->filter(fn (object $row) => $overdue($row) || $low($row))->count(),
+                $learners->filter(fn (object $row) => $overdue($row) && ! $low($row))->count(),
+                $learners->filter(fn (object $row) => $low($row) && ! $overdue($row))->count(),
+                $learners->filter(fn (object $row) => $overdue($row) && $low($row))->count(),
+            ]];
+        })
+        ->all();
+
+    // Learners, assignments, then the README table: behind, overdue only, low average only, both.
+    expect($layout)->toBe([
+        'Cardiology Group A' => [43, 6, 20, 10, 8, 2],
+        'Cardiology Group B' => [26, 6, 10, 7, 3, 0],
+        'Pulmonology Group A' => [39, 10, 13, 6, 7, 0],
+        'Nephrology Group A' => [20, 7, 10, 6, 3, 1],
+        'Neurology Group A' => [50, 5, 30, 19, 10, 1],
+        'Pediatrics Group A' => [55, 8, 28, 14, 11, 3],
+        'Endocrinology Group A' => [45, 7, 24, 10, 12, 2],
+        'Cardiology Group C' => [58, 8, 27, 15, 7, 5],
+        'Pulmonology Group B' => [56, 7, 27, 12, 13, 2],
+        'Nephrology Group B' => [48, 7, 23, 14, 6, 3],
+        'Neurology Group B' => [29, 11, 14, 8, 5, 1],
+        'Pediatrics Group B' => [50, 12, 19, 14, 1, 4],
+        'Full Size Group' => [60, 100, 8, 4, 3, 1],
+    ]);
+});
+
+test('the full-size group has 6,000 pairs, new learners, its own educator and a few learners behind', function () {
+    artisan('migrate:fresh', ['--seed' => true])->assertSuccessful();
+
+    $group = DB::table('learner_groups')
+        ->join('institutions', 'institutions.id', '=', 'learner_groups.institution_id')
+        ->where('learner_groups.name', 'Full Size Group')
+        ->sole(['learner_groups.id', 'institutions.name as institution']);
+    $educator = DB::table('users')->where('email', 'full.size.educator@example.edu')->sole(['id', 'role']);
+    $assignments = DB::table('assignments')->where('group_id', $group->id)->whereNull('removed_at');
+    $pairs = DB::select(
+        "select a.group_id, count(*) as pairs
+           from assignments a
+           join group_learners gl on gl.group_id = a.group_id
+          where a.removed_at is null
+            and (a.scope = 'group' or exists (
+                select 1 from assignment_learners al where al.assignment_id = a.id and al.user_id = gl.user_id))
+          group by a.group_id
+          order by pairs desc",
+    );
+    $learnersInOtherGroups = DB::table('group_learners as mine')
+        ->join('group_learners as other', 'other.user_id', '=', 'mine.user_id')
+        ->where('mine.group_id', $group->id)
+        ->where('other.group_id', '!=', $group->id)
+        ->count();
+    $standing = collect(learnerStanding())->where('group_id', $group->id);
+    $behindByOverdue = $standing->filter(fn (object $row) => $row->overdue > 0);
+    $behindByScore = $standing->filter(fn (object $row) => $row->average_score !== null && (float) $row->average_score < 50);
+
+    expect($group->institution)->toBe('Riverside College of Medicine')
+        ->and($educator->role)->toBe('educator')
+        ->and(DB::table('group_educators')->where('group_id', $group->id)->pluck('user_id')->all())->toBe([$educator->id])
+        ->and(DB::table('group_educators')->where('user_id', $educator->id)->count())->toBe(1)
+        ->and((clone $assignments)->where('scope', 'group')->count())->toBe(100)
+        ->and((clone $assignments)->distinct()->count('content_item_id'))->toBe(100)
+        ->and($pairs[0]->group_id)->toBe($group->id)
+        ->and((int) $pairs[0]->pairs)->toBe(6000)
+        ->and($learnersInOtherGroups)->toBe(0)
+        ->and($standing)->toHaveCount(60)
+        ->and($behindByOverdue)->toHaveCount(5)
+        ->and($behindByScore)->toHaveCount(4)
+        ->and($behindByOverdue->keys()->merge($behindByScore->keys())->unique())->toHaveCount(8);
 });
 
 test('the demo seed is deterministic', function () {

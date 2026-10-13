@@ -33,7 +33,7 @@ test('no tool answer on the seeded data has an email key or an @ in its text', f
     foreach ($results as $result) {
         expect($result['isError'])->toBeFalse()
             ->and(keysNamed('email', $result['structuredContent']))->toBe([])
-            ->and($result['content'])->toHaveCount(1)
+            ->and(keysNamed('email', textAsJson($result)))->toBe([])
             ->and($result['content'][0]['text'])->not->toContain('@');
     }
 });
