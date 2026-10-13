@@ -24,6 +24,19 @@ locals {
       threshold   = floor(var.db_max_connections * 0.8)
     }
   }
+
+  housekeeping_stopped = {
+    clusterArn        = [aws_ecs_cluster.main.arn]
+    taskDefinitionArn = [{ prefix = "${aws_ecs_task_definition.housekeeping.arn_without_revision}:" }]
+    lastStatus        = ["STOPPED"]
+  }
+
+  housekeeping_event_paths = {
+    stop_code  = "$.detail.stopCode"
+    reason     = "$.detail.stoppedReason"
+    stopped_at = "$.detail.stoppedAt"
+    task       = "$.detail.taskArn"
+  }
 }
 
 resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
@@ -143,26 +156,60 @@ resource "aws_cloudwatch_metric_alarm" "rds" {
 
 resource "aws_cloudwatch_event_rule" "housekeeping_failed" {
   name        = "${local.name}-housekeeping-failed"
-  description = "A housekeeping task stopped with a non-zero exit code or failed to start."
+  description = "A housekeeping task stopped with a non-zero exit code."
 
   event_pattern = jsonencode({
     source      = ["aws.ecs"]
     detail-type = ["ECS Task State Change"]
-    detail = {
-      clusterArn        = [aws_ecs_cluster.main.arn]
-      taskDefinitionArn = [{ prefix = "${aws_ecs_task_definition.housekeeping.arn_without_revision}:" }]
-      lastStatus        = ["STOPPED"]
-      "$or" = [
-        { containers = { exitCode = [{ anything-but = 0 }] } },
-        { stopCode = ["TaskFailedToStart"] },
-      ]
-    }
+    detail      = merge(local.housekeeping_stopped, { containers = { exitCode = [{ anything-but = 0 }] } })
   })
 }
 
 resource "aws_cloudwatch_event_target" "housekeeping_failed" {
   rule = aws_cloudwatch_event_rule.housekeeping_failed.name
   arn  = data.aws_sns_topic.alarms.arn
+
+  # A string template must be quoted, so the email is this text, not the event JSON.
+  input_transformer {
+    input_paths = merge(local.housekeeping_event_paths, { exit_code = "$.detail.containers[0].exitCode" })
+    input_template = format("\"%s\"", join(" ", [
+      "${local.name} housekeeping failed.",
+      "Stop code: <stop_code>.",
+      "Exit code: <exit_code>.",
+      "Reason: <reason>.",
+      "Stopped at: <stopped_at>.",
+      "Task: <task>.",
+      "Logs: ${aws_cloudwatch_log_group.app.name}, stream housekeeping/housekeeping/ plus the task id at the end of the task ARN.",
+    ]))
+  }
+}
+
+# A task that never started has no exit code, so it gets its own text.
+resource "aws_cloudwatch_event_rule" "housekeeping_failed_to_start" {
+  name        = "${local.name}-housekeeping-failed-to-start"
+  description = "A housekeeping task failed to start."
+
+  event_pattern = jsonencode({
+    source      = ["aws.ecs"]
+    detail-type = ["ECS Task State Change"]
+    detail      = merge(local.housekeeping_stopped, { stopCode = ["TaskFailedToStart"] })
+  })
+}
+
+resource "aws_cloudwatch_event_target" "housekeeping_failed_to_start" {
+  rule = aws_cloudwatch_event_rule.housekeeping_failed_to_start.name
+  arn  = data.aws_sns_topic.alarms.arn
+
+  input_transformer {
+    input_paths = local.housekeeping_event_paths
+    input_template = format("\"%s\"", join(" ", [
+      "${local.name} housekeeping failed to start.",
+      "Stop code: <stop_code>.",
+      "Reason: <reason>.",
+      "Stopped at: <stopped_at>.",
+      "Task: <task>.",
+    ]))
+  }
 }
 
 resource "aws_cloudwatch_metric_alarm" "housekeeping_not_started" {
