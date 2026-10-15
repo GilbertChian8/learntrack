@@ -1,6 +1,6 @@
 # PAS-001: LearnTrack
 
-**Blueprint: LearnTrack** PAS-001 | Status: Approved | Owner: Gilbert | Updated: 14/10/2026
+**Blueprint: LearnTrack** PAS-001 | Status: Approved | Owner: Gilbert | Updated: 15/10/2026
 
 ## What problem we're solving and why
 
@@ -197,7 +197,9 @@ Only decisions that stakeholders need to see. Implementation-level decisions go 
 
 ### Release 1: Core
 
-Target Date: TBD | Status: Planned | Total Estimate: 34 days
+Released: 13/10/2026 | Status: Done | Total Estimate: 34 days
+
+Results are in the [launch check](launch-check.md). The MCP tools met their target (slowest p95 417 ms). The GraphQL group progress query did not: p95 9,231 ms for the largest group at 10 requests at once, against 300 ms. Its follow-up is recorded in the launch check.
 
 **Scope (feature level):**
 
