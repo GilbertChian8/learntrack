@@ -59,10 +59,12 @@ jobs:
       - name: Scale the service to 0
         working-directory: infra/env
         run: |
-          if ! cluster="$(terraform output -raw cluster 2> /dev/null)"; then
+          resources="$(terraform state list)"
+          if ! grep -qx 'aws_ecs_service.app' <<< "$resources"; then
             echo "No service in the state."
             exit 0
           fi
+          cluster="$(terraform output -raw cluster)"
           service="$(terraform output -raw app_service)"
           aws ecs update-service --cluster "$cluster" --service "$service" --desired-count 0 \
             --query 'service.desiredCount' --output text
