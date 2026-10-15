@@ -100,7 +100,7 @@ terraform plan -var-file=prod.tfvars
 terraform apply -var-file=prod.tfvars
 ```
 
-The pipeline applies on every push to `main` (see Pipeline). A local apply works too, but its task definitions use the image tag `placeholder`, which does not exist: the app starts only after the pipeline registers a revision with a real image.
+The pipeline applies on every push to `main` that changes what runs (see Pipeline). A local apply works too, but its task definitions use the image tag `placeholder`, which does not exist: the app starts only after the pipeline registers a revision with a real image.
 
 The first apply takes about 20 minutes, most of it RDS Multi-AZ. The environment runs in the bootstrap's region: its alarms send to the bootstrap's topic, and an alarm or an EventBridge rule can only send to a topic in its own region. The backend block expects the state bucket in `eu-central-1`. If the bootstrap runs in another region, set the same `region` in both folders and add `-backend-config="region=<region>"`. The workflows always pass the region.
 
@@ -135,7 +135,7 @@ TF_VAR_hosted_zone_id: ${{ vars.HOSTED_ZONE_ID }}
 
 - `ci.yml`, every pull request: the `checks` job (PHP and frontend) and the `terraform` job (`fmt -check` and `validate` in both folders, actionlint on the workflows, shellcheck on `scripts/deploy`).
 - `plan.yml`, pull requests that change `infra/**`: assumes `learntrack-plan`, runs `terraform plan` and posts it as one pull request comment, updated on every push. Pull requests from forks are skipped, because they get no OIDC token.
-- `deploy.yml`, every push to `main`, or by hand from `main`. Never two at once (concurrency group `deploy`, shared with destroy):
+- `deploy.yml`, every push to `main` except one that changes only `docs/`, the root `*.md` files or `.claude/` (none of them reach the image), or by hand from `main`. Never two at once (concurrency group `deploy`, shared with destroy):
   1. Assume `learntrack-deploy`.
   2. Build the image and push it to ECR as `learntrack-app:<git SHA>`.
   3. `terraform apply` in `infra/env`.
@@ -170,13 +170,15 @@ The deployment circuit breaker rolls back by itself when a new revision fails th
 
 ## Destroy and rebuild
 
-To stop paying for the environment, run `destroy.yml` from `main` (Actions, destroy, Run workflow) and type `destroy`. It scales the service to 0, then runs `terraform destroy`. The bootstrap stays: the state bucket, the roles, the images, the hosted zone and the alarm topic with its confirmed email.
+To stop paying for the environment, run `destroy.yml` from `main` (Actions, destroy, Run workflow) and type `destroy`. It scales the service to 0 when the state has one, then runs `terraform destroy`. The bootstrap stays: the state bucket, the roles, the images, the hosted zone and the alarm topic with its confirmed email.
 
-To rebuild, run `deploy.yml` from `main` (Actions, deploy, Run workflow), or push to `main`. Nothing else is needed. This deploy takes longer than the others, because RDS Multi-AZ takes about 20 minutes to create.
+To rebuild, run `deploy.yml` from `main` (Actions, deploy, Run workflow), or push a change that deploys (see Pipeline). Nothing else is needed. This deploy takes longer than the others, because RDS Multi-AZ takes about 20 minutes to create.
 
 A new environment sends a few alarm emails, the ALB 5xx alarm (`learntrack-prod-alb-5xx`) among them, until its first deploy finishes, because its public load balancer answers internet scanners with 503 before the app exists; the alarms are right.
 
 Deploy and destroy share one concurrency group, and GitHub keeps only one waiting run per group: a newer deploy replaces a destroy that waits behind a running deploy, and the reverse.
+
+A cancelled run can stop `terraform apply` halfway. The state lock stays, and a resource that was still being created exists in AWS but not in the state, so destroy skips it and then fails on the subnets it uses. To recover: `terraform force-unlock <lock ID>` (the ID is in the `.tflock` file next to the state), `terraform import` each missing resource (the run log shows it as "Creating..." with no "Creation complete"), then destroy. So let a deploy finish and destroy afterwards, rather than cancel it.
 
 ## Secrets
 
